@@ -20,8 +20,17 @@ Phase 1: Stream MVP (see DESIGN.md §13). Build only phase 1 features, but keep 
 
 ## Commands
 <!-- Claude: keep this list accurate as scripts are added. -->
-- `docker compose up -d` (Postgres)
-- `pnpm test`, `pnpm demo`, `pnpm match:once`, `pnpm ledger:audit`, `pnpm roster:scan`, `pnpm roster:smoke`
+Planned (Phase 0). None exist yet.
+- `docker compose up -d`: start Postgres
+- `pnpm install`, then `pnpm db:migrate`: install deps and apply Prisma migrations
+- `pnpm test`: all Vitest suites, including ledger/odds property tests (no engine, no network)
+- `pnpm demo`: fake engine, 3 users betting over ≥10 fights with at least one void, then `ledger:audit`
+- `pnpm dev`: orchestrator + API/SSE + dev page (`ENGINE_MODE=fake|live`)
+- `pnpm match:once`: one real `live` fight; needs `IKEMEN_DIR`
+- `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts
+- `pnpm roster:scan`: draft `roster.json` entries from `$IKEMEN_DIR/chars` and `stages`
+- `pnpm roster:smoke`: run each roster entry once in `sim`; disable crashes/hangs
+- `pnpm ikemen:install-mod`: copy `ikemen/mods/salty_events.lua` into `$IKEMEN_DIR/external/mods/`
 
 ## Hard rules
 - **Salt is closed-loop.** No code path may buy, sell, deposit, withdraw or convert Salt. No payment or blockchain code in phase 1.
