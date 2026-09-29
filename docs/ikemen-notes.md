@@ -108,7 +108,7 @@ Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adap
 
 ## 7. Open items
 
-Confirmed by the first real runs (2026-09-29): single-match exit with `-rounds 2`, mod loading via `Lua1`, per-line event output, `-log` format, stdout/stderr contents, and `live` mode end to end (`pnpm match:once`: a real-time 2-0 match in 153 s including start-up, exit code 0).
+Confirmed by the first real runs (2026-09-29): single-match exit with `-rounds 2`, mod loading via `Lua1`, per-line event output, `-log` format, stdout/stderr contents, and `live` mode end to end (`pnpm match:once`: a real-time 2-0 match in 153 s including start-up, exit code 0). The full cycle also ran with the real engine (`ENGINE_MODE=live pnpm dev`): fight #28 was booked, bet on through the API, played in IKEMEN (side 2 won 2-1), settled and rated; Ctrl+C then voided the next fight and the ledger audit passed.
 
 Still open:
 1. Whether commas in `Common.Lua` values are split (our line has none, so it doesn't matter yet).
