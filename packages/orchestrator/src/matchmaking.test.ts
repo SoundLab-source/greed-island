@@ -70,6 +70,18 @@ describe("pickMatch", () => {
     expect(pickMatch([c("a", 1500), c("b", 1500)], [["x", "y"], ["a", "b"]], rng(), { ...DEFAULT_MATCHMAKING, rematchCooldown: 1 })).not.toBeNull();
   });
 
+  it("prefers a same-tier pair that met recently over a cross-tier mismatch, but never an immediate rematch", () => {
+    // Two tiers with two characters each: only two same-tier pairs exist.
+    const pool = [c("a1", 1700, "A"), c("a2", 1690, "A"), c("p1", 1300, "P"), c("p2", 1310, "P")];
+    // a1-a2 met two fights ago (inside the 3-fight window), p1-p2 fought last.
+    const p = pickMatch(pool, [["p1", "p2"], ["a1", "p1"], ["a1", "a2"]], rng(), { ...DEFAULT_MATCHMAKING, rematchCooldown: 3, upsetRate: 0 })!;
+    expect(p.kind).toBe("CLOSE");
+    expect(new Set([p.sides[1].characterId, p.sides[2].characterId])).toEqual(new Set(["a1", "a2"]));
+    // Fresh same-tier pairs still win over recently used ones.
+    const q = pickMatch([...pool, c("a3", 1695, "A", "a3")], [["p1", "p2"], ["a1", "a2"]], rng("fresh"), { ...DEFAULT_MATCHMAKING, rematchCooldown: 3, upsetRate: 0 })!;
+    expect([q.sides[1].characterId, q.sides[2].characterId]).toContain("a3");
+  });
+
   it("falls back across tiers when configured, else returns null", () => {
     const pool = [c("a", 1400, "P"), c("b", 1500, "B"), c("s", 1800, "S")];
     const p = pickMatch(pool, [], rng())!;

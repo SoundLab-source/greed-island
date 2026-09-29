@@ -8,3 +8,5 @@ export * from "./betting.ts";
 export * from "./lock.ts";
 export * from "./reconcile.ts";
 export * from "./orchestrator.ts";
+export * from "./api/server.ts";
+export * from "./api/views.ts";

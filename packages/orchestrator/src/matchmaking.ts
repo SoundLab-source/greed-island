@@ -19,7 +19,12 @@ export interface MatchmakingConfig {
   targetMaxBp: bigint;
   /** Share of fights booked as deliberate upset bouts, 0–1. */
   upsetRate: number;
-  /** A pair can't meet again within this many fights. */
+  /**
+   * Prefer pairs that haven't met within this many fights. The immediately
+   * previous pairing is never repeated (when this is >= 1); older ones inside
+   * the window are only used if a tier has no fresher pair, which keeps small
+   * rosters in same-tier, close fights instead of lopsided cross-tier ones.
+   */
   rematchCooldown: number;
   /**
    * When no tier has a valid pair (e.g. a tiny house roster spread across
@@ -75,20 +80,25 @@ export function pickMatch(
   rng: Rng,
   cfg: MatchmakingConfig = DEFAULT_MATCHMAKING,
 ): Pairing | null {
-  const blocked = new Set(recent.slice(0, cfg.rematchCooldown).map(([a, b]) => pairKey(a, b)));
-  const valid = (a: Candidate, b: Candidate) => a.characterId !== b.characterId && a.fighterId !== b.fighterId && !blocked.has(pairKey(a.characterId, b.characterId));
+  const immediate = cfg.rematchCooldown >= 1 && recent[0] ? pairKey(recent[0][0], recent[0][1]) : null;
+  const cooling = new Set(recent.slice(0, cfg.rematchCooldown).map(([a, b]) => pairKey(a, b)));
   const makePair = (a: Candidate, b: Candidate): Pair => ({ a, b, chanceA: clampChance(modelChanceBp(a.rating, b.rating), DEFAULT_ODDS)[0] });
 
-  const sameTier: Pair[] = [];
-  const crossTier: Pair[] = [];
+  const fresh = { same: [] as Pair[], cross: [] as Pair[] };
+  const cooled = { same: [] as Pair[], cross: [] as Pair[] };
   for (let i = 0; i < candidates.length; i++) {
     for (let j = i + 1; j < candidates.length; j++) {
       const a = candidates[i]!;
       const b = candidates[j]!;
-      if (!valid(a, b)) continue;
-      (a.tier === b.tier ? sameTier : crossTier).push(makePair(a, b));
+      if (a.characterId === b.characterId || a.fighterId === b.fighterId) continue; // no mirror matches
+      const key = pairKey(a.characterId, b.characterId);
+      if (key === immediate) continue; // never an immediate rematch
+      const bucket = cooling.has(key) ? cooled : fresh;
+      (a.tier === b.tier ? bucket.same : bucket.cross).push(makePair(a, b));
     }
   }
+  const sameTier = fresh.same.length > 0 ? fresh.same : cooled.same;
+  const crossTier = fresh.cross.length > 0 ? fresh.cross : cooled.cross;
 
   const distance = (p: Pair) => (p.chanceA > 5_000n ? p.chanceA - 5_000n : 5_000n - p.chanceA);
   const inBand = (p: Pair) => p.chanceA >= cfg.targetMinBp && p.chanceA <= cfg.targetMaxBp;

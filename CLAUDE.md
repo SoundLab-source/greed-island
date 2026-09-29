@@ -36,9 +36,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.
 
 - `pnpm demo`: migrate, sync roster, then 12 fights on the dev DB with the fake engine and 3 demo players betting (one forced crash → void); prints results, ratings, tier changes and the ledger audit; exits non-zero unless ≥10 settle, ≥1 voids and the audit passes
-
-Planned (not built yet):
-- `pnpm dev`: orchestrator + API/SSE + dev page (`ENGINE_MODE=fake|live`)
+- `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + dev page at http://127.0.0.1:3000 (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`). Ctrl+C voids and refunds the fight in progress.
 
 ## Hard rules
 - **Salt is closed-loop.** No code path may buy, sell, deposit, withdraw or convert Salt. No payment or blockchain code in phase 1.

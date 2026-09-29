@@ -120,7 +120,23 @@ interface EventSource {
 
 Engine events (NDJSON, zod-validated): `match_start`, `round_start {round}`, `round_end {round, winnerSide|0, reason: ko|time}`, `match_end {winnerSide|0}`. Parsing `-log` after exit is the fallback if the Lua path fails (see ikemen-notes §2).
 
-## 6. Data model sketch (Prisma)
+## 6. API and live updates
+
+Fastify, same process as the orchestrator (they share the event bus). Salt amounts are integer strings in and out; a JSON number is accepted for a stake only if it's a safe integer. Auth is an anonymous session: `POST /api/session` creates a player (starting balance) and returns a token for `Authorization: Bearer`; only its SHA-256 is stored. Email sign-in needs a mail provider and isn't in phase 1.
+
+| Route | Purpose |
+|---|---|
+| `POST /api/session` | New anonymous player + token |
+| `GET /api/me`, `GET /api/me/bets` | Balance, open stakes, grant/bailout availability; bet history |
+| `POST /api/me/daily-grant`, `POST /api/me/bailout` | Faucets |
+| `GET /api/fights/current`, `GET /api/fights/:id` | Fighters (frozen loadout once betting opens), tier, rating, record, win rate, last-10 form, head-to-head, odds (live model estimate before lock; locked odds, pools and crowd chance after), rounds, result, the viewer's bet |
+| `POST /api/fights/:id/bets` | `{side, stake, idempotencyKey}`; latest bet counts until lock |
+| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking, character profile (tier history, recent fights, license) |
+| `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, keep-alive comments |
+
+`apps/web` is a plain page (no build step) served at `/` that uses these routes.
+
+## 7. Data model sketch (Prisma)
 
 - `User` (id, kind `anonymous|email`, email?, `walletAddress?` reserved, createdAt, lastDailyGrantAt)
 - `Fighter` (id, archetype, defPath, displayName, licenseNote, enabled)
@@ -132,7 +148,7 @@ Engine events (NDJSON, zod-validated): `match_start`, `round_start {round}`, `ro
 - `FightTransition` (audit), `Bet` (fightId, userId, side, stake, status, payout?), `Account`, `LedgerTxn`, `LedgerEntry`, `IdempotencyKey`
 - Phase-2 placeholders only as fields: `Character.ownerUserId`, `stats`, `titles` (empty JSON). No shop, upgrade or title tables yet.
 
-## 7. How stat upgrades will reach the engine (phase 2)
+## 8. How stat upgrades will reach the engine (phase 2)
 
 ```
 Character.stats ──(freeze at OPEN_BETTING)──▶ FightLoadout.stats ──▶ StatMapper ──▶ FightSpec.engineArgs ──▶ argv

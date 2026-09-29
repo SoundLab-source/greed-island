@@ -1,0 +1,6 @@
+{
+  "name": "@greed-island/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Plain dev page served by the orchestrator's API (no build step)."
+}
