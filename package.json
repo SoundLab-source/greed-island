@@ -20,7 +20,8 @@
     "match:once": "pnpm --filter @greed-island/engine run match:once",
     "roster:smoke": "pnpm --filter @greed-island/engine run roster:smoke",
     "demo": "pnpm db:migrate && pnpm roster:sync && pnpm --filter @greed-island/orchestrator run demo",
-    "dev": "pnpm db:migrate && pnpm roster:sync && pnpm --filter @greed-island/orchestrator run dev"
+    "dev": "pnpm db:migrate && pnpm roster:sync && pnpm --filter @greed-island/orchestrator run dev",
+    "roster:variants": "pnpm --filter @greed-island/engine run roster:variants"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

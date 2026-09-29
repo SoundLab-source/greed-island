@@ -11,7 +11,8 @@
     "roster:sync": "tsx src/scripts/roster-sync.ts",
     "ikemen:install-mod": "tsx src/scripts/install-mod.ts",
     "match:once": "tsx src/scripts/match-once.ts",
-    "roster:smoke": "tsx src/scripts/roster-smoke.ts"
+    "roster:smoke": "tsx src/scripts/roster-smoke.ts",
+    "roster:variants": "tsx src/scripts/roster-variants.ts"
   },
   "dependencies": {
     "@greed-island/db": "workspace:*",

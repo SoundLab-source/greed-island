@@ -12,3 +12,4 @@ export { buildArgs, statArgs, runConfigIni } from "./ikemen/args.ts";
 export { findIkemenBinary, installMod, isModInstalled, readBaseLife, MOD_SOURCE } from "./ikemen/install.ts";
 export { parseLuaDump, outcomeFromDump, outcomeFromLog } from "./ikemen/log.ts";
 export { loadEngineConfig, type EngineConfig } from "./config.ts";
+export { buildVariant, loadVariants, patchIni, variantDefPath, VariantRecipe, VARIANTS_PATH, type Variant } from "./roster/variants.ts";

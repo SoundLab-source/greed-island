@@ -100,6 +100,10 @@ Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adap
 | Dizzy / guard points | `-p<n>.dizzyPoints`, `-p<n>.guardPoints` | SOURCE |
 | Attack / defense multipliers | (a) Generate a per-loadout copy of the character with `[Data] attack` / `defence` patched in its constants file. The engine reads these (`src/char.go:4022-4025`, `attackBase` / `defenceBase`). (b) `loadStart` params support `p<side>.<member>.map.<name>=<float>` (`src/select_params.go:465-468`) for per-fighter maps, but quick VS has no CLI flag for maps and no hook to inject params, and maps need common-state logic to take effect. | **UNVERIFIED** (both). Not used in phase 1. |
 
+### House variants (phase 1)
+
+`pnpm roster:variants` builds house characters as copies of Kung Fu Man whose own constants are changed: `[Data] life/attack/defence` (`src/char.go:4012-4025`), `[Size] xscale/yscale` (`:4057-4058`) and `[Velocity]` keys such as `walk.fwd`, `run.fwd` (`:4112-4114`), plus a built-in costume palette chosen with `-p<n>.color`. This is candidate A above, applied at build time rather than per fight.
+
 ## 6. Placeholder content licenses
 
 - **Kung Fu Man** (`chars/kfm*`): © 2009 Elecbyte, **Creative Commons Non-Commercial**, attribution optional (`chars/kfm/readme.txt`). OK for a free, non-monetized phase 1. **Not OK** once there's any monetization or sellable characters (DESIGN §12, §10).

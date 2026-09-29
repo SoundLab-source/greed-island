@@ -32,6 +32,70 @@
       "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm_zaxis/readme.txt). Not for monetized use.",
       "enabled": true,
       "notes": "Z-axis movement test character; confirm it behaves on 2D stages in roster:smoke."
+    },
+    {
+      "id": "gi-quickstep",
+      "displayName": "Quickstep",
+      "archetype": "RUSHDOWN",
+      "def": "chars/gi-quickstep/gi-quickstep.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "gi-red-crane",
+      "displayName": "Red Crane",
+      "archetype": "RUSHDOWN",
+      "def": "chars/gi-red-crane/gi-red-crane.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "gi-stone-buddha",
+      "displayName": "Stone Buddha",
+      "archetype": "HEAVY",
+      "def": "chars/gi-stone-buddha/gi-stone-buddha.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "gi-old-oak",
+      "displayName": "Old Oak",
+      "archetype": "HEAVY",
+      "def": "chars/gi-old-oak/gi-old-oak.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "gi-iron-lotus",
+      "displayName": "Iron Lotus",
+      "archetype": "GRAPPLER",
+      "def": "chars/gi-iron-lotus/gi-iron-lotus.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "gi-night-heron",
+      "displayName": "Night Heron",
+      "archetype": "ALL_ROUNDER",
+      "def": "chars/gi-night-heron/gi-night-heron.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "gi-paper-tiger",
+      "displayName": "Paper Tiger",
+      "archetype": "ALL_ROUNDER",
+      "def": "chars/gi-paper-tiger/gi-paper-tiger.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "gi-grey-monk",
+      "displayName": "Grey Monk",
+      "archetype": "ALL_ROUNDER",
+      "def": "chars/gi-grey-monk/gi-grey-monk.def",
+      "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
+      "enabled": true
     }
   ],
   "stages": [
@@ -58,9 +122,77 @@
     }
   ],
   "characters": [
-    { "key": "house-kfm", "fighter": "kfm", "name": "Kung Fu Man", "palette": 1 },
-    { "key": "house-kfm720", "fighter": "kfm720", "name": "Kung Fu Man 720", "palette": 2 },
-    { "key": "house-kfm-zss", "fighter": "kfm-zss", "name": "Kung Fu Man ZSS", "palette": 3 },
-    { "key": "house-kfm-zaxis", "fighter": "kfm-zaxis", "name": "Kung Fu Man Z-Axis", "palette": 4 }
+    {
+      "key": "house-kfm",
+      "fighter": "kfm",
+      "name": "Kung Fu Man",
+      "palette": 1
+    },
+    {
+      "key": "house-kfm720",
+      "fighter": "kfm720",
+      "name": "Kung Fu Man 720",
+      "palette": 2
+    },
+    {
+      "key": "house-kfm-zss",
+      "fighter": "kfm-zss",
+      "name": "Kung Fu Man ZSS",
+      "palette": 3
+    },
+    {
+      "key": "house-kfm-zaxis",
+      "fighter": "kfm-zaxis",
+      "name": "Kung Fu Man Z-Axis",
+      "palette": 4
+    },
+    {
+      "key": "house-quickstep",
+      "fighter": "gi-quickstep",
+      "name": "Quickstep",
+      "palette": 5
+    },
+    {
+      "key": "house-red-crane",
+      "fighter": "gi-red-crane",
+      "name": "Red Crane",
+      "palette": 6
+    },
+    {
+      "key": "house-stone-buddha",
+      "fighter": "gi-stone-buddha",
+      "name": "Stone Buddha",
+      "palette": 7
+    },
+    {
+      "key": "house-old-oak",
+      "fighter": "gi-old-oak",
+      "name": "Old Oak",
+      "palette": 8
+    },
+    {
+      "key": "house-iron-lotus",
+      "fighter": "gi-iron-lotus",
+      "name": "Iron Lotus",
+      "palette": 9
+    },
+    {
+      "key": "house-night-heron",
+      "fighter": "gi-night-heron",
+      "name": "Night Heron",
+      "palette": 10
+    },
+    {
+      "key": "house-paper-tiger",
+      "fighter": "gi-paper-tiger",
+      "name": "Paper Tiger",
+      "palette": 11
+    },
+    {
+      "key": "house-grey-monk",
+      "fighter": "gi-grey-monk",
+      "name": "Grey Monk",
+      "palette": 12
+    }
   ]
 }

@@ -1,0 +1,79 @@
+{
+  "$comment": "House characters derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt: 'you may freely build upon or use parts of KFM for non-commercial purposes'). Only this recipe is committed; `pnpm roster:variants` builds the character folders inside IKEMEN_DIR/chars. Stat keys are the character's own constants ([Data], [Size], [Velocity]), all confirmed read by IKEMEN v1.0.0 (src/char.go:4012-4025, 4057-4058, 4112-4114). Palettes are Kung Fu Man's built-in costume palettes 1-15.",
+  "base": "chars/kfm",
+  "baseDef": "kfm.def",
+  "variants": [
+    {
+      "id": "gi-quickstep",
+      "name": "Quickstep",
+      "archetype": "RUSHDOWN",
+      "palette": 5,
+      "scale": 0.9,
+      "data": { "life": 850, "attack": 105, "defence": 90 },
+      "velocity": { "walk.fwd": "3.0", "walk.back": "-2.7", "run.fwd": "5.8, 0" }
+    },
+    {
+      "id": "gi-red-crane",
+      "name": "Red Crane",
+      "archetype": "RUSHDOWN",
+      "palette": 6,
+      "scale": 0.95,
+      "data": { "life": 900, "attack": 110, "defence": 90 },
+      "velocity": { "walk.fwd": "2.8", "run.fwd": "5.4, 0", "jump.neu": "0,-9.0" }
+    },
+    {
+      "id": "gi-stone-buddha",
+      "name": "Stone Buddha",
+      "archetype": "HEAVY",
+      "palette": 7,
+      "scale": 1.2,
+      "data": { "life": 1300, "attack": 110, "defence": 115 },
+      "velocity": { "walk.fwd": "1.8", "walk.back": "-1.6", "run.fwd": "3.6, 0", "jump.neu": "0,-7.6" }
+    },
+    {
+      "id": "gi-old-oak",
+      "name": "Old Oak",
+      "archetype": "HEAVY",
+      "palette": 8,
+      "scale": 1.15,
+      "data": { "life": 1200, "attack": 105, "defence": 120 },
+      "velocity": { "walk.fwd": "1.9", "walk.back": "-1.8", "run.fwd": "3.8, 0" }
+    },
+    {
+      "id": "gi-iron-lotus",
+      "name": "Iron Lotus",
+      "archetype": "GRAPPLER",
+      "palette": 9,
+      "scale": 1.1,
+      "data": { "life": 1100, "attack": 115, "defence": 105 },
+      "velocity": { "walk.fwd": "2.0", "run.fwd": "4.0, 0" }
+    },
+    {
+      "id": "gi-night-heron",
+      "name": "Night Heron",
+      "archetype": "ALL_ROUNDER",
+      "palette": 10,
+      "scale": 1.0,
+      "data": { "life": 1000, "attack": 100, "defence": 100 },
+      "velocity": { "walk.fwd": "2.5", "run.fwd": "4.8, 0" }
+    },
+    {
+      "id": "gi-paper-tiger",
+      "name": "Paper Tiger",
+      "archetype": "ALL_ROUNDER",
+      "palette": 11,
+      "scale": 0.97,
+      "data": { "life": 800, "attack": 125, "defence": 85 },
+      "velocity": { "walk.fwd": "2.6", "run.fwd": "5.0, 0" }
+    },
+    {
+      "id": "gi-grey-monk",
+      "name": "Grey Monk",
+      "archetype": "ALL_ROUNDER",
+      "palette": 12,
+      "scale": 1.03,
+      "data": { "life": 1050, "attack": 90, "defence": 115 },
+      "velocity": { "walk.fwd": "2.3", "run.fwd": "4.4, 0" }
+    }
+  ]
+}

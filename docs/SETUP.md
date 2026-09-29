@@ -30,6 +30,7 @@ docker compose up -d          # Postgres on port 54329 (dev + test databases)
 pnpm install                  # also generates the database client
 pnpm db:migrate               # create the tables
 pnpm roster:sync              # load packages/engine/roster.json into the database
+pnpm roster:variants          # build the 8 house characters derived from Kung Fu Man (needs IKEMEN_DIR)
 pnpm ikemen:install-mod       # copy the event mod into IKEMEN (needed for real fights)
 pnpm test                     # everything should pass
 ```
@@ -68,6 +69,10 @@ Then run `ENGINE_MODE=live pnpm dev` as above, with `IKEMEN_DIR` pointing at the
 **UNVERIFIED:** nothing on Linux has been run yet (see `docs/ikemen-notes.md` §7). Do one `pnpm match:once` there before trusting it.
 
 ## 4. Adding characters and stages
+
+**House characters from Kung Fu Man.** Eight of the twelve house characters (Quickstep, Red Crane, Stone Buddha, Old Oak, Iron Lotus, Night Heron, Paper Tiger, Grey Monk) are Kung Fu Man with different stats, speeds, size and one of his built-in costume palettes. Their recipe is `packages/engine/variants.json`; `pnpm roster:variants` builds them into `$IKEMEN_DIR/chars/gi-*` (it never touches folders it didn't create). Kung Fu Man's license allows derivative works for non-commercial use, so they carry the same non-commercial limit. To add one, append to `variants.json`, add matching entries to `roster.json`, then run `pnpm roster:variants`, `pnpm roster:smoke` and `pnpm roster:sync`.
+
+**Characters from elsewhere.** Almost all free MUGEN/IKEMEN characters online use sprites taken from commercial games and can't be used here. Original characters with a clear license are rare; check each one's readme before downloading.
 
 1. Put the character folder in `$IKEMEN_DIR/chars/` (or the stage in `$IKEMEN_DIR/stages/`).
 2. `pnpm roster:scan`: drafts entries into `packages/engine/roster.draft.json`. Anything without a recognizable license is drafted as disabled.
