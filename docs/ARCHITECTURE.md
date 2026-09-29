@@ -143,7 +143,7 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, license) |
 | `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, `tournament` (started, cancelled, finished with champion and podium), keep-alive comments |
 
-`apps/web` is a plain page (no build step) served at `/` that uses these routes.
+`apps/web` holds plain pages (no build step): the dev page at `/`, and the stream overlay at `/overlay.html` (§12), which uses only public routes and the SSE stream.
 
 ## 7. Data model sketch (Prisma)
 
@@ -206,3 +206,13 @@ VOID   -> the match stays open and is booked again
 - **Fights** rate characters and award fight titles as usual, but pay no owner reward. A disabled character forfeits (walkover). The `tournament_match_guard` trigger keeps decided results and filled sides fixed.
 - **T-Salt.** A player's first bet in a tournament grants them 1,000 T-Salt from that tournament's issuance (`TOURNAMENT_GRANT`, key `tgrant:<tournamentId>:<userId>`). Bets, payouts and refunds on tournament fights run in that book. Main-Salt views (open stakes, bailout, leaderboard) ignore T-Salt. The audit checks each book sums to zero and no transaction crosses books, and reports T-Salt totals separately.
 - **End.** The champion character earns Tournament Champion (with the tournament and final fight). The top 3 T-Salt balances above the starting 1,000 earn player titles (Top, Runner-up, Third-place Bettor), earlier joiner first on a tie.
+
+## 12. Stream overlay and OBS
+
+```
+fight_state (bus) ──▶ ObsSceneSwitcher ──obs-websocket 5──▶ OBS: "Fight" while IN_PROGRESS, "Betting" on BETTING_OPEN / SETTLED / VOIDED
+/api/stream (SSE) ──▶ overlay.html ──▶ betting screen or fight bar (auto: by fight state)
+```
+
+- **Overlay** (`apps/web/overlay.html`, `.css`, `.js`): laid out on a 1920x1080 grid in CSS units derived from the width, so it scales to any 16:9 browser source. It refetches `/api/fights/current` on state, odds and round events, shows each side's frozen cosmetics (name plate colours, title, badges from §9), odds, win chance, the countdown, pools after lock, round markers (`roundsToWin`), a result banner (winner, rating change, tier change, owner reward, or "no contest"), toasts for titles and tournaments, and a footer with recent results or who's still in the tournament. T-Salt fights are labelled.
+- **Scene switching** (`packages/orchestrator/src/obs.ts`): optional (`GI_OBS_URL`). Uses Node's built-in WebSocket client, identifies with `eventSubscriptions: 0`, answers the password challenge, and sends `SetCurrentProgramScene` only when the wanted scene changes. It reconnects every 5 s, reports each kind of problem once, and never stops the stream. Protocol facts and what's still unverified: docs/obs-notes.md.

@@ -14,9 +14,9 @@ Phase 2: Ownership (see DESIGN.md §13) is complete, as is Phase 1 (Stream MVP).
 - `packages/db`: Prisma schema, migrations, ledger
 - `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`)
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
-- `apps/web`: minimal dev page to watch and bet (no styling work)
+- `apps/web`: minimal dev page to watch and bet (no styling work), and the stream overlay (`overlay.html`) for OBS
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
-- `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, ikemen-notes
+- `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, ikemen-notes, obs-notes
 
 ## Commands
 <!-- Claude: keep this list accurate as scripts are added. -->
@@ -38,7 +38,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.
 
 - `pnpm demo`: migrate, sync roster, then 12 fights on the dev DB with the fake engine and 3 demo players betting (one forced crash → void); prints results, ratings, tier changes, titles earned and the ledger audit; exits non-zero unless ≥10 settle, ≥1 voids and the audit passes
-- `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + dev page at http://127.0.0.1:3000 (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`). Ctrl+C voids and refunds the fight in progress.
+- `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + dev page at http://127.0.0.1:3000 and the stream overlay at `/overlay.html` (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`; `GI_OBS_URL` to switch OBS scenes). Ctrl+C voids and refunds the fight in progress.
 
 ## Hard rules
 - **Salt is closed-loop.** No code path may buy, sell, deposit, withdraw or convert Salt. No payment or blockchain code in phase 1. T-Salt (tournament balance) never converts to Salt: every ledger transaction stays in one book.
@@ -47,7 +47,7 @@ Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `
 - **Match state changes** go through the pure `transition(state, event)` function, one DB transaction each, with optimistic concurrency and an audit row.
 - **Winners are sides, not names.** Map winning side to character ID from what the runner launched; never parse display names to settle bets.
 - **Loadouts are frozen** when betting opens; every fight stores a snapshot of both loadouts, ratings and tiers.
-- **IKEMEN facts must be verified** in `vendor/` source or by a real run. Anything unverified is marked UNVERIFIED in `docs/ikemen-notes.md` and kept behind an adapter. Never invent flags, config keys or Lua functions.
+- **IKEMEN and OBS facts must be verified** in source, the official docs or by a real run (`docs/ikemen-notes.md`, `docs/obs-notes.md`). Anything unverified is marked UNVERIFIED in those notes and kept behind an adapter. Never invent flags, config keys or Lua functions.
 - Spawn the engine with an argument array, never a shell string.
 - Never commit IKEMEN binaries, characters, stages or secrets.
 

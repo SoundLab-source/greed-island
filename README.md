@@ -8,7 +8,8 @@ An always-on stream of AI-vs-AI fights on the [IKEMEN GO](https://github.com/ike
 - Game design: [docs/DESIGN.md](docs/DESIGN.md)
 - How it's built: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Setting it up: [docs/SETUP.md](docs/SETUP.md)
-- Engine facts, with source references: [docs/ikemen-notes.md](docs/ikemen-notes.md)
+- Engine facts, with source references: [docs/ikemen-notes.md](docs/ikemen-notes.md); OBS facts: [docs/obs-notes.md](docs/obs-notes.md)
+- Streaming: the overlay page and OBS setup are in [docs/SETUP.md](docs/SETUP.md) §5
 
 Quick start (needs Node 24, pnpm 10 and Docker; no IKEMEN needed):
 

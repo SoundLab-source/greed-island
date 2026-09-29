@@ -85,19 +85,36 @@ Removing an entry from `roster.json` disables it in the database; it's never del
 
 The bundled Kung Fu Man is **Creative Commons Non-Commercial**: fine for a free stream, not for anything monetized or sellable.
 
-## 5. From the game to Twitch or YouTube (not built)
+## 5. From the game to Twitch or YouTube
 
-Phase 1 doesn't include streaming. This is how it would work.
+IKEMEN runs one process per fight and closes after the match, so between fights (the betting window) there is no game window. The **stream overlay** covers both moments. It's a web page served by `pnpm dev` at `/overlay.html`:
 
-**What's on screen.** IKEMEN runs one process per fight and exits after the match. Between fights (the betting window) there is no game window, so the stream needs a second scene: a "betting" page showing the next matchup, odds and a countdown, fed by the API's SSE stream (`/api/stream`). The dev page shows the data it needs; a styled overlay page is phase 2 work.
+| URL | Shows | Background |
+|---|---|---|
+| `/overlay.html` (auto) | The betting screen between fights, the fight bar during them | Opaque, then transparent |
+| `/overlay.html?scene=betting` | Always the betting screen: both fighters with name plates, titles and badges, tier, rating, record, form, odds, win-chance bar, countdown, pools once locked, the result banner, recent results or who's still in the tournament | Opaque |
+| `/overlay.html?scene=fight` | A bar along the bottom: name plates, tiers, odds, round markers, fight number, pools | Transparent |
 
-**Option A: OBS (easiest, desktop or server).**
-- Scene "Fight": a window or display capture of IKEMEN, plus a browser source overlay (names, odds, pools).
-- Scene "Betting": a browser source with the betting page.
-- Switch scenes on `fight_state` events. OBS's built-in websocket server lets the orchestrator do this automatically (a small phase-2 addition). Until then, OBS's Advanced Scene Switcher plugin can switch when the IKEMEN window appears or disappears.
-- Settings → Stream: pick Twitch or YouTube and paste the stream key. On a Linux server, OBS can run on the Xvfb display (`obs --startstreaming --minimize-to-tray`).
+Add `&site=your.site` to show where people can bet. The overlay is laid out for 1920x1080 and scales to any 16:9 size. It reads only public data, so it needs no sign-in.
 
-**Option B: ffmpeg straight from the virtual display (server, no scene switching).**
+**Option A: OBS with one scene (simplest).**
+1. Install OBS 28 or later (https://obsproject.com). On macOS, allow Screen Recording for OBS when asked.
+2. Add a **Display Capture** of the screen where IKEMEN's window appears (or a Window Capture of IKEMEN; see docs/obs-notes.md about windows that reopen every fight).
+3. Add a **Browser** source on top: URL `http://127.0.0.1:3000/overlay.html?site=your.site`, width 1920, height 1080.
+4. Run `ENGINE_MODE=live pnpm dev`. The betting screen covers everything between fights; during a fight only the bottom bar shows over the game.
+
+**Option B: OBS with two scenes, switched automatically.**
+1. Scene **Fight**: the game capture, plus a Browser source with `overlay.html?scene=fight`.
+2. Scene **Betting**: a Browser source with `overlay.html?scene=betting` (add music or a camera if you like).
+3. In OBS, Tools → WebSocket Server Settings: enable the server, note the port, set a password.
+4. In `.env`: `GI_OBS_URL=ws://127.0.0.1:<port>` and `GI_OBS_PASSWORD=<password>` (and `GI_OBS_FIGHT_SCENE` / `GI_OBS_BETTING_SCENE` if your scenes have other names).
+5. Run `pnpm dev`. It logs "OBS: connected" and then shows the Fight scene while the engine runs and the Betting scene otherwise. If OBS isn't open yet, it keeps trying quietly; a wrong password or a missing scene is logged, and the stream carries on either way.
+
+Then, in OBS, Settings → Stream: pick Twitch or YouTube and paste the stream key, and press Start Streaming. On a Linux server, OBS can run on the Xvfb display (`obs --startstreaming --minimize-to-tray`).
+
+**UNVERIFIED:** nothing here has been tried with a real OBS yet. The scene switcher follows the official protocol document and is tested against a stand-in server (docs/obs-notes.md). Do a private test stream first.
+
+**Option C: ffmpeg straight from the virtual display (server, no OBS).**
 
 ```bash
 ffmpeg -f x11grab -video_size 1280x720 -framerate 60 -i :99 \
@@ -107,10 +124,10 @@ ffmpeg -f x11grab -video_size 1280x720 -framerate 60 -i :99 \
        -f flv "rtmp://live.twitch.tv/app/$TWITCH_STREAM_KEY"
 ```
 
-This streams whatever is on display `:99`. For the betting screen, run a kiosk browser (e.g. Chromium in `--kiosk` mode) on the same display behind the IKEMEN window, so it shows whenever no fight is running. YouTube's RTMP URL is `rtmp://a.rtmp.youtube.com/live2/<key>`.
+This streams whatever is on display `:99`. Run a kiosk browser (e.g. Chromium in `--kiosk` mode) showing `overlay.html?scene=betting` on the same display, behind the IKEMEN window, so it shows whenever no fight is running. YouTube's RTMP URL is `rtmp://a.rtmp.youtube.com/live2/<key>`.
 
 **Keys and rules.**
-- Stream keys are secrets: keep them in `.env` or the server's secret store, never in the repo (it's public).
+- Stream keys and the OBS password are secrets: keep them in `.env` or the server's secret store, never in the repo (it's public).
 - Before launch, check each platform's rules on simulated or play-money gambling, and the licenses of every character, stage and sound on screen.
 
 ## 6. Troubleshooting
@@ -124,4 +141,7 @@ This streams whatever is on display `:99`. For the betting screen, run a kiosk b
 | `preflight: missing chars/...` | The path in `roster.json` doesn't exist under `IKEMEN_DIR` |
 | macOS "Apple could not verify" | §2, "allowing IKEMEN to run" |
 | `another orchestrator already holds the lock` | Another `pnpm dev` or `pnpm demo` is running; stop it first |
+| `OBS: can't connect` | Open OBS and enable Tools → WebSocket Server Settings; check the port in `GI_OBS_URL` |
+| `OBS: couldn't show scene "Fight"` | Name your OBS scenes Fight and Betting, or set `GI_OBS_FIGHT_SCENE` / `GI_OBS_BETTING_SCENE` |
+| The overlay shows a white background in OBS | Use `?scene=fight` for the transparent bar; the betting screen is meant to be opaque |
 | Start over with an empty database | `docker compose down -v` (**deletes all local data**), then `docker compose up -d && pnpm db:migrate && pnpm roster:sync` |

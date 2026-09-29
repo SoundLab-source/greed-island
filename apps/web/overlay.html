@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Greed Island overlay</title>
+  <!--
+    Stream overlay for OBS (docs/SETUP.md §5). Add it as a Browser source at
+    1920x1080 (any 16:9 size works). ?scene=fight: a transparent bar over the
+    game; ?scene=betting: the full betting screen; auto (default): the betting
+    screen between fights and the bar during them. ?site=example.com shows
+    where to bet.
+  -->
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body data-scene="betting">
+  <section id="board" aria-label="Betting screen">
+    <header class="board-head">
+      <div class="wordmark">GREED <span>ISLAND</span></div>
+      <div id="segment" class="segment"></div>
+      <div id="currency" class="currency"></div>
+    </header>
+    <main class="matchup">
+      <article id="card1" class="fighter red"></article>
+      <div class="versus">
+        <div class="vs">VS</div>
+        <div id="chance" class="chance"></div>
+        <div id="status" class="status"></div>
+        <div id="pools" class="pools"></div>
+        <div id="meta" class="meta"></div>
+      </div>
+      <article id="card2" class="fighter blue"></article>
+    </main>
+    <footer class="board-foot">
+      <div id="cta" class="cta"></div>
+      <div id="ticker" class="ticker"></div>
+    </footer>
+    <div id="banner" class="banner" hidden></div>
+  </section>
+
+  <section id="hud" aria-label="Fight bar">
+    <div class="hud-bar">
+      <div id="hud1" class="hud-side red"></div>
+      <div id="hud-center" class="hud-center"></div>
+      <div id="hud2" class="hud-side blue"></div>
+    </div>
+  </section>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="overlay.js"></script>
+</body>
+</html>

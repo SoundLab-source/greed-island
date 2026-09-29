@@ -361,9 +361,18 @@ describe("live stream", () => {
     expect(Date.now() - started).toBeLessThan(2_000);
   });
 
-  it("serves the dev page", async () => {
+  it("serves the dev page and the stream overlay", async () => {
     const res = await app.inject({ method: "GET", url: "/" });
     expect(res.statusCode).toBe(200);
     expect(res.body).toContain("Greed Island");
+    const overlay = await app.inject({ method: "GET", url: "/overlay.html" });
+    expect(overlay.statusCode).toBe(200);
+    expect(overlay.body).toContain("overlay.js");
+    for (const file of ["/overlay.js", "/overlay.css"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
+    // Fields the overlay reads: round markers need roundsToWin.
+    const f = await openFight();
+    const view = (await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json();
+    expect(view).toMatchObject({ roundsToWin: 2, currency: "Salt", tournament: null, rounds: [] });
+    expect(view.sides[1].cosmetics.nameplate).toMatchObject({ background: expect.any(String), border: expect.any(String), text: expect.any(String) });
   });
 });

@@ -255,6 +255,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     sides: { 1: s1, 2: s2 },
     headToHead: { fights: h2h.fights, wins: { 1: h2h.wins[f.side1CharacterId] ?? 0, 2: h2h.wins[f.side2CharacterId] ?? 0 } },
     odds,
+    roundsToWin: f.roundsToWin,
     rounds: f.rounds.map((r) => ({ round: r.round, winnerSide: r.winnerSide, reason: r.reason })),
     challenge: challenge ? { challenger: playerName(challenge.challenger), challenged: playerName(challenge.challenged), acceptedAt: challenge.acceptedAt } : null,
     /** Which currency bets on this fight use: tournament fights use that tournament's T-Salt. */

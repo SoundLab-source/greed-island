@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after Phase 2 step 6 (phase 2 complete). Update this file at the end of every build step.*
+*Last updated 2026-09-29, after the stream overlay and OBS scene switching. Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) hasn't started. |
-| **Next step** | Recommended: the stream overlay and betting screen, so fights can go out on Twitch/YouTube (see "What's next"). Phase 3 needs a plan agreed with you first. |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, an API with live updates, and a plain dev page |
-| **Not built yet** | The stream itself (overlay page, OBS/Twitch), anything community or on-chain |
-| **Health** | 403 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Next step** | A first private test stream with OBS (needs OBS installed; see "What's next"). Phase 3 needs a plan agreed with you first. |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, an API with live updates, a plain dev page, and a stream overlay for OBS with automatic scene switching |
+| **Not built yet** | Anything community or on-chain. Not yet tried: a real OBS and a real stream |
+| **Health** | 409 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -59,13 +59,15 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 3. ✅ **Upgrades** (`4512166`): 4 stats × 5 levels with shrinking gains, plus one trade-off "sidegrade"; about 10,600 Salt to max a character; attack upgrades confirmed in a real fight.
 4. ✅ **Titles and cosmetics** (`5871e79`): First Blood, 10 Wins, 100 Wins, Giant Slayer and tier firsts, each recording the fight and the owner at the time; badges and name plates owners can pick for the future stream overlay.
 5. ✅ **Owner rewards and exhibitions** (`0bfe55d`): owners get 25 Salt each time their character wins on stream; owners challenge each other's characters, and accepted challenges play in the exhibition part of the cycle, oldest first, with house "showcase" fights between the strongest house characters filling the gaps.
-6. ✅ **Tournaments**: each cycle plays a single-elimination bracket of up to 16 characters from one tier (rotating S, A, B, P), seeded by rating. Every player bets with 1,000 tournament Salt ("T-Salt") per tournament, kept in a separate set of books that can never turn into Salt. The winning character earns "Tournament Champion" and the top 3 T-Salt balances earn player titles.
+6. ✅ **Tournaments** (`337b2e3`): each cycle plays a single-elimination bracket of up to 16 characters from one tier (rotating S, A, B, P), seeded by rating. Every player bets with 1,000 tournament Salt ("T-Salt") per tournament, kept in a separate set of books that can never turn into Salt. The winning character earns "Tournament Champion" and the top 3 T-Salt balances earn player titles.
+
+**Streaming**
+- ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically. Set up as in [SETUP.md](docs/SETUP.md) §5; not yet tried with a real OBS.
 
 ## What's next
 
-**Recommended next: the stream overlay and betting screen**
-- A styled page for OBS: fighter name plates, titles and badges (already stored as data), odds, pools and a countdown between fights, fed by the live updates the API already sends.
-- Automatic OBS scene switching between "fight" and "betting" ([SETUP.md](docs/SETUP.md) §5).
+**Recommended next: a private test stream**
+- Install OBS (with your OK), set it up as in [SETUP.md](docs/SETUP.md) §5, and run real IKEMEN fights through it to an unlisted stream. This confirms the items marked UNVERIFIED in [obs-notes.md](docs/obs-notes.md): the OBS connection, capturing IKEMEN's window across fights, and the transparent fight bar.
 
 **Also needed before a public stream**
 - Running on a Linux server with a virtual display (Xvfb): written up, not yet tried.
@@ -122,4 +124,5 @@ Then open http://127.0.0.1:3000. Add `ENGINE_MODE=live` in front of `pnpm dev` f
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit: state machine, ledger, engine, API, upgrades, titles |
 | [docs/SETUP.md](docs/SETUP.md) | Installing, running, adding characters, streaming, troubleshooting |
 | [docs/ikemen-notes.md](docs/ikemen-notes.md) | Verified engine facts, with source references and open items |
+| [docs/obs-notes.md](docs/obs-notes.md) | OBS WebSocket facts the scene switcher relies on, and what's still unverified |
 | [docs/KICKOFF_PROMPT.md](docs/KICKOFF_PROMPT.md) | The original build brief for phases 0–1 |

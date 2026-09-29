@@ -9,6 +9,7 @@ import { loadMailer } from "../mail.ts";
 import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
 import { acquireOrchestratorLock } from "../lock.ts";
+import { loadObsConfig, ObsSceneSwitcher } from "../obs.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { reconcile } from "../reconcile.ts";
 
@@ -47,6 +48,13 @@ const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
+console.log(`Stream overlay for OBS: ${publicUrl}/overlay.html (see docs/SETUP.md §5)`);
+
+// Optional: switch OBS scenes between fight and betting (GI_OBS_URL).
+const obsConfig = loadObsConfig();
+const obs = obsConfig ? new ObsSceneSwitcher(obsConfig) : null;
+obs?.start(bus);
+
 const orchestrator = new Orchestrator({ ...deps, source, log: (m) => console.log(m) });
 const running = orchestrator.run();
 
@@ -57,6 +65,7 @@ const shutdown = async () => {
   console.log("stopping (the current fight is voided and refunded)…");
   orchestrator.stop();
   await running;
+  obs?.stop();
   await app.close();
   await lock.release();
   await db.$disconnect();
