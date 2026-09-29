@@ -11,6 +11,8 @@ vendor/
 # Runtime output
 runs/
 *.log
+# ...except recorded engine output used as test fixtures
+!packages/*/src/**/fixtures/**/*.log
 
 # OS
 .DS_Store

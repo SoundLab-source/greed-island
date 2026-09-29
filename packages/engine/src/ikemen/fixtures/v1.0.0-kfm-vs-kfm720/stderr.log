@@ -1,0 +1,6 @@
+<timestamp> Ikemen_GO_MacOSARM[<pid>] +[IMKClient subclass]: chose IMKClient_Modern
+<timestamp> Ikemen_GO_MacOSARM[<pid>] +[IMKInputSession subclass]: chose IMKInputSession_Modern
+Using OpenGL 4.1 Metal - 89.3 (Apple M4 Max)
+WARNING: Kung Fu Man's state 1027 in kfm.cns, line 1476: Unknown state controller parameter(s): x, y
+WARNING: Kung Fu Man 720's state 1027 in kfm720.cns, line 1476: Unknown state controller parameter(s): x, y
+Failed to open BGM: open sound/kfm.mid: no such file or directory
