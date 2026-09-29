@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { iniValue, parseIni } from "./ini.ts";
+import { iniValue, parseIni, patchIni } from "./ini.ts";
 import { loadRoster } from "./schema.ts";
-import { buildVariant, loadVariants, patchIni, Variant, variantDefPath, VariantRecipe } from "./variants.ts";
+import { buildVariant, loadVariants, Variant, variantDefPath, VariantRecipe } from "./variants.ts";
 
 describe("patchIni", () => {
   const text = [
@@ -112,7 +112,7 @@ describe("buildVariant", () => {
   it("never overwrites a folder it didn't create", async () => {
     await mkdir(path.join(dir, "chars", "gi-test"), { recursive: true });
     await writeFile(path.join(dir, "chars", "gi-test", "mine.txt"), "user content");
-    await expect(buildVariant(dir, recipe, variant)).rejects.toThrow(/wasn't made by roster:variants/);
+    await expect(buildVariant(dir, recipe, variant)).rejects.toThrow(/wasn't made by Greed Island/);
     expect(await readFile(path.join(dir, "chars", "gi-test", "mine.txt"), "utf8")).toBe("user content");
   });
 });

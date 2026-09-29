@@ -21,6 +21,9 @@ beforeAll(async () => {
     await mkdir(path.dirname(path.join(ikemenDir, rel)), { recursive: true });
     await writeFile(path.join(ikemenDir, rel), "[Info]\n");
   }
+  await mkdir(path.join(ikemenDir, "chars", "c"), { recursive: true });
+  await writeFile(path.join(ikemenDir, "chars", "c", "c.def"), "[Info]\nname = C\n[Files]\ncns = c.cns\n");
+  await writeFile(path.join(ikemenDir, "chars", "c", "c.cns"), "[Data]\nlife = 1000\nattack = 100\ndefence = 100\n");
   await installMod(ikemenDir);
   const stub = fileURLToPath(new URL("./test/stub-engine.mjs", import.meta.url));
   binary = path.join(root, "fake-ikemen");
@@ -91,6 +94,21 @@ describe("ikemen runner", () => {
 
   it("keeps the result when the engine lingers after match_end", async () => {
     expect(await source("linger").run(spec("linger"))).toMatchObject({ kind: "finished", winnerSide: 1 });
+  });
+
+  it("launches a copy with scaled attack/defense for upgraded stats, and passes life as flags", async () => {
+    const upgraded = spec("upgraded");
+    upgraded.sides[1] = { ...upgraded.sides[1], defPath: "chars/c/c.def", stats: { ...DEFAULT_STATS, attackPct: 115, defensePct: 108, lifePct: 120 } };
+    expect(await source("ok").run(upgraded)).toMatchObject({ kind: "finished" });
+    const argv = JSON.parse(await readFile(path.join(runsDir, "upgraded", "argv.json"), "utf8"));
+    const copy = argv.loadoutCopies["1"];
+    expect(copy).toMatchObject({ from: "chars/c/c.def", attack: 115, defence: 108 });
+    expect(argv.argv[argv.argv.indexOf("-p1") + 1]).toBe(copy.defPath);
+    expect(argv.argv[argv.argv.indexOf("-p1.lifeMax") + 1]).toBe("1200");
+    expect(argv.ignoredStats).toEqual({ 1: [], 2: [] });
+    const cns = await readFile(path.join(ikemenDir, path.dirname(copy.defPath), "c.cns"), "latin1");
+    expect(cns).toContain("attack = 115");
+    expect(cns).toContain("defence = 108");
   });
 
   it("refuses to launch when a file is missing (IKEMEN would use a dummy)", async () => {

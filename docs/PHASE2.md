@@ -10,7 +10,7 @@ Each step is committed with tests green, like phase 1.
 
 1. ✅ **Accounts.** Email sign-in with a one-time link (magic link). An anonymous player can attach an email and keep their Salt and bets. In development the link is printed to the console; production needs a mail provider (SMTP settings in `.env`). Sessions expire (default 30 days) and can be signed out.
 2. ✅ **Shop and owned characters.** A Salt sink account (spent Salt leaves circulation, as DESIGN §9 intends). The shop rotates every 5 hours with 6 slots drawn from enabled fighters. Buying one creates a character owned by the player, starting in tier P. Owned characters join matchmaking; house characters fill the gaps.
-3. **Upgrades and sidegrades.** Levelled stats with diminishing returns and a cap. Every change widens rating deviation. Stats reach the engine only through verified mechanisms.
+3. ✅ **Upgrades and sidegrades.** Levelled stats with diminishing returns and a cap. Every change widens rating deviation. Stats reach the engine only through verified mechanisms.
 4. **Titles and effects.** Achievement titles with provenance ("earned by", "when"), plus overlay cosmetics (badges, name plates) stored as data for the stream overlay.
 5. **Owner rewards and exhibitions.** Salt for owners when their character wins. Owner-vs-owner challenges fill the exhibition segment of the cycle.
 6. **Tournaments.** A 16-character single-elimination bracket per tier, rotating tiers, bet on with a separate tournament balance.
@@ -35,14 +35,15 @@ Each step is committed with tests green, like phase 1.
   - Attack: +5, +4, +3, +2, +1 % (max 115%)
   - Defense: +5, +4, +3, +2, +1 % (max 115%)
   - Starting power: +300, +250, +200, +150, +100 (max 1,000, one super bar)
-- Cost of level n = base × 1.6^(n−1). Base 150 (life), 200 (attack), 200 (defense), 120 (power). Maxing a character costs about 9,000 Salt, roughly 2–4 weeks for a regular player.
+- Cost of level n = base × 1.6^(n−1), rounded down. Base 150 (life), 200 (attack), 200 (defense), 120 (power). Maxing all four costs about 10,600 Salt, roughly 2–4 weeks for a regular player.
 - Sidegrades (at most one per character; swapping costs 300):
   - Bruiser: +10% life, −300 starting power
   - Glass Cannon: +8% attack, −8% life
   - Iron Wall: +8% defense, −5% attack
-  - Sidegrades may exceed the stat caps by their bonus, but a stat can never go below its base.
+  - A sidegrade's bonus may take a stat past its cap. Its penalty applies on top of upgrades and may go below the starting value, down to a floor: life 80%, attack 85%, defense 85%, starting power 0. (Otherwise a penalty would cost nothing on a new character.)
+  - The first sidegrade also costs 300; removing one is free.
 - Every upgrade or sidegrade change widens rating deviation by 30 (never above 350).
-- Engine mechanisms: life and starting power use the `-p<n>.lifeMax` / `-p<n>.power` flags (confirmed). Attack and defense use a per-loadout copy of the character with patched `[Data] attack/defence`, the same mechanism `roster:variants` uses, cached by stats. It gets confirmed with a real run before use.
+- Engine mechanisms: life and starting power use the `-p<n>.lifeMax` / `-p<n>.power` flags (confirmed). Attack and defense use a per-loadout copy of the character with patched `[Data] attack/defence`, the same mechanism `roster:variants` uses, cached by stats. Confirmed with a real run (see docs/ikemen-notes.md §5).
 
 **Owner rewards**
 - 25 Salt to the owner for each win of their character on stream (from issuance, a faucet). Not paid for tournament fights, which have their own prizes.

@@ -21,7 +21,7 @@ import {
   REPO_ROOT,
   type Db,
 } from "@greed-island/db";
-import { LedgerRuleError, MoneyError, parseSalt, type Config } from "@greed-island/shared";
+import { LedgerRuleError, MoneyError, parseSalt, SIDEGRADES, UPGRADE_STATS, type Config } from "@greed-island/shared";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import path from "node:path";
 import { z } from "zod";
@@ -29,6 +29,7 @@ import { placeFightBet } from "../betting.ts";
 import type { BusEvent, FightBus } from "../bus.ts";
 import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { buyCharacter, currentShop } from "../shop.ts";
+import { setSidegrade, upgradeStat } from "../upgrades.ts";
 import { betHistory, characterProfile, characterRanking, currentFightId, fightView, leaderboard, meView, myCharacters, recentResults } from "./views.ts";
 
 export interface ApiDeps {
@@ -62,6 +63,8 @@ const SessionBody = z.object({ displayName: z.string().trim().min(1).max(24).opt
 const EmailBody = z.object({ email: z.string().max(254) });
 const VerifyBody = z.object({ token: z.string().min(20).max(200) });
 const BuyBody = z.object({ fighterId: z.string().min(1).max(64), idempotencyKey: z.string().min(8).max(100) });
+const UpgradeBody = z.object({ stat: z.enum(UPGRADE_STATS), idempotencyKey: z.string().min(8).max(100) });
+const SidegradeBody = z.object({ sidegrade: z.enum(SIDEGRADES).nullable(), idempotencyKey: z.string().min(8).max(100) });
 
 class HttpError extends Error {
   constructor(
@@ -184,7 +187,21 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const r = await buyCharacter(db, config, { userId, fighterId: body.fighterId, idempotencyKey: body.idempotencyKey });
     return send(reply.status(r.replayed ? 200 : 201), { character: await characterProfile(db, r.characterId), balance: r.balance, replayed: r.replayed });
   });
-  app.get("/api/me/characters", async (req, reply) => send(reply, await myCharacters(db, await requireViewer(req))));
+  app.get("/api/me/characters", async (req, reply) => send(reply, await myCharacters(db, config, await requireViewer(req))));
+  app.post<{ Params: { id: string } }>("/api/characters/:id/upgrade", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const characterId = uuid.parse(req.params.id);
+    const body = UpgradeBody.parse(req.body);
+    const r = await upgradeStat(db, config, { userId, characterId, stat: body.stat, idempotencyKey: body.idempotencyKey });
+    return send(reply, { character: await characterProfile(db, characterId), balance: r.balance, replayed: r.replayed });
+  });
+  app.post<{ Params: { id: string } }>("/api/characters/:id/sidegrade", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const characterId = uuid.parse(req.params.id);
+    const body = SidegradeBody.parse(req.body);
+    const r = await setSidegrade(db, config, { userId, characterId, sidegrade: body.sidegrade, idempotencyKey: body.idempotencyKey });
+    return send(reply, { character: await characterProfile(db, characterId), balance: r.balance, replayed: r.replayed });
+  });
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db)));

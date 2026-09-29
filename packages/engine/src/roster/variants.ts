@@ -6,10 +6,10 @@
  */
 import { ARCHETYPES } from "@greed-island/shared";
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
-import { cp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { deriveCharacter } from "../ikemen/derive.ts";
 import { iniValue, parseIni } from "./ini.ts";
 
 const value = z.union([z.string(), z.number()]).transform(String);
@@ -59,43 +59,7 @@ export function variantDefPath(v: Pick<Variant, "id">): string {
   return `chars/${v.id}/${v.id}.def`;
 }
 
-function stripComment(line: string): { body: string; comment: string } {
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === '"') inQuotes = !inQuotes;
-    else if (line[i] === ";" && !inQuotes) return { body: line.slice(0, i), comment: line.slice(i) };
-  }
-  return { body: line, comment: "" };
-}
-
-/**
- * Set keys in the first `[section]` of a .def/.cns text, keeping everything
- * else (comments, spacing, other sections, line endings) as it was. Keys that
- * aren't there yet are added right after the section header.
- */
-export function patchIni(text: string, section: string, values: Record<string, string>): string {
-  const eol = text.includes("\r\n") ? "\r\n" : "\n";
-  const lines = text.split(/\r?\n/);
-  const wanted = new Map(Object.entries(values).map(([k, v]) => [k.toLowerCase(), { key: k, value: v }]));
-  const start = lines.findIndex((l) => stripComment(l).body.trim().toLowerCase() === `[${section.toLowerCase()}]`);
-  if (start < 0) throw new Error(`section [${section}] not found`);
-  let i = start + 1;
-  for (; i < lines.length; i++) {
-    const { body, comment } = stripComment(lines[i]!);
-    if (/^\s*\[.*\]\s*$/.test(body)) break;
-    const m = /^(\s*)([^=\s][^=]*?)(\s*=\s*)(.*?)(\s*)$/.exec(body);
-    if (!m) continue;
-    const hit = wanted.get(m[2]!.toLowerCase());
-    if (!hit) continue;
-    lines[i] = `${m[1]}${m[2]}${m[3]}${hit.value}${comment ? (m[5] || " ") + comment : ""}`;
-    wanted.delete(m[2]!.toLowerCase());
-  }
-  if (wanted.size > 0) lines.splice(start + 1, 0, ...[...wanted.values()].map((w) => `${w.key} = ${w.value}`));
-  return lines.join(eol);
-}
-
-export const MARKER = ".greed-island-variant.json";
-
+/** Fingerprint of a variant's recipe: its folder is rebuilt only when this changes. */
 export function variantHash(recipe: VariantRecipe, v: Variant): string {
   return createHash("sha256").update(JSON.stringify({ base: recipe.base, baseDef: recipe.baseDef, v })).digest("hex").slice(0, 16);
 }
@@ -111,41 +75,19 @@ export interface BuildResult {
  * didn't create; rebuilds its own folder only when the recipe changed.
  */
 export async function buildVariant(ikemenDir: string, recipe: VariantRecipe, v: Variant): Promise<BuildResult> {
-  const src = path.join(ikemenDir, recipe.base);
-  const dest = path.join(ikemenDir, "chars", v.id);
-  const marker = path.join(dest, MARKER);
-  const hash = variantHash(recipe, v);
-  if (!existsSync(path.join(src, recipe.baseDef))) throw new Error(`base character not found: ${path.join(recipe.base, recipe.baseDef)}`);
-  if (existsSync(dest)) {
-    if (!existsSync(marker)) throw new Error(`${dest} exists and wasn't made by roster:variants; not touching it`);
-    const previous = JSON.parse(await readFile(marker, "utf8")) as { hash?: string };
-    if (previous.hash === hash) return { id: v.id, defPath: variantDefPath(v), status: "unchanged" };
-    await rm(dest, { recursive: true });
-  }
-  await cp(src, dest, { recursive: true });
-  const defFile = path.join(dest, `${v.id}.def`);
-  await rename(path.join(dest, recipe.baseDef), defFile);
-
-  // Files are latin1 so bytes outside ASCII survive unchanged.
-  let def = await readFile(defFile, "latin1");
-  const author = iniValue(parseIni(def), "Info", "author") ?? "unknown";
-  def = patchIni(def, "Info", {
-    name: `"${v.name}"`,
-    displayname: `"${v.name}"`,
-    author: `"${author} (variant: Greed Island)"`,
-    "pal.defaults": String(v.palette),
+  const srcDefPath = path.posix.join(recipe.base, recipe.baseDef);
+  const author = iniValue(parseIni(await readFile(path.join(ikemenDir, srcDefPath), "latin1").catch(() => "")), "Info", "author") ?? "unknown";
+  const r = await deriveCharacter(ikemenDir, {
+    srcDefPath,
+    destId: v.id,
+    hash: variantHash(recipe, v),
+    info: { name: `"${v.name}"`, displayname: `"${v.name}"`, author: `"${author} (variant: Greed Island)"`, "pal.defaults": String(v.palette) },
+    constants: {
+      Data: { life: String(v.data.life), attack: String(v.data.attack), defence: String(v.data.defence) },
+      Size: { xscale: String(v.scale), yscale: String(v.scale) },
+      Velocity: v.velocity,
+    },
+    generatedBy: "pnpm roster:variants",
   });
-  await writeFile(defFile, def, "latin1");
-
-  const cnsName = iniValue(parseIni(def), "Files", "cns");
-  if (!cnsName) throw new Error(`${recipe.baseDef} has no [Files] cns entry`);
-  const cnsFile = path.join(dest, cnsName);
-  let cns = await readFile(cnsFile, "latin1");
-  cns = patchIni(cns, "Data", { life: String(v.data.life), attack: String(v.data.attack), defence: String(v.data.defence) });
-  cns = patchIni(cns, "Size", { xscale: String(v.scale), yscale: String(v.scale) });
-  if (Object.keys(v.velocity).length > 0) cns = patchIni(cns, "Velocity", v.velocity);
-  await writeFile(cnsFile, cns, "latin1");
-
-  await writeFile(marker, JSON.stringify({ id: v.id, hash, base: recipe.base, generatedBy: "pnpm roster:variants" }, null, 2) + "\n");
-  return { id: v.id, defPath: variantDefPath(v), status: "built" };
+  return { id: v.id, defPath: r.defPath, status: r.status };
 }

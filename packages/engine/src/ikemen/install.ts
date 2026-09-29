@@ -4,7 +4,6 @@ import { existsSync } from "node:fs";
 import { copyFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { iniValue, parseIni } from "../roster/ini.ts";
 
 /** The mod as committed in this repo. */
 export const MOD_SOURCE = fileURLToPath(new URL("../../../../ikemen/mods/salty_events.lua", import.meta.url));
@@ -48,15 +47,4 @@ export async function installMod(ikemenDir: string): Promise<string> {
   await mkdir(path.dirname(target), { recursive: true });
   await copyFile(MOD_SOURCE, target);
   return target;
-}
-
-/** The fighter's base life from its constants file ([Data] life), default 1000. */
-export async function readBaseLife(ikemenDir: string, defPath: string): Promise<number> {
-  const defFile = path.join(ikemenDir, defPath);
-  const def = parseIni(await readFile(defFile, "latin1"));
-  const cns = iniValue(def, "Files", "cns");
-  if (!cns) return 1000;
-  const constants = parseIni(await readFile(path.join(path.dirname(defFile), cns), "latin1"));
-  const life = Number(iniValue(constants, "Data", "life"));
-  return Number.isFinite(life) && life > 0 ? life : 1000;
 }

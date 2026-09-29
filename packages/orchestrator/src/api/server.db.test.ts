@@ -199,6 +199,17 @@ describe("shop", () => {
       const again = await rich.inject({ method: "POST", url: "/api/shop/buy", headers: auth, payload: { fighterId: shop.offers[0].fighterId, idempotencyKey: "buy-key-0001" } });
       expect(again.statusCode).toBe(200);
       expect(again.json().replayed).toBe(true);
+      // Upgrades and sidegrades through the API.
+      const id = mine[0].id;
+      expect(mine[0].prices).toEqual({ next: { life: "150", attack: "200", defense: "200", power: "120" }, sidegrade: "300" });
+      const upg = await rich.inject({ method: "POST", url: `/api/characters/${id}/upgrade`, headers: auth, payload: { stat: "life", idempotencyKey: "upg-key-0001" } });
+      expect(upg.statusCode).toBe(200);
+      expect(upg.json()).toMatchObject({ balance: "3850", character: { levels: { life: 1 }, stats: { lifePct: 106 } } });
+      const side = await rich.inject({ method: "POST", url: `/api/characters/${id}/sidegrade`, headers: auth, payload: { sidegrade: "BRUISER", idempotencyKey: "side-key-001" } });
+      expect(side.json()).toMatchObject({ balance: "3550", character: { sidegrade: "BRUISER", stats: { lifePct: 116 } } });
+      expect(side.json().character.upgrades).toHaveLength(2);
+      const bad = await rich.inject({ method: "POST", url: `/api/characters/${id}/upgrade`, headers: auth, payload: { stat: "speed", idempotencyKey: "upg-key-0002" } });
+      expect(bad.statusCode).toBe(400);
     } finally {
       await rich.close();
     }

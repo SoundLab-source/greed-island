@@ -41,6 +41,7 @@ enum TxnKind {
   SETTLE
   VOID
   PURCHASE
+  UPGRADE
 }
 
 enum BetStatus {
@@ -67,6 +68,7 @@ model User {
   characters       Character[]
   sessions         Session[]
   loginTokens      LoginToken[]
+  characterChanges CharacterChange[]
 
   @@map("user")
 }
@@ -105,6 +107,7 @@ model LedgerTxn {
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   entries        LedgerEntry[]
   purchased      Character?
+  characterChange CharacterChange?
 
   @@index([userId])
   @@index([fightId])
@@ -164,6 +167,17 @@ enum Archetype {
   GRAPPLER
   ALL_ROUNDER
   HEAVY
+}
+
+enum Sidegrade {
+  BRUISER
+  GLASS_CANNON
+  IRON_WALL
+}
+
+enum CharacterChangeKind {
+  UPGRADE
+  SIDEGRADE
 }
 
 enum Rarity {
@@ -238,7 +252,13 @@ model Character {
   ownerKind      OwnerKind     @default(HOUSE) @map("owner_kind")
   ownerUserId    String?       @map("owner_user_id") @db.Uuid
   owner          User?         @relation(fields: [ownerUserId], references: [id])
-  /// Stats (see CharacterStats). Neutral defaults; upgrades arrive in phase 2.
+  /// Upgrade levels (0-5) and sidegrade; the stat columns below are derived from them.
+  lifeLevel      Int           @default(0) @map("life_level") @db.SmallInt
+  attackLevel    Int           @default(0) @map("attack_level") @db.SmallInt
+  defenseLevel   Int           @default(0) @map("defense_level") @db.SmallInt
+  powerLevel     Int           @default(0) @map("power_level") @db.SmallInt
+  sidegrade      Sidegrade?
+  /// Effective stats (see CharacterStats), recomputed on every upgrade.
   lifePct        Int           @default(100) @map("life_pct") @db.SmallInt
   startPower     Int           @default(0) @map("start_power")
   attackPct      Int           @default(100) @map("attack_pct") @db.SmallInt
@@ -259,6 +279,7 @@ model Character {
   fightsAsSide2  Fight[]       @relation("FightSide2")
   fightsWon      Fight[]       @relation("FightWinner")
   loadouts       FightLoadout[]
+  changes        CharacterChange[]
 
   @@unique([fighterId, serial])
   @@index([tier, enabled])
@@ -484,4 +505,32 @@ model LoginToken {
 
   @@index([email, createdAt])
   @@map("login_token")
+}
+
+// ---------------------------------------------------------------------------
+// Upgrades (phase 2, step 3)
+
+/// Every upgrade and sidegrade change, kept with the character (DESIGN §8: history travels with it).
+model CharacterChange {
+  id            BigInt              @id @default(autoincrement())
+  characterId   String              @map("character_id") @db.Uuid
+  character     Character           @relation(fields: [characterId], references: [id])
+  kind          CharacterChangeKind
+  /// UPGRADE: which stat and levels.
+  stat          String?
+  fromLevel     Int?                @map("from_level") @db.SmallInt
+  toLevel       Int?                @map("to_level") @db.SmallInt
+  /// SIDEGRADE: before and after (null = none).
+  fromSidegrade Sidegrade?          @map("from_sidegrade")
+  toSidegrade   Sidegrade?          @map("to_sidegrade")
+  cost          Decimal             @db.Decimal(20, 0)
+  txnId         String?             @unique @map("txn_id") @db.Uuid
+  txn           LedgerTxn?          @relation(fields: [txnId], references: [id])
+  /// Who paid for it (the owner at the time).
+  byUserId      String              @map("by_user_id") @db.Uuid
+  byUser        User                @relation(fields: [byUserId], references: [id])
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([characterId, id])
+  @@map("character_change")
 }

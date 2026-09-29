@@ -139,11 +139,51 @@ async function refreshShop() {
   shopTimer = setInterval(tick, 30000);
 }
 
+const STAT_LABELS = { life: "Life", attack: "Attack", defense: "Defense", power: "Power" };
+const SIDEGRADE_LABELS = { BRUISER: "Bruiser (+10% life, −300 power)", GLASS_CANNON: "Glass Cannon (+8% attack, −8% life)", IRON_WALL: "Iron Wall (+8% defense, −5% attack)" };
+
 async function refreshMine() {
   const mine = await api("GET", "/api/me/characters");
-  $("mine").innerHTML = mine.length
-    ? mine.map((c) => `<tr><td>${esc(c.name)}${c.firstEdition ? " ★" : ""}</td><td>${c.tier}</td><td>${c.rating}</td><td>${c.record.wins}-${c.record.losses}</td><td class="muted">last 10: ${c.last10.join(" ") || "-"}</td></tr>`).join("")
-    : `<tr><td class="muted">None yet. Buy one in the shop: it starts in tier P and climbs by winning.</td></tr>`;
+  if (!mine.length) {
+    $("mine").innerHTML = `<tr><td class="muted">None yet. Buy one in the shop: it starts in tier P and climbs by winning.</td></tr>`;
+    return;
+  }
+  $("mine").innerHTML = mine.map((c) => {
+    const st = c.stats;
+    const buttons = Object.keys(STAT_LABELS).map((k) =>
+      c.prices.next[k] === null
+        ? `<button disabled>${STAT_LABELS[k]} max</button>`
+        : `<button data-upgrade="${c.id}" data-stat="${k}">+${STAT_LABELS[k]} (${c.prices.next[k]})</button>`).join(" ");
+    const options = [`<option value="">no sidegrade</option>`].concat(Object.entries(SIDEGRADE_LABELS).map(([k, label]) => `<option value="${k}" ${c.sidegrade === k ? "selected" : ""}>${label}</option>`)).join("");
+    return `<tr><td><strong>${esc(c.name)}</strong>${c.firstEdition ? " ★" : ""}<br><span class="muted">tier ${c.tier}, rating ${c.rating} ±${c.deviation}, ${c.record.wins}-${c.record.losses}, last 10: ${c.last10.join(" ") || "-"}</span>
+      <br><span class="muted">life ${st.lifePct}%, attack ${st.attackPct}%, defense ${st.defensePct}%, start power ${st.startPower}</span>
+      <br>${buttons}
+      <br><select data-sidegrade="${c.id}">${options}</select> <button data-set-sidegrade="${c.id}">Set sidegrade (${c.prices.sidegrade}, removing is free)</button></td></tr>`;
+  }).join("");
+  for (const b of document.querySelectorAll("[data-upgrade]")) b.onclick = () => upgrade(b.dataset.upgrade, b.dataset.stat);
+  for (const b of document.querySelectorAll("[data-set-sidegrade]")) {
+    b.onclick = () => sidegrade(b.dataset.setSidegrade, document.querySelector(`[data-sidegrade="${b.dataset.setSidegrade}"]`).value || null);
+  }
+}
+
+async function upgrade(id, stat) {
+  try {
+    await api("POST", `/api/characters/${id}/upgrade`, { stat, idempotencyKey: crypto.randomUUID() });
+    text($("shop-msg"), `Upgraded ${STAT_LABELS[stat].toLowerCase()}. It applies from the character's next fight.`);
+    await Promise.all([refreshMine(), refreshMe()]);
+  } catch (e) {
+    text($("shop-msg"), e.message);
+  }
+}
+
+async function sidegrade(id, value) {
+  try {
+    await api("POST", `/api/characters/${id}/sidegrade`, { sidegrade: value, idempotencyKey: crypto.randomUUID() });
+    text($("shop-msg"), value ? `Sidegrade set: ${SIDEGRADE_LABELS[value]}.` : "Sidegrade removed.");
+    await Promise.all([refreshMine(), refreshMe()]);
+  } catch (e) {
+    text($("shop-msg"), e.message);
+  }
 }
 
 async function buy(fighterId) {

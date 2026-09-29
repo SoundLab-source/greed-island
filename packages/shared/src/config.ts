@@ -2,6 +2,7 @@ import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
 import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
 import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
+import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 
 /**
@@ -27,6 +28,7 @@ export interface Config {
   tiers: TierConfig;
   odds: OddsConfig;
   shop: ShopConfig;
+  upgrades: UpgradeConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -67,6 +69,13 @@ export function validateShop(s: ShopConfig): ShopConfig {
   if (s.basePrice < 1n) throw new ConfigError("shop base price must be >= 1");
   if (!(s.startRating > 0)) throw new ConfigError("owned start rating must be positive");
   return s;
+}
+
+export function validateUpgrades(u: UpgradeConfig): UpgradeConfig {
+  if (u.costGrowthBp < 10_000n) throw new ConfigError("upgrade cost growth must be >= 10000 bp (costs can't shrink)");
+  if (u.sidegradeCost < 0n) throw new ConfigError("sidegrade cost must be >= 0");
+  if (!(u.deviationWiden >= 0)) throw new ConfigError("upgrade deviation widening must be >= 0");
+  return u;
 }
 
 export function validateEconomy(e: EconomyConfig): EconomyConfig {
@@ -117,6 +126,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       firstEditionSupply: numberFromEnv(env, "GI_FIRST_EDITION_SUPPLY", DEFAULT_SHOP.firstEditionSupply),
       startRating: numberFromEnv(env, "GI_OWNED_START_RATING", DEFAULT_SHOP.startRating),
       maxOwnedPerUser: numberFromEnv(env, "GI_MAX_OWNED", DEFAULT_SHOP.maxOwnedPerUser),
+    }),
+    upgrades: validateUpgrades({
+      ...DEFAULT_UPGRADES,
+      costGrowthBp: saltFromEnv(env, "GI_UPGRADE_COST_GROWTH_BP", DEFAULT_UPGRADES.costGrowthBp),
+      sidegradeCost: saltFromEnv(env, "GI_SIDEGRADE_COST", DEFAULT_UPGRADES.sidegradeCost),
+      deviationWiden: numberFromEnv(env, "GI_UPGRADE_RD_WIDEN", DEFAULT_UPGRADES.deviationWiden),
     }),
   };
 }

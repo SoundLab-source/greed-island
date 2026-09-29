@@ -48,3 +48,38 @@ export function iniValue(sections: IniSections, section: string, key: string): s
   const v = sections.get(section.toLowerCase())?.get(key.toLowerCase());
   return v === undefined || v === "" ? undefined : v;
 }
+
+function splitComment(line: string): { body: string; comment: string } {
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') inQuotes = !inQuotes;
+    else if (line[i] === ";" && !inQuotes) return { body: line.slice(0, i), comment: line.slice(i) };
+  }
+  return { body: line, comment: "" };
+}
+
+/**
+ * Set keys in the first `[section]` of a .def/.cns text, keeping everything
+ * else (comments, spacing, other sections, line endings) as it was. Keys that
+ * aren't there yet are added right after the section header.
+ */
+export function patchIni(text: string, section: string, values: Record<string, string>): string {
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  const wanted = new Map(Object.entries(values).map(([k, v]) => [k.toLowerCase(), { key: k, value: v }]));
+  const start = lines.findIndex((l) => splitComment(l).body.trim().toLowerCase() === `[${section.toLowerCase()}]`);
+  if (start < 0) throw new Error(`section [${section}] not found`);
+  let i = start + 1;
+  for (; i < lines.length; i++) {
+    const { body, comment } = splitComment(lines[i]!);
+    if (/^\s*\[.*\]\s*$/.test(body)) break;
+    const m = /^(\s*)([^=\s][^=]*?)(\s*=\s*)(.*?)(\s*)$/.exec(body);
+    if (!m) continue;
+    const hit = wanted.get(m[2]!.toLowerCase());
+    if (!hit) continue;
+    lines[i] = `${m[1]}${m[2]}${m[3]}${hit.value}${comment ? (m[5] || " ") + comment : ""}`;
+    wanted.delete(m[2]!.toLowerCase());
+  }
+  if (wanted.size > 0) lines.splice(start + 1, 0, ...[...wanted.values()].map((w) => `${w.key} = ${w.value}`));
+  return lines.join(eol);
+}

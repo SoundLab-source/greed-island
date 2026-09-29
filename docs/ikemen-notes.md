@@ -98,7 +98,7 @@ Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adap
 | Life (current / max) | `-p<n>.life`, `-p<n>.lifeMax` | SOURCE |
 | Starting power | `-p<n>.power` | SOURCE |
 | Dizzy / guard points | `-p<n>.dizzyPoints`, `-p<n>.guardPoints` | SOURCE |
-| Attack / defense multipliers | (a) Generate a per-loadout copy of the character with `[Data] attack` / `defence` patched in its constants file. The engine reads these (`src/char.go:4022-4025`, `attackBase` / `defenceBase`). (b) `loadStart` params support `p<side>.<member>.map.<name>=<float>` (`src/select_params.go:465-468`) for per-fighter maps, but quick VS has no CLI flag for maps and no hook to inject params, and maps need common-state logic to take effect. | **UNVERIFIED** (both). Not used in phase 1. |
+| Attack / defense | Per-fight copy of the character with its own `[Data] attack/defence` scaled (`src/char.go:4022-4025`), built by the runner as `chars/gi-loadout-<hash>/` and reused while unchanged (newest 64 kept). **Attack: RUN** (2026-09-29, `match:once --sim --p1-attack 300`: KFM with attack 300 beat KFM 720 2-0, rounds averaged 1,517 ticks vs 4,783 at normal stats, about 3.2× faster, matching 3× damage). **Defence: SOURCE** (same file, section and read path). | RUN / SOURCE |
 
 ### House variants (phase 1)
 

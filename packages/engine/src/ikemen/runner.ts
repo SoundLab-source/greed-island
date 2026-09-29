@@ -6,6 +6,7 @@
  */
 import { parseEngineEventLine, type EngineOutcome, type Side } from "@greed-island/shared";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, openSync, closeSync } from "node:fs";
 import { mkdir, open, writeFile, type FileHandle } from "node:fs/promises";
 import path from "node:path";
@@ -13,8 +14,12 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { OutcomeTracker } from "../outcome.ts";
 import type { EventSource, FightSpec, RunOptions } from "../types.ts";
 import { buildArgs, runConfigIni, type RunPaths } from "./args.ts";
-import { findIkemenBinary, isModInstalled, readBaseLife } from "./install.ts";
+import { deriveCharacter, pruneDerived, readConstants } from "./derive.ts";
+import { findIkemenBinary, isModInstalled } from "./install.ts";
 import { outcomeFromLog } from "./log.ts";
+
+/** How many per-fight character copies (attack/defense upgrades) to keep on disk. */
+const LOADOUT_CACHE_SIZE = 64;
 
 export interface IkemenSourceOptions {
   mode: "live" | "sim";
@@ -98,13 +103,34 @@ export function createIkemenSource(options: IkemenSourceOptions): EventSource {
         return finish({ kind: "engine_crash", detail: "preflight: event mod missing or outdated (run pnpm ikemen:install-mod)" });
       }
 
+      // Attack/defense upgrades can't be passed as flags: launch a copy of the
+      // character with its own [Data] attack/defence scaled (cached per value).
       const baseLife: Partial<Record<Side, number>> = {};
+      const launched = { ...spec, sides: { ...spec.sides } };
+      const loadoutCopies: Partial<Record<Side, { from: string; defPath: string; attack: number; defence: number }>> = {};
       for (const side of [1, 2] as const) {
-        if (spec.sides[side].stats.lifePct !== 100) baseLife[side] = await readBaseLife(options.ikemenDir, spec.sides[side].defPath);
+        const s = spec.sides[side];
+        if (s.stats.lifePct === 100 && s.stats.attackPct === 100 && s.stats.defensePct === 100) continue;
+        const base = await readConstants(options.ikemenDir, s.defPath);
+        baseLife[side] = base.life;
+        if (s.stats.attackPct === 100 && s.stats.defensePct === 100) continue;
+        const attack = Math.max(1, Math.round((base.attack * s.stats.attackPct) / 100));
+        const defence = Math.max(1, Math.round((base.defence * s.stats.defensePct) / 100));
+        const hash = createHash("sha256").update(`${s.defPath}|${attack}|${defence}`).digest("hex").slice(0, 12);
+        const copy = await deriveCharacter(options.ikemenDir, {
+          srcDefPath: s.defPath,
+          destId: `gi-loadout-${hash}`,
+          hash,
+          constants: { Data: { attack: String(attack), defence: String(defence) } },
+          generatedBy: "Greed Island runner (attack/defense upgrades)",
+        });
+        launched.sides[side] = { ...s, defPath: copy.defPath, stats: { ...s.stats, attackPct: 100, defensePct: 100 } };
+        loadoutCopies[side] = { from: s.defPath, defPath: copy.defPath, attack, defence };
       }
-      const built = buildArgs(spec, paths, { mode: options.mode, aiLevel: options.aiLevel ?? 8, simSpeed: options.simSpeed ?? 4, extraArgs: options.extraArgs ?? [] }, baseLife);
+      if (Object.keys(loadoutCopies).length > 0) await pruneDerived(options.ikemenDir, "gi-loadout-", LOADOUT_CACHE_SIZE);
+      const built = buildArgs(launched, paths, { mode: options.mode, aiLevel: options.aiLevel ?? 8, simSpeed: options.simSpeed ?? 4, extraArgs: options.extraArgs ?? [] }, baseLife);
       await writeFile(paths.config, runConfigIni(spec.fightId));
-      await writeFile(path.join(dir, "argv.json"), JSON.stringify({ binary, cwd: options.ikemenDir, argv: built.argv, ignoredStats: built.ignoredStats }, null, 2) + "\n");
+      await writeFile(path.join(dir, "argv.json"), JSON.stringify({ binary, cwd: options.ikemenDir, argv: built.argv, ignoredStats: built.ignoredStats, loadoutCopies }, null, 2) + "\n");
 
       const outFd = openSync(path.join(dir, "stdout.log"), "w");
       const errFd = openSync(path.join(dir, "stderr.log"), "w");

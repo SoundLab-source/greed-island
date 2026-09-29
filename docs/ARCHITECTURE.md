@@ -134,6 +134,7 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `POST /api/me/daily-grant`, `POST /api/me/bailout` | Faucets |
 | `GET /api/fights/current`, `GET /api/fights/:id` | Fighters (frozen loadout once betting opens), tier, rating, record, win rate, last-10 form, head-to-head, odds (live model estimate before lock; locked odds, pools and crowd chance after), rounds, result, the viewer's bet |
 | `POST /api/fights/:id/bets` | `{side, stake, idempotencyKey}`; latest bet counts until lock |
+| `POST /api/characters/:id/upgrade`, `POST /api/characters/:id/sidegrade` | Owner only: `{stat, idempotencyKey}` raises one level; `{sidegrade or null, idempotencyKey}` picks, switches or removes a sidegrade |
 | `GET /api/shop`, `POST /api/shop/buy`, `GET /api/me/characters` | Current rotation (price, rarity, First Editions left, when it changes), buy `{fighterId, idempotencyKey}`, your characters |
 | `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking, character profile (tier history, recent fights, license) |
 | `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, keep-alive comments |
@@ -152,13 +153,12 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 - `FightTransition` (audit), `Bet` (fightId, userId, side, stake, status, payout?), `Account`, `LedgerTxn`, `LedgerEntry`, `IdempotencyKey`
 - Phase-2 placeholders only as fields: `Character.ownerUserId`, `stats`, `titles` (empty JSON). No shop, upgrade or title tables yet.
 
-## 8. How stat upgrades will reach the engine (phase 2)
+## 8. How stat upgrades reach the engine
 
 ```
-Character.stats ──(freeze at OPEN_BETTING)──▶ FightLoadout.stats ──▶ StatMapper ──▶ FightSpec.engineArgs ──▶ argv
+upgrade/sidegrade → Character levels + effective stats ──(frozen at OPEN_BETTING)──▶ FightLoadout.stats ──▶ runner ──▶ argv / per-fight character copy
 ```
 
-- `StatMapper` has one entry per stat, each tagged `verified | unverified`. Only `verified` mappings emit anything. Unverified stats are stored and shown but have no engine effect, and the UI must say so.
-- Verified now (source): `life`, `lifeMax`, `power` (and dizzy/guard points) via `-p<n>.<field>`.
-- Attack/defense (UNVERIFIED): candidate A is a per-loadout generated character copy with `[Data] attack/defence` patched, cached by content hash under `runs/cache/chars/`; candidate B is `map.*` overrides plus common states. The winner gets chosen in phase 2 after a real-run test. It's recorded in `ikemen-notes.md` before use.
-- Every stat change widens rating deviation (DESIGN §7), done where upgrades are applied, not in the engine layer.
+- Owners raise four stats (life, attack, defense, starting power) over five levels with shrinking gains, or pick one sidegrade; Salt goes to the sink; each change widens the rating deviation by 30 (max 350) and is kept in `character_change` (it travels with the character). Rules and costs: `packages/shared/src/upgrades.ts`, defaults in docs/PHASE2.md.
+- Changes apply from the next fight whose betting opens; a loadout already frozen is untouched.
+- The runner passes life and starting power as `-p<n>.lifeMax/.life/.power` flags. For attack/defense it launches a copy of the character (`chars/gi-loadout-<hash>/`) whose own `[Data] attack/defence` are scaled, reused while unchanged, newest 64 kept. `argv.json` records which copy each side used.

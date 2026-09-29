@@ -5,7 +5,7 @@
  * head-to-head, last-10 form, tier history.
  */
 import { getBalance, openStakes, toSalt, type Db } from "@greed-island/db";
-import { formatMultiplier, liveOdds, type Config, type Side } from "@greed-island/shared";
+import { formatMultiplier, liveOdds, maxLevel, UPGRADE_STATS, upgradeCost, type Config, type Side, type UpgradeConfig } from "@greed-island/shared";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -58,13 +58,24 @@ export async function characterCard(db: Db, characterId: string) {
     winRate: winRate(c.wins, c.losses),
     last10: await recentForm(db, c.id),
     stats: { lifePct: c.lifePct, startPower: c.startPower, attackPct: c.attackPct, defensePct: c.defensePct },
+    levels: { life: c.lifeLevel, attack: c.attackLevel, defense: c.defenseLevel, power: c.powerLevel },
+    sidegrade: c.sidegrade,
     enabled: c.enabled && c.fighter.enabled,
+  };
+}
+
+/** What the next level of each stat costs (null at max), for the owner's upgrade buttons. */
+export function upgradePrices(levels: Record<(typeof UPGRADE_STATS)[number], number>, cfg: UpgradeConfig) {
+  return {
+    next: Object.fromEntries(UPGRADE_STATS.map((s) => [s, levels[s] >= maxLevel(s, cfg) ? null : upgradeCost(s, levels[s], cfg).toString()])),
+    sidegrade: cfg.sidegradeCost.toString(),
   };
 }
 
 export async function characterProfile(db: Db, characterId: string) {
   const card = await characterCard(db, characterId);
   const tierHistory = await db.tierHistory.findMany({ where: { characterId }, orderBy: { id: "desc" }, take: 50 });
+  const changes = await db.characterChange.findMany({ where: { characterId }, orderBy: { id: "desc" }, take: 50, include: { byUser: true } });
   const fights = await db.fight.findMany({
     where: { state: { in: ["SETTLED", "VOIDED"] }, OR: [{ side1CharacterId: characterId }, { side2CharacterId: characterId }] },
     orderBy: { number: "desc" },
@@ -74,6 +85,15 @@ export async function characterProfile(db: Db, characterId: string) {
   return {
     ...card,
     license: (await db.fighter.findUniqueOrThrow({ where: { id: card.fighter.id } })).licenseNote,
+    upgrades: changes.map((ch) => ({
+      kind: ch.kind,
+      stat: ch.stat,
+      toLevel: ch.toLevel,
+      sidegrade: ch.kind === "SIDEGRADE" ? { from: ch.fromSidegrade, to: ch.toSidegrade } : undefined,
+      cost: ch.cost.toFixed(0),
+      by: playerName(ch.byUser),
+      at: ch.createdAt,
+    })),
     tierHistory: tierHistory.map((t) => ({ from: t.fromTier, to: t.toTier, rating: Math.round(t.rating), reason: t.reason, fightId: t.fightId, at: t.createdAt })),
     recentFights: fights.map((f) => {
       const opponent = f.side1CharacterId === characterId ? f.side2Character : f.side1Character;
@@ -262,7 +282,12 @@ export async function recentResults(db: Db, take = 10) {
 }
 
 /** A player's own characters, strongest first. */
-export async function myCharacters(db: Db, userId: string) {
+export async function myCharacters(db: Db, config: Config, userId: string) {
   const owned = await db.character.findMany({ where: { ownerUserId: userId }, orderBy: [{ rating: "desc" }, { acquiredAt: "asc" }], select: { id: true } });
-  return Promise.all(owned.map((c) => characterCard(db, c.id)));
+  return Promise.all(
+    owned.map(async (c) => {
+      const card = await characterCard(db, c.id);
+      return { ...card, prices: upgradePrices(card.levels, config.upgrades) };
+    }),
+  );
 }
