@@ -60,13 +60,13 @@ stateDiagram-v2
 
 1. **Book.** Scheduler asks the current mode (matchmaking) for a pairing: two enabled characters in the same tier, not a mirror match, not an immediate rematch, model chance in 40–60% (or a deliberate upset at the configured rate). Stage from `crypto.randomInt`. Insert `fight` in `BOOKED`.
 2. **Open betting.** `OPEN_BETTING`: snapshot both loadouts (stats, rating, RD, volatility, tier) into `fight_loadout`. These are immutable from here. Betting window starts (default 60 s). SSE `state` and live estimated odds.
-3. **Bets.** `POST /fights/:id/bet {side, amount, idempotencyKey}`. In one transaction: `SELECT … FOR UPDATE` the user's available account, reverse their previous bet on this fight (escrow → user) if any, check funds, post the new stake (user → escrow[side]), and upsert `bet` (latest counts). Enforce the owner cap (0 owners now), min bet 1 and max stake. SSE odds update (model odds only; crowd split hidden).
-4. **Lock.** `LOCK`: compute the model chance from Glicko-2 expected score, clamp to [5%, 95%], multiplier `(1/p)(1 − margin)` per side. Record `model_chance`, `crowd_chance` (per-account capped share), pools per side, and locked multipliers. Blend weight `w = pool/(pool+K)` is computed and stored but **config weight 0**, so locked = model.
+3. **Bets.** `POST /fights/:id/bet {side, amount, idempotencyKey}`. In one transaction: `SELECT … FOR SHARE` the fight row and require `BETTING_OPEN` (the `LOCK` transition takes `FOR UPDATE` on the same row, so no bet can commit after pools are snapshotted), `SELECT … FOR UPDATE` the user's available account, reverse their previous bet on this fight (escrow → user) if any, check funds, post the new stake (user → escrow[side]), and upsert `bet` (latest counts). Enforce the owner cap (0 owners now), min bet 1 and max stake. SSE odds update (model odds only; crowd split hidden).
+4. **Lock.** `LOCK`: compute the model chance from Glicko-2 expected score, clamp to [5%, 95%], multiplier `(1/p)(1 − margin)` per side, then convert it once to an integer in basis points, **rounded down** (`multiplierBp`, e.g. 1.9× → 19000). From here on, money math is bigint only. Record `model_chance`, `crowd_chance` (per-account capped share), pools per side, and locked multipliers. Blend weight `w = pool/(pool+K)` is computed and stored but **config weight 0**, so locked = model.
 5. **Fight.** Runner builds argv from the loadouts and stage and spawns the engine. `ENGINE_STARTED` → `IN_PROGRESS`. Events are tailed from `runs/<fightId>/events.ndjson` and broadcast as SSE. The watchdog kills at `engine_timeout` → `ENGINE_TIMEOUT` → void. Exit without `match_end` → `ENGINE_CRASH` → void.
 6. **Result.** `match_end {winnerSide: 1|2}` → `SETTLING`. `winnerSide: 0` (draw) → `VOIDING`. Winner is a **side**, mapped to the character id the runner launched on that side.
 7. **Settle (one transaction).** Pay winners, sweep losers to house (§4), update both characters' records, run a Glicko-2 update (one-game rating period per fight), re-evaluate tiers (append `tier_history` on change; X is never automatic), write `fight_result`, → `SETTLED`.
 8. **Void (one transaction).** Refund every bet in full (escrow → user, no margin), no rating change, → `VOIDED`.
-9. Scheduler books the next fight. The next booking can overlap the current fight so betting on fight N+1 opens as N ends.
+9. Scheduler books the next fight only after the current one is terminal (`SETTLED` or `VOIDED`), so matchmaking and loadout snapshots always use settled ratings. As on Salty Bet, the betting window is the gap between fights.
 
 **Startup reconciliation:** acquire the advisory lock, then for each non-terminal fight: `BOOKED` or `BETTING_OPEN` → void (`reconcile_orphaned`), since the betting window was lost; `LOCKED` / `IN_PROGRESS` with no live process → void; `SETTLING` → retry settlement (idempotent keys); `VOIDING` → retry void.
 
@@ -90,12 +90,14 @@ Double-entry, integer Salt (`numeric(20,0)` ⇄ `bigint`). Every `ledger_txn` ha
 | Starting balance / daily grant / bailout | `issuance −a`, `user +a` |
 | Place bet `s` on side k | `user −s`, `escrow:k +s` |
 | Change bet | reverse the old stake (`escrow:k −s₀`, `user +s₀`), then place the new one; one txn |
-| Settle, side k wins, bet `s` at locked `m_k` | payout `P = min(floor(s·m_k), maxPayout)`; `escrow:k −s`, `house −(P − s)`, `user +P` |
+| Settle, side k wins, bet `s` at locked `multiplierBp_k` | payout `P = min(s × multiplierBp_k / 10000, maxPayout)` in bigint (integer division rounds down); `escrow:k −s`, `house −(P − s)`, `user +P` |
 | Settle, losing side j | `escrow:j −Σs_j`, `house +Σs_j` |
 | Void | per bet: `escrow:k −s`, `user +s` |
 
 - Payouts round **down**, and the remainder stays with the house automatically (the house pays `P − s`).
-- `m ≥ 1` always: at the 95% clamp, `(1/0.95)(0.95) = 1.0`. To keep `P ≥ s` under the payout cap, bets with `s > maxPayout` are rejected at placement.
+- **Minimum multiplier 1.00× (`minMultiplierBp = 10000`, config).** At the 95% clamp with 5% margin the formula gives exactly 1.0 on paper, but float error can give 0.9999…, and any margin above 5% gives less than 1.0. Without a floor, a *winning* bet would lose Salt. Flagged for review.
+- To keep `P ≥ s` under the payout cap, bets with `s > maxPayout` are rejected at placement.
+- **Idempotency keys** come from the client for bets (`bet:<clientKey>`) and are deterministic for system writes: `grant:start:<userId>`, `grant:daily:<userId>:<UTC date>`, `bailout:<userId>:<UTC date>:<n>`, `settle:<fightId>:<betId>`, `sweep:<fightId>:<side>`, `void:<fightId>:<betId>`. Retrying settlement or void after a crash is then a no-op for anything already posted.
 - `ledger:audit`: every txn sums to zero; each `balance_cached` equals Σ entries; no user or escrow account is negative; escrow for terminal fights is 0; Σ all balances per asset is 0.
 - The `asset` column exists everywhere with only `SALT` allowed, so a second asset later is data, not a migration.
 - Tournament balances (phase 2) become separate account kinds (`user_tournament:<userId>`) on the same ledger.
@@ -122,7 +124,7 @@ Engine events (NDJSON, zod-validated): `match_start`, `round_start {round}`, `ro
 - `TierHistory`, `Stage` (id, defPath, licenseNote, enabled)
 - `Fight` (id, state, version, mode, stageId, bookedAt, windows, voidReason?, winnerSide?, winnerCharacterId?)
 - `FightLoadout` (fightId, side, characterId, stats, rating, rd, volatility, tier), immutable
-- `FightOdds` (fightId, modelChance[2], crowdChance[2], pool[2], blendWeight, lockedMultiplier[2] as scaled integers or decimal)
+- `FightOdds` (fightId, modelChance[2], crowdChance[2], pool[2], blendWeight, lockedMultiplierBp[2] as integers; chances as floats for analysis only)
 - `FightTransition` (audit), `Bet` (fightId, userId, side, stake, status, payout?), `Account`, `LedgerTxn`, `LedgerEntry`, `IdempotencyKey`
 - Phase-2 placeholders only as fields: `Character.ownerUserId`, `stats`, `titles` (empty JSON). No shop, upgrade or title tables yet.
 

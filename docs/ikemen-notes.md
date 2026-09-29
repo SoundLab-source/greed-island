@@ -46,7 +46,7 @@ No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothin
 |---|---|---|
 | `external/mods/*.lua` autoload | SOURCE | Loaded at `main.lua:3987-4006` (files starting with `-` skipped). **This comes after the quick-VS branch at `main.lua:1170`, which calls `os.exit()`, so mods do NOT load in quick VS.** `Common.Modules` from config load at the same point (`:3997`), so the same applies. |
 | Per-frame `loop` hook | SOURCE | `function loop() hook.run("loop"); hook.run("loop#"..gameMode()) end` (`external/script/debug.lua:229-232`, required at `main.lua:640`, before quick VS). It is called because config `[Common] Lua = loop()` (`defaultConfig.ini:24-25`) is run with `DoString` every frame (`src/system.go:3000-3008`). |
-| Extra per-frame Lua | SOURCE | `[Common]` accepts `Lua`, `Lua1`, `Lua2`… (regex `^(?i)Lua[0-9]*$`, `src/config.go:53`), run in sorted key order each frame. Each value is a `[]string` and **may be split on commas: keep injected code comma-free** (UNVERIFIED either way). |
+| Extra per-frame Lua | SOURCE | `[Common]` accepts `Lua`, `Lua1`, `Lua2`… (regex `^(?i)Lua[0-9]*$`, `src/config.go:53`), run in sorted key order by `uiAction()` (`src/system.go:2981-3008`), which `runMatch()` calls every frame (`src/system.go:4106`). Each value is a `[]string` and **may be split on commas: keep injected code comma-free** (UNVERIFIED either way). |
 | Hook system | SOURCE | `hook.add(list, name, fn)`, `hook.run`, `hook.runFirst`, `hook.stop` (`main.lua:258-291`). |
 | `main.f_commandLine` / `.player` hooks | SOURCE | Exist (`main.lua:1014, 1130`) but are useless in quick VS, because no mod is loaded yet when they fire. |
 | `start.f_selectLoading.member` hook | SOURCE | Exists (`external/script/start.lua:3912`), but `start.lua` is only required at `main.lua:1830`, after the quick-VS exit. **Not available in quick VS.** |
@@ -72,7 +72,7 @@ Because quick VS exits before mods load, `ikemen/mods/salty_events.lua` can't re
 | Item | Status | Finding |
 |---|---|---|
 | Round finish types | SOURCE | Time-out: lower life loses, equal life = draw (`FT_TODraw`); double KO = draw (`FT_DKO`); `winTeam = -1` on draws (`src/system.go:3570-3596`). |
-| Draw rounds | SOURCE | A drawn round doesn't count as a win unless max draws is reached. Then both sides get an "effective loss", i.e. both receive a win (`src/system.go:3598-3610, 3428-3451`). **So a match can last more than 3 rounds**, and a match can end with both sides at the win count, which is a draw game (`winner[0] == winner[1]`, `:3437-3440`). We treat any match-level draw as void. |
+| Draw rounds | SOURCE | `maxDrawsReached` is `draws >= MaxDrawGames` (`src/system.go:1904-1907`), checked before `draws++` (`:3450`). With the default `MaxDrawGames = 1`, the **first** drawn round gives nobody a win. **Every later** drawn round gives both sides a round win (effective loss for both, `:3598-3610`; wins incremented at `:3336-3341`). **So a match can last more than 3 rounds**, and it can end with both sides at the win count, which is a draw game (`winner[0] == winner[1]`, `:3437-3440`). We treat any match-level draw as void. |
 | `matchOver()` | SOURCE | Either side's wins ≥ its matchWins (`src/system.go:1629-1633`). |
 
 ## 4. `-log` contents (`StatsMatch`, `src/stats.go:39-63`)
@@ -81,6 +81,7 @@ Per match: `matchTime`, `roundTime`, `winSide` (= engine `winTeam`: **0 = P1, 1 
 Per round: `index` (1-based), `timer`, `score[2]`, `fighters[side][member]` with `name`, `id`, `aiLevel`, `life`, `lifeMax`, `win`, `winKO`, `winTime`, `winPerfect`, `drawGame`, `ko`, …
 
 Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adapter maps both to our `1 | 2 | 0`.
+`winSide` is just the engine's `winTeam` at match end, i.e. the **last round's** result. The fallback parser therefore decides the match winner from `wins[]` against the match win count (exactly one side reached it → winner; both or neither → draw/void), and only cross-checks it against `winSide`. If they disagree, void.
 
 **Stdout contents: UNVERIFIED.** Source shows `print('Loading module: …')` and error prints only. Needs a real run.
 
