@@ -148,10 +148,12 @@ export class ObsSceneSwitcher {
       if (this.socket === socket) this.socket = null;
       const wasConnected = this.identified;
       this.identified = false;
+      // Closed on purpose (shutting down): nothing to report or retry.
+      if (this.stopped) return;
       if (ev.code === AUTH_FAILED) this.report("OBS: wrong password (check GI_OBS_PASSWORD against OBS → Tools → WebSocket Server Settings), will keep trying");
       else if (wasConnected) this.log("OBS: disconnected, will retry");
       else this.report(`OBS: can't connect to ${this.cfg.url} (is OBS open with its WebSocket server on?), will keep trying`);
-      if (!this.stopped) this.retry = setTimeout(() => this.connect(), this.cfg.reconnectMs);
+      this.retry = setTimeout(() => this.connect(), this.cfg.reconnectMs);
     };
   }
 

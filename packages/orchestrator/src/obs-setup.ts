@@ -15,7 +15,33 @@ export interface ObsSetupOptions {
   bettingScene: string;
   /** Overlay page URL for each scene. */
   overlayUrl: (scene: "fight" | "betting") => string;
+  /**
+   * Settings for a new screen capture source. macOS's `screen_capture`
+   * captures nothing until a display is chosen (`display_uuid`); see
+   * macDisplayCaptureSettings.
+   */
+  captureSettings?: (inputKind: string) => Promise<Record<string, unknown>>;
   log?: (line: string) => void;
+}
+
+/**
+ * macOS: capture the main display. OBS leaves `display_uuid` empty by
+ * default, which captures nothing ("Invalid target display ID: 0" in its
+ * log). The display's UUID comes from CoreGraphics through macOS's built-in
+ * JavaScript automation (osascript), so no extra tools are needed. Asking
+ * OBS for its display list instead crashed OBS 32.2.2 (docs/obs-notes.md).
+ */
+export async function macDisplayCaptureSettings(inputKind: string): Promise<Record<string, unknown>> {
+  if (process.platform !== "darwin" || inputKind !== "screen_capture") return {};
+  const { execFile } = await import("node:child_process");
+  const script =
+    'ObjC.import("CoreGraphics"); ObjC.import("ColorSync");' +
+    "ObjC.castRefToObject($.CFUUIDCreateString(null, $.CGDisplayCreateUUIDFromDisplayID($.CGMainDisplayID()))).js";
+  const uuid = await new Promise<string>((resolve, reject) =>
+    execFile("osascript", ["-l", "JavaScript", "-e", script], { timeout: 10_000 }, (err, stdout) => (err ? reject(err) : resolve(stdout.trim()))),
+  );
+  if (!/^[0-9A-F-]{36}$/i.test(uuid)) throw new Error(`unexpected display id "${uuid}"`);
+  return { type: 0, display_uuid: uuid };
 }
 
 export async function setupObsScenes(obs: ObsClient, opts: ObsSetupOptions): Promise<void> {
@@ -69,7 +95,15 @@ export async function setupObsScenes(obs: ObsClient, opts: ObsSetupOptions): Pro
     log(`  "${inputName}": added`);
   };
   log(`Scene "${opts.fightScene}":`);
-  await add(opts.fightScene, "Game capture", capture, {});
+  let captureSettings: Record<string, unknown> = {};
+  if (!existing.has("Game capture")) {
+    try {
+      captureSettings = (await opts.captureSettings?.(capture)) ?? {};
+    } catch (err) {
+      log(`  Couldn't pick a display automatically (${(err as Error).message}): in OBS, open "Game capture" and choose your screen`);
+    }
+  }
+  await add(opts.fightScene, "Game capture", capture, captureSettings);
   await add(opts.fightScene, "Overlay: fight bar", "browser_source", { url: opts.overlayUrl("fight"), width: WIDTH, height: HEIGHT });
   log(`Scene "${opts.bettingScene}":`);
   await add(opts.bettingScene, "Overlay: betting screen", "browser_source", { url: opts.overlayUrl("betting"), width: WIDTH, height: HEIGHT });

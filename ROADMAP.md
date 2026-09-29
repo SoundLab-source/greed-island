@@ -2,16 +2,16 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after OBS was installed and the watch page was added. Update this file at the end of every build step.*
+*Last updated 2026-09-29, after the first test with real OBS and real IKEMEN fights. Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) hasn't started. |
-| **Next step** | Finish the private OBS test: close OBS's first-run windows and allow Screen Recording, then record real fights (see "What's next"). Phase 3 needs a plan agreed with you first. |
+| **Next step** | Decide where the stream runs (a machine where the game is the only thing on screen), then a private test recording (see "What's next"). Phase 3 needs a plan agreed with you first. |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
-| **Not built yet** | Anything community or on-chain. Not yet tried: the overlay inside OBS, capturing IKEMEN, a real stream |
+| **Not built yet** | Anything community or on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
 | **Health** | 409 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
@@ -63,14 +63,15 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
-- ✅ **OBS installed and wired up**: OBS 32.2.2 (checksum and Apple notarization verified). `pnpm obs:setup` creates the scenes; with real OBS, scene switching followed every fight. Not yet confirmed: the overlay rendering inside OBS and the game capture (waiting on OBS's first-run windows and Screen Recording permission).
+- ✅ **OBS installed and tested with real fights**: OBS 32.2.2 (checksum and Apple notarization verified). `pnpm obs:setup` creates the scenes and picks the screen to capture; scene switching followed every fight, including a real IKEMEN fight (#111); the betting screen and the fight bar render inside OBS over the capture. Known limit: the capture is the whole screen, and the game window opens behind other apps, so capturing only the game window is still open ([obs-notes.md](docs/obs-notes.md)).
 - ✅ **Watch page** (`/watch.html`): the video (a Twitch channel via `GI_TWITCH_CHANNEL`, or the live betting screen until there is one), one-click Red/Blue betting with stake shortcuts, the countdown, and Twitch chat or a live feed of results. Works on phones.
 
 ## What's next
 
-**Recommended next: finish the private test**
-- In OBS: close the "Review App Permissions" and "Auto-Configuration Wizard" windows, and allow Screen Recording (System Settings → Privacy & Security → Screen & System Audio Recording). Then record real IKEMEN fights locally, no Twitch account needed. This confirms the items still open in [obs-notes.md](docs/obs-notes.md): the overlay inside OBS, capturing IKEMEN's window across fights, and the transparent fight bar.
-- Then: a Twitch channel for `GI_TWITCH_CHANNEL`, and an unlisted test stream.
+**Recommended next: where the stream runs, then a private recording**
+- The capture shows the whole screen and the game opens behind other apps, so a stream needs a machine (or a spare Mac user account or display) where the game is the only thing showing. Decide: a home mini PC, a cloud server, or a second screen on this Mac.
+- Then a private test recording of real fights on that setup, and after that a Twitch channel for `GI_TWITCH_CHANNEL` and an unlisted test stream.
+- Optional engineering: make "capture only the game window" work (e.g. launching IKEMEN so macOS treats it as a normal app), so a Mac in daily use can stream too.
 
 **Also needed before a public stream**
 - Running on a Linux server with a virtual display (Xvfb): written up, not yet tried.

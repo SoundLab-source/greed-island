@@ -4,7 +4,7 @@
 // missing and never deletes anything.
 import { loadRepoEnv } from "@greed-island/db";
 import { connectObs, loadObsConfig, ObsRequestError, type ObsClient } from "../obs.ts";
-import { setupObsScenes } from "../obs-setup.ts";
+import { macDisplayCaptureSettings, setupObsScenes } from "../obs-setup.ts";
 
 loadRepoEnv();
 const cfg = loadObsConfig();
@@ -25,6 +25,7 @@ try {
     fightScene: cfg.fightScene,
     bettingScene: cfg.bettingScene,
     overlayUrl: (scene) => `${overlayBase}?scene=${scene}${site ? `&site=${encodeURIComponent(site)}` : ""}`,
+    captureSettings: macDisplayCaptureSettings,
   });
   console.log(`
 Done. Next:

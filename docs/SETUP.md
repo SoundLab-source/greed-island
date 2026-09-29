@@ -110,11 +110,13 @@ Add `&site=your.site` to show where people can bet. The overlay is laid out for 
 4. Run `pnpm dev`. It logs "OBS: connected" and then shows the Fight scene while the engine runs and the Betting scene otherwise. If OBS isn't open yet, it keeps trying quietly; a wrong password or a missing scene is logged, and the stream carries on either way.
 5. If the overlay is blank in OBS (it was opened before `pnpm dev` was running), run `pnpm obs:setup` again to reload it, or right-click the source → Refresh.
 
-On the first start OBS shows a permissions window and an auto-configuration wizard: allow **Screen Recording** (needed for the game capture), and cancel the wizard (streaming settings are set later, in Settings → Stream).
+On the first start OBS shows a permissions window and an auto-configuration wizard: allow **Screen Recording** (needed for the game capture), cancel the wizard (streaming settings are set later, in Settings → Stream), then **quit and reopen OBS**. Until that restart the overlay stays blank and the capture stays off.
+
+**What the capture shows.** The game capture records the whole main screen. IKEMEN opens its window behind whatever app is in front, so on a Mac you're also using, viewers would see your own windows. Stream from a machine where the game is the only thing on screen, or keep the game window in front. Capturing only IKEMEN's window doesn't work yet (docs/obs-notes.md).
 
 Then, in OBS, Settings → Stream: pick Twitch or YouTube and paste the stream key, and press Start Streaming. On a Linux server, OBS can run on the Xvfb display (`obs --startstreaming --minimize-to-tray`).
 
-**Status:** scene switching and `pnpm obs:setup` work with a real OBS (32.2.2). Still to confirm: the overlay rendering inside OBS and capturing IKEMEN (docs/obs-notes.md). Do a private test recording before going live.
+**Status:** with a real OBS (32.2.2) and real IKEMEN fights: `pnpm obs:setup`, scene switching on every fight, the overlay (betting screen and fight bar over the capture) and whole-screen capture all work. Open: capturing only the game window (docs/obs-notes.md). Do a private test recording before going live.
 
 **Option C: ffmpeg straight from the virtual display (server, no OBS).**
 

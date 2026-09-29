@@ -24,12 +24,17 @@ The scene switcher is `packages/orchestrator/src/obs.ts`; its tests run against 
 | Switch scene | SOURCE, RUN | `SetCurrentProgramScene` with `requestData: {sceneName}` (or `sceneUuid`). With `pnpm dev` running fake fights, OBS switched Betting → Fight → Betting on every fight. |
 | Scene setup | SOURCE, RUN | `pnpm obs:setup` uses GetVersion, GetInputKindList (macOS screen capture kind: `screen_capture`), GetInputDefaultSettings (`browser_source` has `url`, `width`, `height`), SetVideoSettings, GetSceneList, CreateScene, GetInputList, CreateInput, GetSceneItemId, SetSceneItemTransform, SetCurrentProgramScene; re-running changes nothing. |
 | Reload a browser source | SOURCE, RUN | `PressInputPropertiesButton` with `propertyName: "refreshnocache"` (accepted by OBS 32.2.2). A browser source doesn't retry a failed page load by itself. |
+| **Crash: listing a screen capture's displays** | RUN | `GetInputPropertiesListPropertyItems` for a `screen_capture` source's `display_uuid` crashed OBS 32.2.2 (SIGSEGV in `strlen` inside obs-websocket 5.7.4). Never send it; get the display's UUID from macOS instead. |
+| Change a source's settings | SOURCE, RUN | `SetInputSettings` `{inputName, inputSettings, overlay}`; `GetInputSettings` returns them. |
 
 ## Capturing IKEMEN
 
 | Item | Status | Finding |
 |---|---|---|
-| Window capture across fights | UNVERIFIED | IKEMEN runs as a new process for every fight, so a window capture has to find the new window each time. Display capture (the whole screen) avoids the question. Try both before a real stream. |
-| macOS permission | UNVERIFIED | macOS asks the user to allow Screen Recording for OBS (System Settings → Privacy & Security). |
-| Browser source transparency | UNVERIFIED | OBS browser sources render a transparent page background as transparent, which the fight bar relies on (`overlay.html?scene=fight`). |
-| Browser sources rendering | OPEN | On the first run, while OBS's first-run dialogs (permissions review, auto-configuration wizard) were open and Screen Recording wasn't granted, no browser renderer process started and `GetSourceScreenshot` of the overlay scenes was blank. To re-check once those are closed. |
+| Screen capture needs a display | RUN | macOS `screen_capture` with an empty `display_uuid` captures nothing (log: "init_screen_stream: Invalid target display ID: 0"). Setting `{type: 0, display_uuid: <main display UUID>}` works; the UUID comes from CoreGraphics (`CGDisplayCreateUUIDFromDisplayID(CGMainDisplayID())`, read through `osascript -l JavaScript`). `pnpm obs:setup` does this. |
+| Screen capture only while on air | RUN | A `screen_capture` source only produces frames while its scene is showing; a screenshot of the Fight scene taken while Betting was on air had an empty capture. |
+| Whole-screen capture of real fights | RUN | Works, but shows whatever is on the main screen. IKEMEN's window (1280x720, windowed) opens **behind** the app in front, because the runner launches it in the background, so on a Mac you're using, the capture shows your own windows. |
+| Capturing only IKEMEN | OPEN | Window capture (`type: 1`, the window's CGWindowID) logged "Invalid target window ID" and application capture (`type: 2`, `com.github.ikemen-engine.ikemen-go`) showed nothing, though macOS lists the window (owner "I.K.E.M.E.N-Go"). Likely OBS's list of capturable windows doesn't include a game our server launches directly. Until solved: whole-screen capture on a machine where the game is the only window. |
+| macOS permission | RUN | Screen Recording must be allowed for OBS (System Settings → Privacy & Security → Screen & System Audio Recording) and OBS restarted; the log then says "Permission for screen capture granted". macOS 27 also asks whether OBS may "bypass the system private window picker": the user answers that. |
+| Browser source transparency | RUN | The fight bar's transparent page lets the screen capture show through underneath. |
+| Browser sources rendering | RUN | Works after OBS was restarted. On the very first start, while OBS's first-run windows (permissions review, auto-configuration wizard) were open, no browser renderer process started and the overlay stayed blank even after closing them; restarting OBS fixed it. |

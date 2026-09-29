@@ -91,7 +91,7 @@ function setup(obs: FakeObs, over: Partial<ObsConfig> = {}) {
   switcher.start(bus);
   cleanup.push(() => switcher.stop());
   const state = (s: FightState) => bus.publish({ type: "fight_state", fightId: "f", number: 1, state: s, version: 0 });
-  return { bus, logs, state };
+  return { bus, logs, state, stop: () => switcher.stop() };
 }
 
 describe("sceneForState", () => {
@@ -171,6 +171,11 @@ describe("ObsSceneSwitcher", () => {
     b.state("SETTLED");
     await until(() => obs.scenes.length === 1);
     expect(obs.scenes).toEqual(["Betting"]);
+    // Stopping on purpose is silent.
+    const before = b.logs.length;
+    b.stop();
+    await sleep(100);
+    expect(b.logs.slice(before)).toEqual([]);
 
     const open = new FakeObs("pw");
     cleanup.push(() => open.close());
@@ -276,7 +281,8 @@ describe("setupObsScenes", () => {
 
   it("adds both scenes with the capture under the fight bar and the betting screen, filling the canvas", async () => {
     const obs = memoryObs();
-    await setupObsScenes(obs.client, opts);
+    await setupObsScenes(obs.client, { ...opts, captureSettings: async (kind) => (kind === "screen_capture" ? { type: 0, display_uuid: "D1" } : {}) });
+    expect(obs.inputs.get("Game capture")!.settings).toEqual({ type: 0, display_uuid: "D1" });
     expect(obs.scenes.get("Fight")).toEqual(["Game capture", "Overlay: fight bar"]);
     expect(obs.scenes.get("Betting")).toEqual(["Overlay: betting screen"]);
     expect(obs.inputs.get("Game capture")!.kind).toBe("screen_capture");
@@ -291,6 +297,14 @@ describe("setupObsScenes", () => {
     await setupObsScenes(obs.client, opts);
     expect(obs.calls.slice(before)).not.toContain("CreateInput");
     expect(obs.calls.slice(before)).not.toContain("CreateScene");
+  });
+
+  it("still adds the capture when the display can't be picked, and says what to do", async () => {
+    const obs = memoryObs();
+    const lines: string[] = [];
+    await setupObsScenes(obs.client, { ...opts, log: (l) => lines.push(l), captureSettings: async () => Promise.reject(new Error("no osascript")) });
+    expect(obs.inputs.get("Game capture")!.settings).toEqual({});
+    expect(lines.join("\n")).toMatch(/choose your screen/);
   });
 
   it("stops with a clear message when OBS lacks a browser or screen capture source", async () => {
