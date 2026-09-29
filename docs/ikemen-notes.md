@@ -108,12 +108,11 @@ Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adap
 
 ## 7. Open items
 
-Confirmed by the first real run (2026-09-29): single-match exit with `-rounds 2`, mod loading via `Lua1`, per-line event output, `-log` format, stdout/stderr contents.
+Confirmed by the first real runs (2026-09-29): single-match exit with `-rounds 2`, mod loading via `Lua1`, per-line event output, `-log` format, stdout/stderr contents, and `live` mode end to end (`pnpm match:once`: a real-time 2-0 match in 153 s including start-up, exit code 0).
 
 Still open:
 1. Whether commas in `Common.Lua` values are split (our line has none, so it doesn't matter yet).
 2. Exit codes when the engine crashes or is killed on a real build (runner handles any exit without `match_end` as a crash).
 3. A draw or double-KO round in a real match (event and `-log` shape for `winnerSide: 0`).
-4. `live` mode (no `-speedtest`) end to end; only `sim` has been run.
-5. Xvfb on Linux.
-6. macOS: opening the `.app` from Finder runs it translocated (read-only copy), which fails with "open save/stats.json: read-only file system". Launching the binary directly with `cwd = IKEMEN_DIR`, as the runner does, works once the user has approved the app.
+4. Xvfb on Linux.
+5. macOS: opening the `.app` from Finder runs it translocated (read-only copy), which fails with "open save/stats.json: read-only file system". Launching the binary directly with `cwd = IKEMEN_DIR`, as the runner does, works once the user has approved the app.
