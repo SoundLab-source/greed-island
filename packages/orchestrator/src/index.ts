@@ -11,3 +11,4 @@ export * from "./orchestrator.ts";
 export * from "./api/server.ts";
 export * from "./api/views.ts";
 export * from "./mail.ts";
+export * from "./shop.ts";

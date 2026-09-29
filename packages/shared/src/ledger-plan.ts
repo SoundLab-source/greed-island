@@ -14,7 +14,8 @@ export type AccountRef =
   | { kind: "USER"; userId: string }
   | { kind: "ESCROW"; fightId: string; side: Side }
   | { kind: "HOUSE" }
-  | { kind: "ISSUANCE" };
+  | { kind: "ISSUANCE" }
+  | { kind: "SINK" };
 
 export function accountKey(ref: AccountRef, asset: Asset = "SALT"): string {
   switch (ref.kind) {
@@ -26,6 +27,8 @@ export function accountKey(ref: AccountRef, asset: Asset = "SALT"): string {
       return `house:${asset}`;
     case "ISSUANCE":
       return `issuance:${asset}`;
+    case "SINK":
+      return `sink:${asset}`;
   }
 }
 
@@ -82,6 +85,15 @@ export function planGrant(userId: string, amount: Salt): Posting[] {
   return [
     { account: { kind: "ISSUANCE" }, amount: -amount },
     { account: { kind: "USER", userId }, amount },
+  ];
+}
+
+/** Salt spent in the shop or on upgrades: it leaves circulation (DESIGN §9). */
+export function planSpend(userId: string, amount: Salt): Posting[] {
+  if (amount <= 0n) throw new LedgerRuleError("INVALID_AMOUNT", `spend must be positive, got ${amount}`);
+  return [
+    { account: { kind: "USER", userId }, amount: -amount },
+    { account: { kind: "SINK" }, amount },
   ];
 }
 

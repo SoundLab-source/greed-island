@@ -28,7 +28,8 @@ import { z } from "zod";
 import { placeFightBet } from "../betting.ts";
 import type { BusEvent, FightBus } from "../bus.ts";
 import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
-import { betHistory, characterProfile, characterRanking, currentFightId, fightView, leaderboard, meView, recentResults } from "./views.ts";
+import { buyCharacter, currentShop } from "../shop.ts";
+import { betHistory, characterProfile, characterRanking, currentFightId, fightView, leaderboard, meView, myCharacters, recentResults } from "./views.ts";
 
 export interface ApiDeps {
   db: Db;
@@ -60,6 +61,7 @@ const BetBody = z.object({
 const SessionBody = z.object({ displayName: z.string().trim().min(1).max(24).optional() }).optional();
 const EmailBody = z.object({ email: z.string().max(254) });
 const VerifyBody = z.object({ token: z.string().min(20).max(200) });
+const BuyBody = z.object({ fighterId: z.string().min(1).max(64), idempotencyKey: z.string().min(8).max(100) });
 
 class HttpError extends Error {
   constructor(
@@ -173,6 +175,16 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const r = await placeFightBet(db, config, { userId, fightId, side: body.side, stake, idempotencyKey: body.idempotencyKey });
     return send(reply, { bet: { ...r.bet, stake: r.bet.stake.toString(), returned: r.bet.returned?.toString() ?? null }, balance: r.balance, replayed: r.replayed });
   });
+
+  // Shop and owned characters.
+  app.get("/api/shop", async (_req, reply) => send(reply, await currentShop(db, config)));
+  app.post("/api/shop/buy", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const body = BuyBody.parse(req.body);
+    const r = await buyCharacter(db, config, { userId, fighterId: body.fighterId, idempotencyKey: body.idempotencyKey });
+    return send(reply.status(r.replayed ? 200 : 201), { character: await characterProfile(db, r.characterId), balance: r.balance, replayed: r.replayed });
+  });
+  app.get("/api/me/characters", async (req, reply) => send(reply, await myCharacters(db, await requireViewer(req))));
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db)));

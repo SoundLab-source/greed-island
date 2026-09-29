@@ -14,7 +14,7 @@ import { reconcile } from "./reconcile.ts";
 
 const db = useTestDb();
 const config: Config = { ...loadConfig({}), economy: testEconomy };
-const orch = { ...DEFAULT_ORCHESTRATOR, bettingWindowMs: 0, interFightDelayMs: 0, matchmaking: { ...DEFAULT_ORCHESTRATOR.matchmaking, upsetRate: 0 } };
+const orch = { ...DEFAULT_ORCHESTRATOR, bettingWindowMs: 0, interFightDelayMs: 0, idleRetryMs: 10, matchmaking: { ...DEFAULT_ORCHESTRATOR.matchmaking, upsetRate: 0 } };
 
 function rng(seed = "orch"): Rng {
   const r = seededRandom(seed);
@@ -88,7 +88,7 @@ describe("betting on a fight", () => {
   it("caps owners betting on a fight with their own character", async () => {
     const { user } = await createUser(db, { kind: "ANONYMOUS" }, config.economy);
     const fight = await openFight();
-    await db.character.update({ where: { id: fight.side1CharacterId }, data: { ownerKind: "USER", ownerUserId: user.id } });
+    await db.character.update({ where: { id: fight.side1CharacterId }, data: { ownerKind: "USER", ownerUserId: user.id, serial: 1, acquiredAt: new Date() } });
     const bet = (stake: bigint, key: string) => placeFightBet(db, config, { userId: user.id, fightId: fight.id, side: 2, stake, idempotencyKey: key });
     await expect(bet(config.odds.ownerBetCap + 1n, "a")).rejects.toMatchObject({ code: "ABOVE_OWNER_CAP" });
     await bet(config.odds.ownerBetCap, "b");
@@ -193,6 +193,22 @@ describe("Orchestrator with the fake engine", () => {
     const chars = await db.character.findMany();
     expect(chars.reduce((n, c) => n + c.wins, 0)).toBe(summaries.filter((s) => s.result === "SETTLED").length);
     expect((await auditLedger(db)).ok).toBe(true);
+  });
+});
+
+describe("Orchestrator.run when nothing can be booked", () => {
+  it("waits between retries instead of spinning", async () => {
+    await db.stage.deleteMany(); // no stage: nothing is bookable
+    let retries = 0;
+    const o = new Orchestrator({ ...deps, orch: { ...orch, idleRetryMs: 100 }, source: createFakeSource(), rng: rng(), log: () => retries++ });
+    const running = o.run(1);
+    await new Promise((r) => setTimeout(r, 350));
+    o.stop();
+    expect(await running).toEqual([]);
+    expect(await db.fight.count()).toBe(0);
+    // About one attempt per 100 ms, not thousands.
+    expect(retries).toBeGreaterThanOrEqual(2);
+    expect(retries).toBeLessThanOrEqual(5);
   });
 });
 

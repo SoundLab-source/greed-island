@@ -43,12 +43,14 @@ export async function headToHead(db: Db, a: string, b: string): Promise<{ fights
 const winRate = (wins: number, losses: number) => (wins + losses === 0 ? null : round1((100 * wins) / (wins + losses)));
 
 export async function characterCard(db: Db, characterId: string) {
-  const c = await db.character.findUniqueOrThrow({ where: { id: characterId }, include: { fighter: true } });
+  const c = await db.character.findUniqueOrThrow({ where: { id: characterId }, include: { fighter: true, owner: true } });
   return {
     id: c.id,
     name: c.name,
-    fighter: { id: c.fighterId, displayName: c.fighter.displayName, archetype: c.fighter.archetype },
-    owner: c.ownerKind === "HOUSE" ? "house" : "player",
+    fighter: { id: c.fighterId, displayName: c.fighter.displayName, archetype: c.fighter.archetype, rarity: c.fighter.rarity },
+    owner: c.owner ? { kind: "player" as const, name: playerName(c.owner) } : { kind: "house" as const, name: "House" },
+    serial: c.serial,
+    firstEdition: c.firstEdition,
     tier: c.tier,
     rating: Math.round(c.rating),
     deviation: Math.round(c.deviation),
@@ -257,4 +259,10 @@ export async function recentResults(db: Db, take = 10) {
     sides: { 1: f.side1Character.name, 2: f.side2Character.name },
     result: f.state === "SETTLED" ? { kind: "settled", winnerSide: f.winnerSide } : { kind: "voided", reason: f.voidReason },
   }));
+}
+
+/** A player's own characters, strongest first. */
+export async function myCharacters(db: Db, userId: string) {
+  const owned = await db.character.findMany({ where: { ownerUserId: userId }, orderBy: [{ rating: "desc" }, { acquiredAt: "asc" }], select: { id: true } });
+  return Promise.all(owned.map((c) => characterCard(db, c.id)));
 }

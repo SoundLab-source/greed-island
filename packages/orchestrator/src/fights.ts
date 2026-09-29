@@ -63,6 +63,7 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
       fighterId: c.fighterId,
       tier: c.tier,
       rating: { rating: c.rating, deviation: c.deviation, volatility: c.volatility },
+      owned: c.ownerKind === "USER",
     }));
     const pairing = pickMatch(candidates, recent.map((f) => [f.side1CharacterId, f.side2CharacterId] as [string, string]), rng, orch.matchmaking);
     const stage = pickStage(stages, rng);

@@ -29,6 +29,8 @@ enum AccountKind {
   ESCROW
   HOUSE
   ISSUANCE
+  /// Salt spent in the shop and on upgrades leaves circulation here (DESIGN §9).
+  SINK
 }
 
 enum TxnKind {
@@ -38,6 +40,7 @@ enum TxnKind {
   BET
   SETTLE
   VOID
+  PURCHASE
 }
 
 enum BetStatus {
@@ -101,6 +104,7 @@ model LedgerTxn {
   fight          Fight?        @relation(fields: [fightId], references: [id])
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   entries        LedgerEntry[]
+  purchased      Character?
 
   @@index([userId])
   @@index([fightId])
@@ -162,6 +166,12 @@ enum Archetype {
   HEAVY
 }
 
+enum Rarity {
+  COMMON
+  RARE
+  LEGENDARY
+}
+
 enum OwnerKind {
   HOUSE
   USER
@@ -179,6 +189,8 @@ model Fighter {
   id             String      @id
   displayName    String      @map("display_name")
   archetype      Archetype
+  /// Shop price multiplier (DESIGN §8).
+  rarity         Rarity      @default(COMMON)
   /// Path to the character .def, relative to IKEMEN_DIR.
   defPath        String      @map("def_path")
   licenseNote    String      @map("license_note")
@@ -212,6 +224,13 @@ model Character {
   id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Key from roster.json for house characters; null for player-owned ones (phase 2).
   rosterKey      String?       @unique @map("roster_key")
+  /// Owned characters: copy number of this fighter (1, 2, ...). The first N are First Edition.
+  serial         Int?
+  firstEdition   Boolean       @default(false) @map("first_edition")
+  acquiredAt     DateTime?     @map("acquired_at") @db.Timestamptz(3)
+  /// The purchase that created this character (so a repeated buy request returns it).
+  acquiredTxnId  String?       @unique @map("acquired_txn_id") @db.Uuid
+  acquiredTxn    LedgerTxn?    @relation(fields: [acquiredTxnId], references: [id])
   fighterId      String        @map("fighter_id")
   fighter        Fighter       @relation(fields: [fighterId], references: [id])
   name           String
@@ -241,6 +260,7 @@ model Character {
   fightsWon      Fight[]       @relation("FightWinner")
   loadouts       FightLoadout[]
 
+  @@unique([fighterId, serial])
   @@index([tier, enabled])
   @@index([ownerUserId])
   @@map("character")

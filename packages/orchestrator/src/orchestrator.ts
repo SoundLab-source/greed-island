@@ -53,9 +53,14 @@ export class Orchestrator {
         if (this.stopped) break;
         this.log(`fight failed: ${(err as Error).stack ?? String(err)}`);
       }
-      if (summary) done.push(summary);
-      if (!summary && !this.stopped) this.log("no valid pairing or stage; waiting");
-      if (done.length < count) await this.pause(this.deps.orch.interFightDelayMs);
+      if (summary) {
+        done.push(summary);
+        if (done.length < count) await this.pause(this.deps.orch.interFightDelayMs);
+      } else if (!this.stopped) {
+        // Nothing bookable, or an error: wait before trying again instead of spinning.
+        this.log("nothing to book (or an error); retrying shortly");
+        await this.pause(Math.max(this.deps.orch.idleRetryMs, this.deps.orch.interFightDelayMs));
+      }
     }
     return done;
   }

@@ -1,6 +1,7 @@
 import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
 import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
+import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 
 /**
@@ -25,6 +26,7 @@ export interface Config {
   ratings: RatingsConfig;
   tiers: TierConfig;
   odds: OddsConfig;
+  shop: ShopConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -55,6 +57,16 @@ function numberFromEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): 
   const n = Number(raw);
   if (!Number.isFinite(n)) throw new ConfigError(`${name}: expected a number, got "${raw}"`);
   return n;
+}
+
+export function validateShop(s: ShopConfig): ShopConfig {
+  if (!(s.rotationMs > 0)) throw new ConfigError("shop rotation must be positive");
+  for (const [name, v] of [["slots", s.slots], ["firstEditionSupply", s.firstEditionSupply], ["maxOwnedPerUser", s.maxOwnedPerUser]] as const) {
+    if (!Number.isInteger(v) || v < 0) throw new ConfigError(`${name} must be a whole number >= 0`);
+  }
+  if (s.basePrice < 1n) throw new ConfigError("shop base price must be >= 1");
+  if (!(s.startRating > 0)) throw new ConfigError("owned start rating must be positive");
+  return s;
 }
 
 export function validateEconomy(e: EconomyConfig): EconomyConfig {
@@ -96,6 +108,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       crowdBlendK: saltFromEnv(env, "GI_CROWD_BLEND_K", DEFAULT_ODDS.crowdBlendK),
       crowdMaxWeightBp: saltFromEnv(env, "GI_CROWD_MAX_WEIGHT_BP", DEFAULT_ODDS.crowdMaxWeightBp),
       ownerBetCap: saltFromEnv(env, "GI_OWNER_BET_CAP", DEFAULT_ODDS.ownerBetCap),
+    }),
+    shop: validateShop({
+      ...DEFAULT_SHOP,
+      rotationMs: numberFromEnv(env, "GI_SHOP_ROTATION_HOURS", DEFAULT_SHOP.rotationMs / 3_600_000) * 3_600_000,
+      slots: numberFromEnv(env, "GI_SHOP_SLOTS", DEFAULT_SHOP.slots),
+      basePrice: saltFromEnv(env, "GI_SHOP_BASE_PRICE", DEFAULT_SHOP.basePrice),
+      firstEditionSupply: numberFromEnv(env, "GI_FIRST_EDITION_SUPPLY", DEFAULT_SHOP.firstEditionSupply),
+      startRating: numberFromEnv(env, "GI_OWNED_START_RATING", DEFAULT_SHOP.startRating),
+      maxOwnedPerUser: numberFromEnv(env, "GI_MAX_OWNED", DEFAULT_SHOP.maxOwnedPerUser),
     }),
   };
 }

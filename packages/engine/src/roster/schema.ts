@@ -1,4 +1,4 @@
-import { ARCHETYPES } from "@greed-island/shared";
+import { ARCHETYPES, RARITIES } from "@greed-island/shared";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
@@ -14,6 +14,8 @@ export const FighterEntry = z.object({
   id: slug,
   displayName: z.string().min(1),
   archetype: z.enum(ARCHETYPES),
+  /** Shop price multiplier (DESIGN §8). */
+  rarity: z.enum(RARITIES).default("COMMON"),
   def: defPath,
   /** Who made it and what the license allows. Required: never stream unlicensed art. */
   license: z.string().min(1),

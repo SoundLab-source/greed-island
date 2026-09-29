@@ -8,8 +8,8 @@ Numbers marked **default** answer DESIGN §15 open questions. Each is a config v
 
 Each step is committed with tests green, like phase 1.
 
-1. **Accounts.** Email sign-in with a one-time link (magic link). An anonymous player can attach an email and keep their Salt and bets. In development the link is printed to the console; production needs a mail provider (SMTP settings in `.env`). Sessions expire (default 30 days) and can be signed out.
-2. **Shop and owned characters.** A Salt sink account (spent Salt leaves circulation, as DESIGN §9 intends). The shop rotates every 5 hours with 6 slots drawn from enabled fighters. Buying one creates a character owned by the player, starting in tier P. Owned characters join matchmaking; house characters fill the gaps.
+1. ✅ **Accounts.** Email sign-in with a one-time link (magic link). An anonymous player can attach an email and keep their Salt and bets. In development the link is printed to the console; production needs a mail provider (SMTP settings in `.env`). Sessions expire (default 30 days) and can be signed out.
+2. ✅ **Shop and owned characters.** A Salt sink account (spent Salt leaves circulation, as DESIGN §9 intends). The shop rotates every 5 hours with 6 slots drawn from enabled fighters. Buying one creates a character owned by the player, starting in tier P. Owned characters join matchmaking; house characters fill the gaps.
 3. **Upgrades and sidegrades.** Levelled stats with diminishing returns and a cap. Every change widens rating deviation. Stats reach the engine only through verified mechanisms.
 4. **Titles and effects.** Achievement titles with provenance ("earned by", "when"), plus overlay cosmetics (badges, name plates) stored as data for the stream overlay.
 5. **Owner rewards and exhibitions.** Salt for owners when their character wins. Owner-vs-owner challenges fill the exhibition segment of the cycle.
@@ -21,6 +21,8 @@ Each step is committed with tests green, like phase 1.
 - Sign-in link valid 15 minutes, single use. Sessions last 30 days.
 
 **Shop** (DESIGN §8)
+- Owned characters get priority in matchmaking: a pair's pick weight is 1 + 2 × (owned characters in it), so house characters still fill in and owned ones don't fight every single fight.
+- Names are automatic (`<Fighter> #<copy>`) until there's moderation for custom names on a public stream.
 - Rotation every 5 hours, 6 slots, chosen by a seeded random draw per rotation window (the same for everyone).
 - Price = base 1,000 Salt × rarity (common ×1, rare ×2, legendary ×4). Each fighter gets a `rarity` in `roster.json` (default common).
 - First edition: the first 25 copies of each fighter are numbered "First Edition #1–25". After that, copies keep selling without the label.

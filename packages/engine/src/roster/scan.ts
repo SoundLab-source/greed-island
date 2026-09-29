@@ -77,6 +77,7 @@ async function scanCharacter(charsDir: string, folder: string, warnings: string[
       id: slugify(folder),
       displayName: name,
       archetype: "ALL_ROUNDER",
+      rarity: "COMMON",
       def: `chars/${folder}/${def.name}`,
       license: license ? `By ${author}. ${license}` : `By ${author}. ${UNKNOWN_LICENSE}`,
       enabled: license !== null,

@@ -182,6 +182,38 @@ describe("fights and bets", () => {
   });
 });
 
+describe("shop", () => {
+  it("lists the rotation and sells an owned character to a player who can afford it", async () => {
+    const rich = await buildServer({ db, config: { ...config, economy: { ...config.economy, startingBalance: 5_000n } }, bus, mailer });
+    try {
+      const s = (await rich.inject({ method: "POST", url: "/api/session" })).json();
+      const auth = { authorization: `Bearer ${s.token}` };
+      const shop = (await rich.inject({ method: "GET", url: "/api/shop" })).json();
+      expect(shop.offers.length).toBeGreaterThan(0);
+      expect(shop.offers[0]).toMatchObject({ price: "1000", firstEditionLeft: 25 });
+      const buy = await rich.inject({ method: "POST", url: "/api/shop/buy", headers: auth, payload: { fighterId: shop.offers[0].fighterId, idempotencyKey: "buy-key-0001" } });
+      expect(buy.statusCode).toBe(201);
+      expect(buy.json()).toMatchObject({ balance: "4000", replayed: false, character: { serial: 1, firstEdition: true, tier: "P", owner: { kind: "player" } } });
+      const mine = (await rich.inject({ method: "GET", url: "/api/me/characters", headers: auth })).json();
+      expect(mine).toHaveLength(1);
+      const again = await rich.inject({ method: "POST", url: "/api/shop/buy", headers: auth, payload: { fighterId: shop.offers[0].fighterId, idempotencyKey: "buy-key-0001" } });
+      expect(again.statusCode).toBe(200);
+      expect(again.json().replayed).toBe(true);
+    } finally {
+      await rich.close();
+    }
+  });
+
+  it("refuses a player who can't afford it, and requires a session", async () => {
+    const s = await session();
+    const shop = (await app.inject({ method: "GET", url: "/api/shop" })).json();
+    const res = await app.inject({ method: "POST", url: "/api/shop/buy", headers: s.auth, payload: { fighterId: shop.offers[0].fighterId, idempotencyKey: "buy-key-0002" } });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("INSUFFICIENT_FUNDS");
+    expect((await app.inject({ method: "POST", url: "/api/shop/buy", payload: { fighterId: "f1", idempotencyKey: "buy-key-0003" } })).statusCode).toBe(401);
+  });
+});
+
 describe("stats after fights", () => {
   it("reports results, rankings, form, head-to-head and profiles", async () => {
     const o = new Orchestrator({ ...deps, source: createFakeSource({ seed: "stats" }), rng: rng("stats"), orch: { ...orch, matchmaking: { ...orch.matchmaking, rematchCooldown: 0 } } });

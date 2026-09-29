@@ -7,6 +7,8 @@ export interface OrchestratorConfig {
   bettingWindowMs: number;
   /** Pause after a fight closes before booking the next. */
   interFightDelayMs: number;
+  /** Wait before retrying when nothing can be booked or a fight hit an error. */
+  idleRetryMs: number;
   /** Best of 3. */
   roundsToWin: number;
   matchmaking: MatchmakingConfig;
@@ -16,6 +18,7 @@ export interface OrchestratorConfig {
 export const DEFAULT_ORCHESTRATOR: Readonly<OrchestratorConfig> = Object.freeze({
   bettingWindowMs: 60_000,
   interFightDelayMs: 5_000,
+  idleRetryMs: 10_000,
   roundsToWin: 2,
   matchmaking: DEFAULT_MATCHMAKING,
   cycle: DEFAULT_CYCLE,
@@ -40,6 +43,7 @@ export function loadOrchestratorConfig(env: NodeJS.ProcessEnv = process.env): Or
   return {
     bettingWindowMs: num(env, "GI_BETTING_WINDOW_MS", d.bettingWindowMs),
     interFightDelayMs: num(env, "GI_INTER_FIGHT_MS", d.interFightDelayMs),
+    idleRetryMs: num(env, "GI_IDLE_RETRY_MS", d.idleRetryMs, 1),
     roundsToWin: num(env, "GI_ROUNDS_TO_WIN", d.roundsToWin, 1),
     matchmaking: {
       targetMinBp,

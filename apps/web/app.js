@@ -40,6 +40,7 @@ function sideCard(n, s, odds) {
   const after = s.ratingAfter != null ? ` → ${s.ratingAfter} (${s.tierAfter})` : "";
   return `
     <h3>${color}: ${esc(s.name)}</h3>
+    <div class="muted">${s.owner.kind === "house" ? "House character" : `Owned by ${esc(s.owner.name)}`}${s.firstEdition ? " · First Edition" : ""}</div>
     <div>Tier <strong>${s.tier}</strong>, rating ${s.rating} ±${s.deviation}${after}</div>
     <div>Record ${s.record.wins}-${s.record.losses}${s.winRate == null ? "" : ` (${s.winRate}% wins)`}</div>
     <div>Last 10: ${s.last10.length ? s.last10.join(" ") : "no fights yet"}</div>
@@ -120,6 +121,42 @@ async function refreshTables() {
   $("characters").innerHTML = chars.map((c) => `<tr><td>${c.tier}</td><td>${esc(c.name)}</td><td>${c.rating}</td><td>${c.record.wins}-${c.record.losses}</td></tr>`).join("");
 }
 
+let shopTimer = null;
+async function refreshShop() {
+  const shop = await api("GET", "/api/shop");
+  $("shop").innerHTML = shop.offers.map((o) => `<tr>
+    <td>${esc(o.displayName)}</td><td class="muted">${o.archetype.toLowerCase().replace("_", "-")}, ${o.rarity.toLowerCase()}</td>
+    <td>${o.price} Salt</td><td class="muted">${o.firstEditionLeft > 0 ? `${o.firstEditionLeft} First Edition left` : "standard"}</td>
+    <td><button data-buy="${esc(o.fighterId)}">Buy</button></td></tr>`).join("");
+  for (const b of document.querySelectorAll("[data-buy]")) b.onclick = () => buy(b.dataset.buy);
+  clearInterval(shopTimer);
+  const tick = () => {
+    const m = Math.max(0, Math.round((new Date(shop.window.endsAt) - Date.now()) / 60000));
+    text($("shop-rotates"), `new selection in ${Math.floor(m / 60)}h ${m % 60}m`);
+    if (m === 0) refreshShop().catch(() => {});
+  };
+  tick();
+  shopTimer = setInterval(tick, 30000);
+}
+
+async function refreshMine() {
+  const mine = await api("GET", "/api/me/characters");
+  $("mine").innerHTML = mine.length
+    ? mine.map((c) => `<tr><td>${esc(c.name)}${c.firstEdition ? " ★" : ""}</td><td>${c.tier}</td><td>${c.rating}</td><td>${c.record.wins}-${c.record.losses}</td><td class="muted">last 10: ${c.last10.join(" ") || "-"}</td></tr>`).join("")
+    : `<tr><td class="muted">None yet. Buy one in the shop: it starts in tier P and climbs by winning.</td></tr>`;
+}
+
+async function buy(fighterId) {
+  text($("shop-msg"), "");
+  try {
+    const r = await api("POST", "/api/shop/buy", { fighterId, idempotencyKey: crypto.randomUUID() });
+    text($("shop-msg"), `You bought ${r.character.name}${r.character.firstEdition ? " (First Edition)" : ""}. It joins the stream in tier P.`);
+    await Promise.all([refreshShop(), refreshMine(), refreshMe()]);
+  } catch (e) {
+    text($("shop-msg"), e.message);
+  }
+}
+
 async function bet(side) {
   text($("bet-error"), "");
   try {
@@ -141,7 +178,7 @@ function connectStream() {
     const d = JSON.parse(e.data);
     log(`fight #${d.number}: ${d.state}`);
     refreshFight().then(refreshMe).catch(() => {});
-    if (d.state === "SETTLED" || d.state === "VOIDED") refreshTables().catch(() => {});
+    if (d.state === "SETTLED" || d.state === "VOIDED") Promise.all([refreshTables(), refreshMine()]).catch(() => {});
   });
   es.addEventListener("engine_event", (e) => {
     const { event } = JSON.parse(e.data);
@@ -178,6 +215,6 @@ $("bailout").onclick = () => api("POST", "/api/me/bailout").then(refreshMe).catc
 (async () => {
   await redeemLoginFromUrl();
   await ensureSession();
-  await Promise.all([refreshFight(), refreshMe(), refreshTables()]);
+  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine()]);
   connectStream();
 })().catch((e) => log(`error: ${e.message}`));

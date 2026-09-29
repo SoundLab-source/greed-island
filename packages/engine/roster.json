@@ -4,6 +4,7 @@
       "id": "kfm",
       "displayName": "Kung Fu Man",
       "archetype": "ALL_ROUNDER",
+      "rarity": "COMMON",
       "def": "chars/kfm/kfm.def",
       "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm/readme.txt). Not for monetized use.",
       "enabled": true
@@ -12,6 +13,7 @@
       "id": "kfm720",
       "displayName": "Kung Fu Man 720",
       "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
       "def": "chars/kfm720/kfm720.def",
       "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm720/readme.txt). Not for monetized use.",
       "enabled": true
@@ -20,6 +22,7 @@
       "id": "kfm-zss",
       "displayName": "Kung Fu Man ZSS",
       "archetype": "ALL_ROUNDER",
+      "rarity": "COMMON",
       "def": "chars/kfm_zss/kfm_zss.def",
       "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm_zss/readme.txt). Not for monetized use.",
       "enabled": true
@@ -28,6 +31,7 @@
       "id": "kfm-zaxis",
       "displayName": "Kung Fu Man Z-Axis",
       "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
       "def": "chars/kfm_zaxis/kfm_zaxis.def",
       "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm_zaxis/readme.txt). Not for monetized use.",
       "enabled": true,
@@ -37,6 +41,7 @@
       "id": "gi-quickstep",
       "displayName": "Quickstep",
       "archetype": "RUSHDOWN",
+      "rarity": "COMMON",
       "def": "chars/gi-quickstep/gi-quickstep.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true
@@ -45,6 +50,7 @@
       "id": "gi-red-crane",
       "displayName": "Red Crane",
       "archetype": "RUSHDOWN",
+      "rarity": "COMMON",
       "def": "chars/gi-red-crane/gi-red-crane.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true
@@ -53,6 +59,7 @@
       "id": "gi-stone-buddha",
       "displayName": "Stone Buddha",
       "archetype": "HEAVY",
+      "rarity": "COMMON",
       "def": "chars/gi-stone-buddha/gi-stone-buddha.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true
@@ -61,6 +68,7 @@
       "id": "gi-old-oak",
       "displayName": "Old Oak",
       "archetype": "HEAVY",
+      "rarity": "COMMON",
       "def": "chars/gi-old-oak/gi-old-oak.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true
@@ -69,6 +77,7 @@
       "id": "gi-iron-lotus",
       "displayName": "Iron Lotus",
       "archetype": "GRAPPLER",
+      "rarity": "COMMON",
       "def": "chars/gi-iron-lotus/gi-iron-lotus.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true
@@ -77,6 +86,7 @@
       "id": "gi-night-heron",
       "displayName": "Night Heron",
       "archetype": "ALL_ROUNDER",
+      "rarity": "COMMON",
       "def": "chars/gi-night-heron/gi-night-heron.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true
@@ -85,6 +95,7 @@
       "id": "gi-paper-tiger",
       "displayName": "Paper Tiger",
       "archetype": "ALL_ROUNDER",
+      "rarity": "COMMON",
       "def": "chars/gi-paper-tiger/gi-paper-tiger.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true
@@ -93,6 +104,7 @@
       "id": "gi-grey-monk",
       "displayName": "Grey Monk",
       "archetype": "ALL_ROUNDER",
+      "rarity": "COMMON",
       "def": "chars/gi-grey-monk/gi-grey-monk.def",
       "license": "Placeholder. Derived from Kung Fu Man (c) 2009 Elecbyte, Creative Commons Non-Commercial (chars/kfm/readme.txt), by changing only its constants and palette; built by pnpm roster:variants from packages/engine/variants.json. Not for monetized use.",
       "enabled": true

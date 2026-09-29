@@ -84,6 +84,7 @@ Double-entry, integer Salt (`numeric(20,0)` ⇄ `bigint`). Every `ledger_txn` ha
 | `escrow:<fightId>:1`, `escrow:<fightId>:2` | fight escrow per side | No; ends at 0 when the fight is terminal |
 | `house` | backs payouts; collects losing stakes and margin | Yes (P&L account) |
 | `issuance` | source of grants and bailouts | Yes (goes negative by total Salt issued) |
+| `sink` | Salt spent in the shop and on upgrades: out of circulation | No (only grows) |
 
 **Postings** (debit = −, credit = +; each row sums to 0):
 
@@ -95,6 +96,7 @@ Double-entry, integer Salt (`numeric(20,0)` ⇄ `bigint`). Every `ledger_txn` ha
 | Settle, side k wins, bet `s` at locked `multiplierBp_k` | payout `P = min(s × multiplierBp_k / 10000, maxPayout)` in bigint (integer division rounds down); `escrow:k −s`, `house −(P − s)`, `user +P` |
 | Settle, losing side j | `escrow:j −Σs_j`, `house +Σs_j` |
 | Void | per bet: `escrow:k −s`, `user +s` |
+| Shop purchase (and later upgrades) | `user −price`, `sink +price` |
 
 - Payouts round **down**, and the remainder stays with the house automatically (the house pays `P − s`).
 - **Minimum multiplier 1.00× (`minMultiplierBp = 10000`, config).** At the 95% clamp with 5% margin the formula gives exactly 1.0 on paper, but float error can give 0.9999…, and any margin above 5% gives less than 1.0. Without a floor, a *winning* bet would lose Salt. Flagged for review.
@@ -132,6 +134,7 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `POST /api/me/daily-grant`, `POST /api/me/bailout` | Faucets |
 | `GET /api/fights/current`, `GET /api/fights/:id` | Fighters (frozen loadout once betting opens), tier, rating, record, win rate, last-10 form, head-to-head, odds (live model estimate before lock; locked odds, pools and crowd chance after), rounds, result, the viewer's bet |
 | `POST /api/fights/:id/bets` | `{side, stake, idempotencyKey}`; latest bet counts until lock |
+| `GET /api/shop`, `POST /api/shop/buy`, `GET /api/me/characters` | Current rotation (price, rarity, First Editions left, when it changes), buy `{fighterId, idempotencyKey}`, your characters |
 | `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking, character profile (tier history, recent fights, license) |
 | `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, keep-alive comments |
 

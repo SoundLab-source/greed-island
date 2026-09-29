@@ -21,6 +21,8 @@ export interface AuditReport {
     escrow: Salt;
     /** House profit and loss: positive means the house is up. */
     house: Salt;
+    /** Salt spent in the shop and on upgrades, out of circulation. */
+    sink: Salt;
   };
 }
 
@@ -108,6 +110,7 @@ export async function auditLedger(db: Db): Promise<AuditReport> {
       userBalances: byKind("USER"),
       escrow: byKind("ESCROW"),
       house: byKind("HOUSE"),
+      sink: byKind("SINK"),
     },
   };
 }

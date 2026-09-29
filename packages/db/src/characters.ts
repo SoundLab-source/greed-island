@@ -23,12 +23,17 @@ export interface NewCharacter {
   name: string;
   palette?: number;
   rosterKey?: string;
+  /** Player-owned characters (bought in the shop). */
+  owner?: { userId: string; serial: number; firstEdition: boolean; acquiredAt: Date; acquiredTxnId: string };
+  /** Start below the default rating (e.g. shop characters start in a low tier). */
+  startRating?: number;
 }
 
-/** Create a house character at the initial rating, with its first tier-history row. */
+/** Create a character at its starting rating, with its first tier-history row. */
 export async function createCharacter(tx: Tx, input: NewCharacter, cfg: RatingSettings): Promise<Character> {
-  const r = initialRating(cfg.ratings);
+  const r = { ...initialRating(cfg.ratings), ...(input.startRating !== undefined ? { rating: input.startRating } : {}) };
   const tier = tierForRating(r.rating, cfg.tiers);
+  const owner = input.owner;
   const character = await tx.character.create({
     data: {
       fighterId: input.fighterId,
@@ -39,6 +44,16 @@ export async function createCharacter(tx: Tx, input: NewCharacter, cfg: RatingSe
       deviation: r.deviation,
       volatility: r.volatility,
       tier,
+      ...(owner
+        ? {
+            ownerKind: "USER" as const,
+            ownerUserId: owner.userId,
+            serial: owner.serial,
+            firstEdition: owner.firstEdition,
+            acquiredAt: owner.acquiredAt,
+            acquiredTxnId: owner.acquiredTxnId,
+          }
+        : {}),
     },
   });
   await tx.tierHistory.create({

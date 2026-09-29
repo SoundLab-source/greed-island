@@ -11,6 +11,8 @@ export interface Candidate {
   fighterId: string;
   tier: Tier;
   rating: Rating;
+  /** Player-owned: preferred over house characters, which fill the gaps (DESIGN §5). */
+  owned?: boolean;
 }
 
 export interface MatchmakingConfig {
@@ -54,6 +56,9 @@ export const cryptoRng: Rng = {
 };
 
 export type PairKind = "CLOSE" | "UPSET" | "NEAREST" | "CROSS_TIER";
+
+/** Extra pick weight per owned character in a pair (a pair of two house characters weighs 1). */
+export const OWNED_WEIGHT = 2;
 
 export interface Pairing {
   sides: Record<Side, Candidate>;
@@ -102,7 +107,18 @@ export function pickMatch(
 
   const distance = (p: Pair) => (p.chanceA > 5_000n ? p.chanceA - 5_000n : 5_000n - p.chanceA);
   const inBand = (p: Pair) => p.chanceA >= cfg.targetMinBp && p.chanceA <= cfg.targetMaxBp;
-  const choose = (pairs: Pair[]) => pairs[rng.int(pairs.length)]!;
+  // Weighted pick: each owned character in a pair makes it more likely, so
+  // owned characters fight often without appearing in every single fight.
+  const weight = (p: Pair) => 1 + OWNED_WEIGHT * (Number(Boolean(p.a.owned)) + Number(Boolean(p.b.owned)));
+  const choose = (pairs: Pair[]) => {
+    const total = pairs.reduce((n, p) => n + weight(p), 0);
+    let r = rng.int(total);
+    for (const p of pairs) {
+      r -= weight(p);
+      if (r < 0) return p;
+    }
+    return pairs[pairs.length - 1]!;
+  };
 
   let chosen: Pair;
   let kind: PairKind;

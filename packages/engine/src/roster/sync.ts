@@ -36,6 +36,7 @@ export async function syncRoster(db: Db, roster: Roster, cfg: RatingSettings): P
       const data = {
         displayName: f.displayName,
         archetype: f.archetype,
+        rarity: f.rarity,
         defPath: f.def,
         licenseNote: f.license,
         enabled: f.enabled,

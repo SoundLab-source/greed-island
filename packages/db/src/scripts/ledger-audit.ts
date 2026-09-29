@@ -9,7 +9,7 @@ try {
   const report = await auditLedger(db);
   const s = report.stats;
   console.log(`Ledger audit: ${s.transactions} transactions, ${s.accounts} accounts`);
-  console.log(`  issued ${s.issued} = users ${s.userBalances} + escrow ${s.escrow} + house ${s.house}`);
+  console.log(`  issued ${s.issued} = users ${s.userBalances} + escrow ${s.escrow} + house ${s.house} + spent ${s.sink}`);
   if (report.ok) {
     console.log("OK: all checks passed");
   } else {

@@ -8,6 +8,7 @@ import {
   LedgerRuleError,
   planGrant,
   planPlaceBet,
+  planSpend,
   planSettlement,
   planVoid,
   type OpenBet,
@@ -37,6 +38,15 @@ describe("planGrant", () => {
 
   it("rejects non-positive grants", () => {
     expect(code(() => planGrant("u1", 0n))).toBe("INVALID_AMOUNT");
+  });
+});
+
+describe("planSpend", () => {
+  it("moves Salt from the user to the sink", () => {
+    const p = planSpend("u1", 250n);
+    assertBalanced(p);
+    expect(p.map((x) => [accountKey(x.account), x.amount])).toEqual([["user:u1:SALT", -250n], ["sink:SALT", 250n]]);
+    expect(code(() => planSpend("u1", 0n))).toBe("INVALID_AMOUNT");
   });
 });
 

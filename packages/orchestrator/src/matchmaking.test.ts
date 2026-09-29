@@ -102,6 +102,19 @@ describe("pickMatch", () => {
     expect(sides).toEqual(new Set(["fav", "dog"]));
   });
 
+  it("favours owned characters, with house characters filling in", () => {
+    const pool = [c("own1", 1500), c("own2", 1505), c("house1", 1500), c("house2", 1505)].map((x) => ({ ...x, owned: x.characterId.startsWith("own") }));
+    const r = rng("owned");
+    const involving = { owned: 0, house: 0 };
+    for (let i = 0; i < 2000; i++) {
+      const p = pickMatch(pool, [], r, { ...DEFAULT_MATCHMAKING, upsetRate: 0 })!;
+      involving[p.sides[1].owned || p.sides[2].owned ? "owned" : "house"]++;
+    }
+    // 6 pairs: own1-own2 (weight 5), four mixed (3 each), house1-house2 (1) → house-only ≈ 1/18.
+    expect(involving.house / 2000).toBeGreaterThan(0.02);
+    expect(involving.house / 2000).toBeLessThan(0.1);
+  });
+
   it("returns null with fewer than two candidates", () => {
     expect(pickMatch([c("a", 1500)], [], rng())).toBeNull();
     expect(pickStage([], rng())).toBeNull();
