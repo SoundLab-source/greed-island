@@ -11,7 +11,7 @@ import {
 import type { Db, Prisma, Tx } from "./client.ts";
 import { requestHash, toSalt } from "./convert.ts";
 import type { TxnKind } from "./generated/prisma/client.ts";
-import { lockFight, postTransaction, withIdempotency } from "./ledger.ts";
+import { lockFight, postTransaction, runIdempotent, withIdempotency, type IdempotentOp } from "./ledger.ts";
 
 export interface SettleFightInput {
   fightId: string;
@@ -38,42 +38,67 @@ async function outcomesFromBets(tx: Tx, fightId: string): Promise<BetOutcome[]> 
 }
 
 /** Settle and void are mutually exclusive for a fight, and each happens once. */
-async function closeFight(
-  db: Db,
+function closeFightOp(
   fightId: string,
   kind: Extract<TxnKind, "SETTLE" | "VOID">,
   hashBody: Record<string, unknown>,
   plan: (bets: OpenBet[]) => Plan,
-): Promise<BetOutcome[]> {
+): { key: string; hash: string; op: IdempotentOp<BetOutcome[]> } {
   const key = `${kind.toLowerCase()}:${fightId}`;
   const otherKey = `${kind === "SETTLE" ? "void" : "settle"}:${fightId}`;
   const hash = requestHash({ op: key, ...hashBody });
-  return withIdempotency(db, key, hash, {
-    lock: (tx) => lockFight(tx, fightId, "exclusive"),
-    run: async (tx) => {
-      if (await tx.ledgerTxn.findUnique({ where: { idempotencyKey: otherKey }, select: { id: true } })) {
-        throw new LedgerRuleError("NOT_ELIGIBLE", `fight ${fightId} is already closed (${otherKey})`);
-      }
-      const { postings, outcomes } = plan(await lockOpenBets(tx, fightId));
-      await postTransaction(tx, { idempotencyKey: key, requestHash: hash, kind, fightId, postings });
-      for (const o of outcomes) {
-        await tx.bet.update({ where: { id: o.betId }, data: { status: o.status, returned: o.returned.toString() } });
-      }
-      return outcomes;
+  return {
+    key,
+    hash,
+    op: {
+      lock: (tx) => lockFight(tx, fightId, "exclusive"),
+      run: async (tx) => {
+        if (await tx.ledgerTxn.findUnique({ where: { idempotencyKey: otherKey }, select: { id: true } })) {
+          throw new LedgerRuleError("NOT_ELIGIBLE", `fight ${fightId} is already closed (${otherKey})`);
+        }
+        const { postings, outcomes } = plan(await lockOpenBets(tx, fightId));
+        await postTransaction(tx, { idempotencyKey: key, requestHash: hash, kind, fightId, postings });
+        for (const o of outcomes) {
+          await tx.bet.update({ where: { id: o.betId }, data: { status: o.status, returned: o.returned.toString() } });
+        }
+        return outcomes;
+      },
+      replay: (tx) => outcomesFromBets(tx, fightId),
     },
-    replay: (tx) => outcomesFromBets(tx, fightId),
-  });
+  };
 }
 
-/** Pay winners at the locked multipliers and move losing stakes to the house. */
-export function settleFightLedger(db: Db, input: SettleFightInput): Promise<BetOutcome[]> {
+function settleOp(input: SettleFightInput) {
   const { fightId, winnerSide, multiplierBp, maxPayout } = input;
-  return closeFight(db, fightId, "SETTLE", { winnerSide, bp1: multiplierBp[1], bp2: multiplierBp[2], maxPayout }, (bets) =>
+  return closeFightOp(fightId, "SETTLE", { winnerSide, bp1: multiplierBp[1], bp2: multiplierBp[2], maxPayout }, (bets) =>
     planSettlement({ fightId, bets, winnerSide, multiplierBp, maxPayout }),
   );
 }
 
+function voidOp(fightId: string) {
+  return closeFightOp(fightId, "VOID", {}, (bets) => planVoid(fightId, bets));
+}
+
+/** Pay winners at the locked multipliers and move losing stakes to the house. */
+export function settleFightLedger(db: Db, input: SettleFightInput): Promise<BetOutcome[]> {
+  const { key, hash, op } = settleOp(input);
+  return withIdempotency(db, key, hash, op);
+}
+
+/** settleFightLedger inside the caller's transaction (e.g. the fight's SETTLED transition). */
+export function settleFightLedgerTx(tx: Tx, input: SettleFightInput): Promise<BetOutcome[]> {
+  const { key, hash, op } = settleOp(input);
+  return runIdempotent(tx, key, hash, op);
+}
+
 /** Refund every open bet on the fight in full. */
 export function voidFightLedger(db: Db, fightId: string): Promise<BetOutcome[]> {
-  return closeFight(db, fightId, "VOID", {}, (bets) => planVoid(fightId, bets));
+  const { key, hash, op } = voidOp(fightId);
+  return withIdempotency(db, key, hash, op);
+}
+
+/** voidFightLedger inside the caller's transaction. */
+export function voidFightLedgerTx(tx: Tx, fightId: string): Promise<BetOutcome[]> {
+  const { key, hash, op } = voidOp(fightId);
+  return runIdempotent(tx, key, hash, op);
 }

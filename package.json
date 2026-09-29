@@ -18,7 +18,8 @@
     "roster:sync": "pnpm --filter @greed-island/engine run roster:sync",
     "ikemen:install-mod": "pnpm --filter @greed-island/engine run ikemen:install-mod",
     "match:once": "pnpm --filter @greed-island/engine run match:once",
-    "roster:smoke": "pnpm --filter @greed-island/engine run roster:smoke"
+    "roster:smoke": "pnpm --filter @greed-island/engine run roster:smoke",
+    "demo": "pnpm db:migrate && pnpm roster:sync && pnpm --filter @greed-island/orchestrator run demo"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

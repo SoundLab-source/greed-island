@@ -43,7 +43,7 @@ stateDiagram-v2
     SETTLING --> SETTLED: SETTLED_OK
     BOOKED --> VOIDING: VOID(reason)
     BETTING_OPEN --> VOIDING: VOID(reason)
-    LOCKED --> VOIDING: VOID(reason)
+    LOCKED --> VOIDING: VOID(reason) / ENGINE_CRASH / ENGINE_TIMEOUT
     IN_PROGRESS --> VOIDING: MATCH_END(draw) / ENGINE_CRASH / ENGINE_TIMEOUT / VOID(reason)
     SETTLING --> VOIDING: VOID(reason)
     VOIDING --> VOIDED: VOIDED_OK
@@ -53,12 +53,14 @@ stateDiagram-v2
 
 - `transition(state, event) → { state, effects[] } | IllegalTransition` is pure. Effects are data (`FreezeLoadouts`, `LockOdds`, `StartEngine`, `Settle`, `RefundAll`, …) run by the orchestrator.
 - Each transition is one DB transaction: update `fight` with `WHERE id = ? AND version = ?` (optimistic concurrency, `version += 1`), insert a `fight_transition` audit row (from, to, event, payload, at), and apply the ledger effects in the same transaction. SSE is published after commit.
-- Void reasons: `draw`, `engine_crash`, `engine_timeout`, `reconcile_orphaned`, `admin`.
+- Void reasons: `DRAW`, `ENGINE_CRASH`, `ENGINE_TIMEOUT`, `RECONCILE_ORPHANED`, `ADMIN` (also used when the orchestrator is stopped mid-fight or hits an unexpected error: the fight is voided so no stake is stuck).
+- Lock order, everywhere: per-fight ledger advisory lock → rows. Transitions take the advisory lock exclusively, then the fight row `FOR UPDATE`; bets take it shared, then the user's account row, then the fight row `FOR SHARE` (inside `placeFightBet`'s guard). So a bet and a transition on the same fight simply queue, never deadlock.
+- Engine modes: `live` settles real fights; `fake` also settles (tests and `pnpm demo` need a full cycle without IKEMEN); `sim` is refused by the orchestrator and only used by `roster:smoke`. `fight.engine_mode` records which one ran each fight.
 - A test table covers every (state, event) pair: legal pairs produce the expected state, and everything else is rejected.
 
 ## 3. One fight end to end
 
-1. **Book.** Scheduler asks the current mode (matchmaking) for a pairing: two enabled characters in the same tier, not a mirror match, not an immediate rematch, model chance in 40–60% (or a deliberate upset at the configured rate). Stage from `crypto.randomInt`. Insert `fight` in `BOOKED`.
+1. **Book.** Scheduler asks the current mode (matchmaking) for a pairing: two enabled characters in the same tier, not a mirror match (same fighter design), not a rematch within the last `rematchCooldown` fights (default 3), model chance in 40–60% (or a deliberate upset, the most lopsided same-tier pair, at the configured rate, default 10%). If no tier has a valid pair (a small roster spread across tiers), the closest-rated cross-tier pair is used (`crossTierFallback`, default on) rather than stalling the stream. Corners are randomized. Stage from `crypto.randomInt`. The fight records its cycle position (`cycle`, `segment`, `segment_index`) and `pair_kind`. Insert `fight` in `BOOKED`.
 2. **Open betting.** `OPEN_BETTING`: snapshot both loadouts (stats, rating, RD, volatility, tier) into `fight_loadout`. These are immutable from here. Betting window starts (default 60 s). SSE `state` and live estimated odds.
 3. **Bets.** `POST /fights/:id/bet {side, amount, idempotencyKey}`. In one transaction: take the per-fight ledger lock (shared) and `SELECT … FOR SHARE` the fight row and require `BETTING_OPEN` (the `LOCK` transition takes `FOR UPDATE` on the same row, so no bet can commit after pools are snapshotted), `SELECT … FOR UPDATE` the user's available account, reverse their previous bet on this fight (escrow → user) if any, check funds, post the new stake (user → escrow[side]), and upsert `bet` (latest counts). Enforce the owner cap (0 owners now), min bet 1 and max stake. SSE odds update (model odds only; crowd split hidden).
 4. **Lock.** `LOCK`: compute the model chance from Glicko-2 expected score (both deviations), round it to basis points, clamp to [5%, 95%] (side 2 = 100% − side 1), then per side `multiplierBp = ⌊10000 × (10000 − marginBp) / chanceBp⌋`, floored at `minMultiplierBp` (1.00×). This is exactly `(1/p)(1 − margin)` in integers, e.g. 50% → 19000 (1.90×). From here on, money math is bigint only. The crowd blend (`w = maxWeight × pool/(pool + K)` over per-account-capped stakes) is computed and recorded, but `crowdMaxWeightBp = 0`, so locked odds equal model odds. Live odds shown during betting are model-only. Record `model_chance`, `crowd_chance` (per-account capped share), pools per side, and locked multipliers. Blend weight `w = pool/(pool+K)` is computed and stored but **config weight 0**, so locked = model.

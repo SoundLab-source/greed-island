@@ -58,6 +58,25 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
 
+  packages/orchestrator:
+    dependencies:
+      '@greed-island/db':
+        specifier: workspace:*
+        version: link:../db
+      '@greed-island/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@greed-island/shared':
+        specifier: workspace:*
+        version: link:../shared
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+
   packages/shared:
     dependencies:
       zod:

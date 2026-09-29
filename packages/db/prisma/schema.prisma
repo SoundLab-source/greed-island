@@ -74,8 +74,9 @@ model Account {
   asset     Asset         @default(SALT)
   userId    String?       @map("user_id") @db.Uuid
   user      User?         @relation(fields: [userId], references: [id])
-  /// Escrow accounts only. Foreign key to fight arrives with the fight table.
+  /// Escrow accounts only.
   fightId   String?       @map("fight_id") @db.Uuid
+  fight     Fight?        @relation(fields: [fightId], references: [id])
   side      Int?          @db.SmallInt
   /// Maintained by a trigger on ledger_entry; never written by the app.
   balance   Decimal       @default(0) @db.Decimal(20, 0)
@@ -95,6 +96,7 @@ model LedgerTxn {
   kind           TxnKind
   userId         String?       @map("user_id") @db.Uuid
   fightId        String?       @map("fight_id") @db.Uuid
+  fight          Fight?        @relation(fields: [fightId], references: [id])
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   entries        LedgerEntry[]
 
@@ -124,8 +126,8 @@ model Bet {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   user      User      @relation(fields: [userId], references: [id])
-  /// Foreign key to fight arrives with the fight table.
   fightId   String    @map("fight_id") @db.Uuid
+  fight     Fight     @relation(fields: [fightId], references: [id])
   side      Int       @db.SmallInt
   stake     Decimal   @db.Decimal(20, 0)
   status    BetStatus @default(OPEN)
@@ -198,6 +200,7 @@ model Stage {
   disabledReason String?  @map("disabled_reason")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  fights         Fight[]
 
   @@map("stage")
 }
@@ -231,6 +234,10 @@ model Character {
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   tierHistory    TierHistory[]
+  fightsAsSide1  Fight[]       @relation("FightSide1")
+  fightsAsSide2  Fight[]       @relation("FightSide2")
+  fightsWon      Fight[]       @relation("FightWinner")
+  loadouts       FightLoadout[]
 
   @@index([tier, enabled])
   @@index([ownerUserId])
@@ -245,10 +252,173 @@ model TierHistory {
   toTier      Tier             @map("to_tier")
   rating      Float
   reason      TierChangeReason
-  /// Fight that caused the change. Foreign key arrives with the fight table.
+  /// Fight that caused the change.
   fightId     String?          @map("fight_id") @db.Uuid
+  fight       Fight?           @relation(fields: [fightId], references: [id])
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([characterId, createdAt])
   @@map("tier_history")
+}
+
+// ---------------------------------------------------------------------------
+// Fights (build step 5)
+
+enum FightState {
+  BOOKED
+  BETTING_OPEN
+  LOCKED
+  IN_PROGRESS
+  SETTLING
+  SETTLED
+  VOIDING
+  VOIDED
+}
+
+enum VoidReason {
+  DRAW
+  ENGINE_CRASH
+  ENGINE_TIMEOUT
+  RECONCILE_ORPHANED
+  ADMIN
+}
+
+enum CycleSegment {
+  MATCHMAKING
+  TOURNAMENT
+  EXHIBITION
+}
+
+enum PairKind {
+  CLOSE
+  UPSET
+  NEAREST
+  CROSS_TIER
+}
+
+model Fight {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Human-friendly fight number.
+  number            Int               @unique @default(autoincrement())
+  state             FightState        @default(BOOKED)
+  /// Optimistic concurrency: every transition bumps it.
+  version           Int               @default(0)
+  /// "live" or "fake". "sim" never books fights.
+  engineMode        String            @map("engine_mode")
+  cycle             Int
+  segment           CycleSegment
+  segmentIndex      Int               @map("segment_index")
+  pairKind          PairKind          @map("pair_kind")
+  stageId           String            @map("stage_id")
+  stage             Stage             @relation(fields: [stageId], references: [id])
+  /// The characters the runner launches on each side. Settlement maps the winning side to these.
+  side1CharacterId  String            @map("side1_character_id") @db.Uuid
+  side1Character    Character         @relation("FightSide1", fields: [side1CharacterId], references: [id])
+  side2CharacterId  String            @map("side2_character_id") @db.Uuid
+  side2Character    Character         @relation("FightSide2", fields: [side2CharacterId], references: [id])
+  roundsToWin       Int               @default(2) @map("rounds_to_win") @db.SmallInt
+  bookedAt          DateTime          @default(now()) @map("booked_at") @db.Timestamptz(3)
+  bettingOpensAt    DateTime?         @map("betting_opens_at") @db.Timestamptz(3)
+  bettingClosesAt   DateTime?         @map("betting_closes_at") @db.Timestamptz(3)
+  lockedAt          DateTime?         @map("locked_at") @db.Timestamptz(3)
+  startedAt         DateTime?         @map("started_at") @db.Timestamptz(3)
+  endedAt           DateTime?         @map("ended_at") @db.Timestamptz(3)
+  closedAt          DateTime?         @map("closed_at") @db.Timestamptz(3)
+  /// 1 or 2 once the engine reports a winner. Draws void instead.
+  winnerSide        Int?              @map("winner_side") @db.SmallInt
+  winnerCharacterId String?           @map("winner_character_id") @db.Uuid
+  winnerCharacter   Character?        @relation("FightWinner", fields: [winnerCharacterId], references: [id])
+  voidReason        VoidReason?       @map("void_reason")
+  voidDetail        String?           @map("void_detail")
+  loadouts          FightLoadout[]
+  odds              FightOdds?
+  rounds            FightRound[]
+  transitions       FightTransition[]
+  bets              Bet[]
+  accounts          Account[]
+  ledgerTxns        LedgerTxn[]
+  tierChanges       TierHistory[]
+
+  @@index([state])
+  @@index([bookedAt])
+  @@map("fight")
+}
+
+/// Both sides' loadouts, frozen when betting opens. Immutable except the post-fight rating columns.
+model FightLoadout {
+  fightId        String    @map("fight_id") @db.Uuid
+  fight          Fight     @relation(fields: [fightId], references: [id])
+  side           Int       @db.SmallInt
+  characterId    String    @map("character_id") @db.Uuid
+  character      Character @relation(fields: [characterId], references: [id])
+  fighterId      String    @map("fighter_id")
+  name           String
+  tier           Tier
+  lifePct        Int       @map("life_pct") @db.SmallInt
+  startPower     Int       @map("start_power")
+  attackPct      Int       @map("attack_pct") @db.SmallInt
+  defensePct     Int       @map("defense_pct") @db.SmallInt
+  rating         Float
+  deviation      Float
+  volatility     Float
+  wins           Int
+  losses         Int
+  ratingAfter    Float?    @map("rating_after")
+  deviationAfter Float?    @map("deviation_after")
+  tierAfter      Tier?     @map("tier_after")
+
+  @@id([fightId, side])
+  @@index([characterId])
+  @@map("fight_loadout")
+}
+
+/// Odds as locked. Chances and multipliers are basis points (1/10000).
+model FightOdds {
+  fightId        String   @id @map("fight_id") @db.Uuid
+  fight          Fight    @relation(fields: [fightId], references: [id])
+  modelChanceBp1 Int      @map("model_chance_bp1")
+  modelChanceBp2 Int      @map("model_chance_bp2")
+  crowdChanceBp1 Int?     @map("crowd_chance_bp1")
+  crowdChanceBp2 Int?     @map("crowd_chance_bp2")
+  blendWeightBp  Int      @map("blend_weight_bp")
+  chanceBp1      Int      @map("chance_bp1")
+  chanceBp2      Int      @map("chance_bp2")
+  multiplierBp1  Int      @map("multiplier_bp1")
+  multiplierBp2  Int      @map("multiplier_bp2")
+  pool1          Decimal  @db.Decimal(20, 0)
+  pool2          Decimal  @db.Decimal(20, 0)
+  cappedPool1    Decimal  @map("capped_pool1") @db.Decimal(20, 0)
+  cappedPool2    Decimal  @map("capped_pool2") @db.Decimal(20, 0)
+  bettors        Int
+  lockedAt       DateTime @default(now()) @map("locked_at") @db.Timestamptz(3)
+
+  @@map("fight_odds")
+}
+
+model FightRound {
+  fightId    String @map("fight_id") @db.Uuid
+  fight      Fight  @relation(fields: [fightId], references: [id])
+  round      Int    @db.SmallInt
+  /// 1, 2, or 0 for a drawn round.
+  winnerSide Int    @map("winner_side") @db.SmallInt
+  reason     String
+
+  @@id([fightId, round])
+  @@map("fight_round")
+}
+
+/// Audit trail: one row per state change.
+model FightTransition {
+  id        BigInt      @id @default(autoincrement())
+  fightId   String      @map("fight_id") @db.Uuid
+  fight     Fight       @relation(fields: [fightId], references: [id])
+  fromState FightState? @map("from_state")
+  toState   FightState  @map("to_state")
+  event     String
+  payload   Json
+  version   Int
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([fightId, id])
+  @@map("fight_transition")
 }

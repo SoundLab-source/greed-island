@@ -1,11 +1,10 @@
 import { LedgerRuleError } from "@greed-island/shared";
-import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { auditLedger } from "./audit.ts";
 import { listBets, placeBet } from "./bets.ts";
 import { getBalance, IdempotencyKeyReusedError } from "./ledger.ts";
 import { settleFightLedger, voidFightLedger } from "./settlement.ts";
-import { economy, useTestDb } from "./test/db.ts";
+import { createTestFight, economy, useTestDb } from "./test/db.ts";
 import { createUser } from "./users.ts";
 
 const db = useTestDb();
@@ -14,7 +13,7 @@ let userId: string;
 let fightId: string;
 beforeEach(async () => {
   userId = (await createUser(db, { kind: "ANONYMOUS" }, economy)).user.id;
-  fightId = randomUUID();
+  fightId = await createTestFight(db);
 });
 
 const bet = (side: 1 | 2, stake: bigint, key: string, fight = fightId, user = userId) =>
@@ -70,7 +69,9 @@ describe("placeBet", () => {
 
   it("never overdraws under concurrent bets", async () => {
     // 10 bets of 100 on different fights against a 400 balance: exactly 4 fit.
-    const attempts = await Promise.allSettled(Array.from({ length: 10 }, (_, i) => bet(1, 100n, `c${i}`, randomUUID())));
+    const fights: string[] = [];
+    for (let i = 0; i < 10; i++) fights.push(await createTestFight(db));
+    const attempts = await Promise.allSettled(fights.map((f, i) => bet(1, 100n, `c${i}`, f)));
     const ok = attempts.filter((a) => a.status === "fulfilled");
     const failed = attempts.filter((a) => a.status === "rejected");
     expect(ok).toHaveLength(4);

@@ -1,11 +1,10 @@
 import { LedgerRuleError } from "@greed-island/shared";
-import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { auditLedger } from "./audit.ts";
 import { placeBet } from "./bets.ts";
 import { getBalance } from "./ledger.ts";
 import { settleFightLedger } from "./settlement.ts";
-import { economy, useTestDb } from "./test/db.ts";
+import { createTestFight, economy, useTestDb } from "./test/db.ts";
 import { claimBailout, claimDailyGrant, createUser, findUserBySessionToken } from "./users.ts";
 
 const db = useTestDb();
@@ -78,14 +77,14 @@ describe("claimBailout", () => {
 
   it("is refused while the user has an open bet", async () => {
     const user = await brokeUser();
-    await placeBet(db, { userId: user.id, fightId: randomUUID(), side: 1, stake: 30n, idempotencyKey: "k1" }, economy);
+    await placeBet(db, { userId: user.id, fightId: await createTestFight(db), side: 1, stake: 30n, idempotencyKey: "k1" }, economy);
     await expect(claimBailout(db, user.id, economy)).rejects.toMatchObject({ code: "NOT_ELIGIBLE" });
   });
 
   it("can happen again after the user goes broke again", async () => {
     const user = await brokeUser();
     await claimBailout(db, user.id, economy);
-    const fightId = randomUUID();
+    const fightId = await createTestFight(db);
     await placeBet(db, { userId: user.id, fightId, side: 1, stake: 100n, idempotencyKey: "all-in" }, economy);
     await settleFightLedger(db, { fightId, winnerSide: 2, multiplierBp: { 1: 20_000n, 2: 20_000n }, maxPayout: economy.maxPayout });
     expect(await getBalance(db, user.id)).toBe(0n);

@@ -13,7 +13,7 @@ Phase 1: Stream MVP (see DESIGN.md §13). Build only phase 1 features, but keep 
 - `packages/shared`: types, event schemas, odds math, Glicko-2
 - `packages/db`: Prisma schema, migrations, ledger
 - `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`)
-- `packages/orchestrator`: match cycle, state machine, betting, settlement, API + SSE
+- `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
 - `apps/web`: minimal dev page to watch and bet (no styling work)
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
 - `docs/`: DESIGN, ARCHITECTURE, SETUP, ikemen-notes
@@ -35,8 +35,9 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 
 Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.
 
+- `pnpm demo`: migrate, sync roster, then 12 fights on the dev DB with the fake engine and 3 demo players betting (one forced crash → void); prints results, ratings, tier changes and the ledger audit; exits non-zero unless ≥10 settle, ≥1 voids and the audit passes
+
 Planned (not built yet):
-- `pnpm demo`: fake engine, 3 users betting over ≥10 fights with at least one void, then `ledger:audit`
 - `pnpm dev`: orchestrator + API/SSE + dev page (`ENGINE_MODE=fake|live`)
 
 ## Hard rules

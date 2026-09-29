@@ -1,6 +1,6 @@
 import { LedgerRuleError, planPlaceBet, type EconomyConfig, type Salt, type Side } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
-import type { Db } from "./client.ts";
+import type { Db, Tx } from "./client.ts";
 import { requestHash, toSalt } from "./convert.ts";
 import type { Bet, BetStatus } from "./generated/prisma/client.ts";
 import { getBalance, isFightClosed, lockFight, lockUserAccount, postTransaction, withIdempotency } from "./ledger.ts";
@@ -36,6 +36,11 @@ export interface PlaceBetInput {
   idempotencyKey: string;
   /** Set by the caller when the user owns a character in this fight (odds.ownerBetCap). */
   ownerCap?: Salt | undefined;
+  /**
+   * Runs inside the bet's transaction before anything is written, e.g. to
+   * check (FOR SHARE) that the fight is still open for betting. Throw to reject.
+   */
+  guard?: ((tx: Tx) => Promise<void>) | undefined;
 }
 
 export interface PlaceBetResult {
@@ -66,6 +71,7 @@ export async function placeBet(db: Db, input: PlaceBetInput, economy: EconomyCon
       if (await isFightClosed(tx, fightId)) {
         throw new LedgerRuleError("NOT_ELIGIBLE", "betting on this fight is closed");
       }
+      await input.guard?.(tx);
       const available = await getBalance(tx, userId);
       const existing = await tx.bet.findUnique({ where });
       const betId = existing?.id ?? randomUUID();

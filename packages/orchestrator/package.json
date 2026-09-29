@@ -1,0 +1,21 @@
+{
+  "name": "@greed-island/orchestrator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "demo": "tsx src/scripts/demo.ts"
+  },
+  "dependencies": {
+    "@greed-island/db": "workspace:*",
+    "@greed-island/engine": "workspace:*",
+    "@greed-island/shared": "workspace:*",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1"
+  }
+}

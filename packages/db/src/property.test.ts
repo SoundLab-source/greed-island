@@ -4,13 +4,12 @@
  */
 import { LedgerRuleError, type Side } from "@greed-island/shared";
 import fc from "fast-check";
-import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { auditLedger } from "./audit.ts";
 import { placeBet } from "./bets.ts";
 import { IdempotencyKeyReusedError } from "./ledger.ts";
 import { settleFightLedger, voidFightLedger } from "./settlement.ts";
-import { economy as baseEconomy, resetDb, useTestDb } from "./test/db.ts";
+import { createTestFight, economy as baseEconomy, resetDb, useTestDb } from "./test/db.ts";
 import { claimBailout, claimDailyGrant, createUser } from "./users.ts";
 
 const db = useTestDb();
@@ -49,7 +48,8 @@ describe("property: ledger under random concurrent operations", () => {
         await resetDb(db);
         const users = await Promise.all(Array.from({ length: USERS }, () => createUser(db, { kind: "ANONYMOUS" }, economy)));
         const userIds = users.map((u) => u.user.id);
-        const fightIds = Array.from({ length: FIGHTS }, () => randomUUID());
+        const fightIds: string[] = [];
+        for (let i = 0; i < FIGHTS; i++) fightIds.push(await createTestFight(db));
 
         const run = (op: Op): Promise<unknown> => {
           switch (op.t) {

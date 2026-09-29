@@ -48,23 +48,30 @@ export interface IdempotentOp<T> {
 export async function withIdempotency<T>(db: Db, key: string, hash: string, op: IdempotentOp<T>): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
-      return await db.$transaction(async (tx) => {
-        await op.lock?.(tx);
-        const existing = await tx.ledgerTxn.findUnique({
-          where: { idempotencyKey: key },
-          select: { id: true, requestHash: true },
-        });
-        if (existing) {
-          if (existing.requestHash !== hash) throw new IdempotencyKeyReusedError(key);
-          return op.replay(tx, existing.id);
-        }
-        return op.run(tx);
-      });
+      return await db.$transaction((tx) => runIdempotent(tx, key, hash, op));
     } catch (err) {
       if (attempt < MAX_ATTEMPTS && isRetryable(err, true)) continue;
       throw err;
     }
   }
+}
+
+/**
+ * The body of withIdempotency, inside a transaction the caller owns (so it can
+ * be combined with other writes, e.g. a fight's state change). The caller is
+ * responsible for retrying the whole transaction.
+ */
+export async function runIdempotent<T>(tx: Tx, key: string, hash: string, op: IdempotentOp<T>): Promise<T> {
+  await op.lock?.(tx);
+  const existing = await tx.ledgerTxn.findUnique({
+    where: { idempotencyKey: key },
+    select: { id: true, requestHash: true },
+  });
+  if (existing) {
+    if (existing.requestHash !== hash) throw new IdempotencyKeyReusedError(key);
+    return op.replay(tx, existing.id);
+  }
+  return op.run(tx);
 }
 
 /** Retry a plain transaction on deadlock or serialization failure. */

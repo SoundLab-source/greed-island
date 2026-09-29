@@ -78,6 +78,19 @@ export async function auditLedger(db: Db): Promise<AuditReport> {
     WHERE ("status" = 'OPEN') <> ("returned" IS NULL)`;
   for (const r of badBets) add("bet-state", `bet ${r.id} is ${r.status} but its returned amount is inconsistent`);
 
+  const stuck = await db.$queryRaw<{ id: string; number: number; state: string; open: bigint }[]>`
+    SELECT f."id", f."number", f."state"::text AS state, COUNT(b."id") AS open
+    FROM "fight" f JOIN "bet" b ON b."fight_id" = f."id" AND b."status" = 'OPEN'
+    WHERE f."state" IN ('SETTLED', 'VOIDED')
+    GROUP BY f."id"`;
+  for (const r of stuck) add("closed-fight-bets", `fight #${r.number} is ${r.state} but has ${r.open} open bet(s)`);
+
+  const unclosed = await db.$queryRaw<{ number: number; state: string }[]>`
+    SELECT f."number", f."state"::text AS state FROM "fight" f
+    WHERE (f."state" = 'SETTLED' AND NOT EXISTS (SELECT 1 FROM "ledger_txn" t WHERE t."idempotency_key" = 'settle:' || f."id"))
+       OR (f."state" = 'VOIDED' AND NOT EXISTS (SELECT 1 FROM "ledger_txn" t WHERE t."idempotency_key" = 'void:' || f."id"))`;
+  for (const r of unclosed) add("fight-closed-in-ledger", `fight #${r.number} is ${r.state} but the ledger has no matching settle/void`);
+
   const sums = await db.$queryRaw<{ kind: string; total: Dec; n: bigint }[]>`
     SELECT "kind"::text AS kind, SUM("balance") AS total, COUNT(*) AS n FROM "account" GROUP BY "kind"`;
   const byKind = (k: string) => {
