@@ -1,0 +1,66 @@
+{
+  "fighters": [
+    {
+      "id": "kfm",
+      "displayName": "Kung Fu Man",
+      "archetype": "ALL_ROUNDER",
+      "def": "chars/kfm/kfm.def",
+      "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm/readme.txt). Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "kfm720",
+      "displayName": "Kung Fu Man 720",
+      "archetype": "ALL_ROUNDER",
+      "def": "chars/kfm720/kfm720.def",
+      "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm720/readme.txt). Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "kfm-zss",
+      "displayName": "Kung Fu Man ZSS",
+      "archetype": "ALL_ROUNDER",
+      "def": "chars/kfm_zss/kfm_zss.def",
+      "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm_zss/readme.txt). Not for monetized use.",
+      "enabled": true
+    },
+    {
+      "id": "kfm-zaxis",
+      "displayName": "Kung Fu Man Z-Axis",
+      "archetype": "ALL_ROUNDER",
+      "def": "chars/kfm_zaxis/kfm_zaxis.def",
+      "license": "Placeholder. (c) 2009 Elecbyte, Creative Commons Non-Commercial, attribution optional (chars/kfm_zaxis/readme.txt). Not for monetized use.",
+      "enabled": true,
+      "notes": "Z-axis movement test character; confirm it behaves on 2D stages in roster:smoke."
+    }
+  ],
+  "stages": [
+    {
+      "id": "mountainside-temple",
+      "displayName": "Mountainside Temple",
+      "def": "stages/kfm.def",
+      "license": "Elecbyte sample stage bundled with the IKEMEN GO v1.0.0 release. License not stated in the stage files; assumed non-commercial like KFM (UNVERIFIED). Check before public streaming.",
+      "enabled": true
+    },
+    {
+      "id": "training-room",
+      "displayName": "Training Room",
+      "def": "stages/stage0.def",
+      "license": "Elecbyte sample stage bundled with the IKEMEN GO v1.0.0 release. License not stated in the stage files; assumed non-commercial like KFM (UNVERIFIED). Check before public streaming.",
+      "enabled": true
+    },
+    {
+      "id": "training-stage",
+      "displayName": "Training Stage",
+      "def": "stages/stage1.def",
+      "license": "By Gacel, bundled with the IKEMEN GO v1.0.0 release. License not stated in the stage files (UNVERIFIED). Check before public streaming.",
+      "enabled": true
+    }
+  ],
+  "characters": [
+    { "key": "house-kfm", "fighter": "kfm", "name": "Kung Fu Man", "palette": 1 },
+    { "key": "house-kfm720", "fighter": "kfm720", "name": "Kung Fu Man 720", "palette": 2 },
+    { "key": "house-kfm-zss", "fighter": "kfm-zss", "name": "Kung Fu Man ZSS", "palette": 3 },
+    { "key": "house-kfm-zaxis", "fighter": "kfm-zaxis", "name": "Kung Fu Man Z-Axis", "palette": 4 }
+  ]
+}

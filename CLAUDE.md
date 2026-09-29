@@ -27,13 +27,16 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm test`: all Vitest suites; needs Postgres running (tests migrate and wipe the test DB, never the dev DB)
 - `pnpm typecheck`: TypeScript check across all packages
 - `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts, escrow = open stakes
+- `pnpm roster:scan`: draft entries from `$IKEMEN_DIR/chars` and `stages` into `packages/engine/roster.draft.json` (gitignored) for review
+- `pnpm roster:sync`: load `packages/engine/roster.json` into the DB (creates/updates/disables; never resets ratings or records)
+
+Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.
 
 Planned (not built yet):
 - `pnpm demo`: fake engine, 3 users betting over ≥10 fights with at least one void, then `ledger:audit`
 - `pnpm dev`: orchestrator + API/SSE + dev page (`ENGINE_MODE=fake|live`)
 - `pnpm match:once`: one real `live` fight; needs `IKEMEN_DIR`
-- `pnpm roster:scan`: draft `roster.json` entries from `$IKEMEN_DIR/chars` and `stages`
-- `pnpm roster:smoke`: run each roster entry once in `sim`; disable crashes/hangs
+- `pnpm roster:smoke`: run each roster entry once in `sim`; disable crashes/hangs (built with the engine runner, step 4)
 - `pnpm ikemen:install-mod`: copy `ikemen/mods/salty_events.lua` into `$IKEMEN_DIR/external/mods/`
 
 ## Hard rules

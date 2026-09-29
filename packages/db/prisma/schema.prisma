@@ -60,6 +60,8 @@ model User {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   accounts         Account[]
   bets             Bet[]
+  /// Owned characters arrive in phase 2; phase 1 characters are all house-owned.
+  characters       Character[]
 
   @@map("user")
 }
@@ -135,4 +137,118 @@ model Bet {
   @@unique([userId, fightId])
   @@index([fightId, status])
   @@map("bet")
+}
+
+// ---------------------------------------------------------------------------
+// Roster, ratings and tiers (build step 2)
+
+enum Tier {
+  P
+  B
+  A
+  S
+  X
+}
+
+enum Archetype {
+  RUSHDOWN
+  ZONER
+  GRAPPLER
+  ALL_ROUNDER
+  HEAVY
+}
+
+enum OwnerKind {
+  HOUSE
+  USER
+}
+
+enum TierChangeReason {
+  INITIAL
+  RATING
+  MANUAL
+}
+
+/// A design in the fighter pool (art, moves, AI). Synced from roster.json.
+model Fighter {
+  /// Slug from roster.json, e.g. "kfm".
+  id             String      @id
+  displayName    String      @map("display_name")
+  archetype      Archetype
+  /// Path to the character .def, relative to IKEMEN_DIR.
+  defPath        String      @map("def_path")
+  licenseNote    String      @map("license_note")
+  enabled        Boolean     @default(true)
+  disabledReason String?     @map("disabled_reason")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  characters     Character[]
+
+  @@map("fighter")
+}
+
+/// A stage. Synced from roster.json.
+model Stage {
+  id             String   @id
+  displayName    String   @map("display_name")
+  /// Path to the stage .def, relative to IKEMEN_DIR.
+  defPath        String   @map("def_path")
+  licenseNote    String   @map("license_note")
+  enabled        Boolean  @default(true)
+  disabledReason String?  @map("disabled_reason")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("stage")
+}
+
+/// One instance of a fighter, with its own stats, record, rating and tier.
+model Character {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Key from roster.json for house characters; null for player-owned ones (phase 2).
+  rosterKey      String?       @unique @map("roster_key")
+  fighterId      String        @map("fighter_id")
+  fighter        Fighter       @relation(fields: [fighterId], references: [id])
+  name           String
+  palette        Int           @default(1) @db.SmallInt
+  ownerKind      OwnerKind     @default(HOUSE) @map("owner_kind")
+  ownerUserId    String?       @map("owner_user_id") @db.Uuid
+  owner          User?         @relation(fields: [ownerUserId], references: [id])
+  /// Stats (see CharacterStats). Neutral defaults; upgrades arrive in phase 2.
+  lifePct        Int           @default(100) @map("life_pct") @db.SmallInt
+  startPower     Int           @default(0) @map("start_power")
+  attackPct      Int           @default(100) @map("attack_pct") @db.SmallInt
+  defensePct     Int           @default(100) @map("defense_pct") @db.SmallInt
+  wins           Int           @default(0)
+  losses         Int           @default(0)
+  /// Glicko-2 (Glicko scale).
+  rating         Float
+  deviation      Float
+  volatility     Float
+  tier           Tier
+  enabled        Boolean       @default(true)
+  disabledReason String?       @map("disabled_reason")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tierHistory    TierHistory[]
+
+  @@index([tier, enabled])
+  @@index([ownerUserId])
+  @@map("character")
+}
+
+model TierHistory {
+  id          BigInt           @id @default(autoincrement())
+  characterId String           @map("character_id") @db.Uuid
+  character   Character        @relation(fields: [characterId], references: [id])
+  fromTier    Tier?            @map("from_tier")
+  toTier      Tier             @map("to_tier")
+  rating      Float
+  reason      TierChangeReason
+  /// Fight that caused the change. Foreign key arrives with the fight table.
+  fightId     String?          @map("fight_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([characterId, createdAt])
+  @@map("tier_history")
 }

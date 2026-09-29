@@ -1,12 +1,9 @@
 // `pnpm ledger:audit`: verify the ledger invariants against the database in DATABASE_URL.
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { auditLedger } from "../audit.ts";
 import { createDb } from "../client.ts";
+import { loadRepoEnv } from "../env.ts";
 
-const envFile = fileURLToPath(new URL("../../../../.env", import.meta.url));
-if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
-
+loadRepoEnv();
 const db = createDb();
 try {
   const report = await auditLedger(db);

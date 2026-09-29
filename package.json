@@ -13,7 +13,9 @@
     "db:generate": "pnpm --filter @greed-island/db run db:generate",
     "db:migrate": "pnpm --filter @greed-island/db run db:migrate",
     "db:migrate:dev": "pnpm --filter @greed-island/db run db:migrate:dev",
-    "ledger:audit": "pnpm --filter @greed-island/db run ledger:audit"
+    "ledger:audit": "pnpm --filter @greed-island/db run ledger:audit",
+    "roster:scan": "pnpm --filter @greed-island/engine run roster:scan",
+    "roster:sync": "pnpm --filter @greed-island/engine run roster:sync"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

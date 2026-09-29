@@ -1,0 +1,18 @@
+{
+  "name": "@greed-island/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "roster:scan": "tsx src/scripts/roster-scan.ts",
+    "roster:sync": "tsx src/scripts/roster-sync.ts"
+  },
+  "dependencies": {
+    "@greed-island/db": "workspace:*",
+    "@greed-island/shared": "workspace:*",
+    "zod": "4.6.5"
+  }
+}

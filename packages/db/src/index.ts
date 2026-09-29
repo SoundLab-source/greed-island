@@ -16,3 +16,15 @@ export { createUser, findUserBySessionToken, claimDailyGrant, claimBailout, type
 export { placeBet, listBets, toBetView, type BetView, type PlaceBetInput, type PlaceBetResult } from "./bets.ts";
 export { settleFightLedger, voidFightLedger, type SettleFightInput } from "./settlement.ts";
 export { auditLedger, type AuditReport, type AuditProblem } from "./audit.ts";
+export {
+  applyFightRating,
+  createCharacter,
+  loadoutSnapshot,
+  setTierManually,
+  toLoadoutSnapshot,
+  type FightRatingInput,
+  type NewCharacter,
+  type RatingChange,
+  type RatingSettings,
+} from "./characters.ts";
+export { loadRepoEnv, REPO_ROOT } from "./env.ts";

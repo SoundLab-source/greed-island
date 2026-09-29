@@ -17,6 +17,14 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ GI_DAILY_GRANT: "10.5" })).toThrow(ConfigError);
   });
 
+  it("reads tier and rating overrides and validates them", () => {
+    const cfg = loadConfig({ GI_TIER_S: "1900", GI_GLICKO_TAU: "0.7" });
+    expect(cfg.tiers.thresholds.S).toBe(1900);
+    expect(cfg.ratings.tau).toBe(0.7);
+    expect(() => loadConfig({ GI_TIER_A: "1400" })).toThrow();
+    expect(() => loadConfig({ GI_TIER_B: "abc" })).toThrow(ConfigError);
+  });
+
   it("rejects inconsistent limits", () => {
     expect(() => loadConfig({ GI_MIN_BET: "10", GI_MAX_PAYOUT: "5" })).toThrow(ConfigError);
     expect(() => loadConfig({ GI_MIN_BET: "0" })).toThrow(ConfigError);

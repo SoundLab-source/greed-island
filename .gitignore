@@ -34,3 +34,6 @@ libresprite-*.zip
 
 # Prisma generated client
 packages/db/src/generated/
+
+# Roster scan output (review, then copy entries into roster.json)
+packages/engine/roster.draft.json

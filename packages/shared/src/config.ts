@@ -1,4 +1,6 @@
+import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
+import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 
 /**
  * Economy settings. Values marked "open question" come from DESIGN.md §15 or
@@ -19,6 +21,8 @@ export interface EconomyConfig {
 
 export interface Config {
   economy: EconomyConfig;
+  ratings: RatingsConfig;
+  tiers: TierConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -43,6 +47,14 @@ function saltFromEnv(env: NodeJS.ProcessEnv, name: string, fallback: Salt): Salt
   }
 }
 
+function numberFromEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
+  const raw = env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) throw new ConfigError(`${name}: expected a number, got "${raw}"`);
+  return n;
+}
+
 export function validateEconomy(e: EconomyConfig): EconomyConfig {
   if (e.startingBalance < 0n) throw new ConfigError("startingBalance must be >= 0");
   if (e.dailyGrant < 0n) throw new ConfigError("dailyGrant must be >= 0");
@@ -61,6 +73,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       bailoutFloor: saltFromEnv(env, "GI_BAILOUT_FLOOR", d.bailoutFloor),
       minBet: saltFromEnv(env, "GI_MIN_BET", d.minBet),
       maxPayout: saltFromEnv(env, "GI_MAX_PAYOUT", d.maxPayout),
+    }),
+    ratings: {
+      ...DEFAULT_RATINGS,
+      tau: numberFromEnv(env, "GI_GLICKO_TAU", DEFAULT_RATINGS.tau),
+    },
+    tiers: validateTiers({
+      thresholds: {
+        B: numberFromEnv(env, "GI_TIER_B", DEFAULT_TIERS.thresholds.B),
+        A: numberFromEnv(env, "GI_TIER_A", DEFAULT_TIERS.thresholds.A),
+        S: numberFromEnv(env, "GI_TIER_S", DEFAULT_TIERS.thresholds.S),
+      },
+      hysteresis: numberFromEnv(env, "GI_TIER_HYSTERESIS", DEFAULT_TIERS.hysteresis),
     }),
   };
 }

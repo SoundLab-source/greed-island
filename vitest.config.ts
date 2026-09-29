@@ -1,20 +1,25 @@
 import { defineConfig } from "vitest/config";
 
+// Tests that touch Postgres all live in the "db" project: every file in
+// packages/db, plus any `*.db.test.ts` elsewhere. They share one database, so
+// that project runs one file at a time. Everything else runs in parallel.
+const dbTests = ["packages/db/src/**/*.test.ts", "packages/*/src/**/*.db.test.ts"];
+
 export default defineConfig({
   test: {
     projects: [
       {
         test: {
-          name: "shared",
-          include: ["packages/shared/src/**/*.test.ts"],
+          name: "unit",
+          include: ["packages/*/src/**/*.test.ts"],
+          exclude: [...dbTests, "**/node_modules/**"],
         },
       },
       {
         test: {
           name: "db",
-          include: ["packages/db/src/**/*.test.ts"],
+          include: dbTests,
           globalSetup: ["packages/db/src/test/global-setup.ts"],
-          // Tests share one Postgres database, so files run one at a time.
           fileParallelism: false,
           testTimeout: 60_000,
           hookTimeout: 120_000,
