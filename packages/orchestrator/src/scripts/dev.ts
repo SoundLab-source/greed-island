@@ -4,7 +4,7 @@ import { createDb, loadAuthConfig, loadRepoEnv } from "@greed-island/db";
 import { createFakeSource, createIkemenSource, loadEngineConfig, type EventSource } from "@greed-island/engine";
 import { loadConfig } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
-import { buildServer } from "../api/server.ts";
+import { buildServer, loadTwitchChannel } from "../api/server.ts";
 import { loadMailer } from "../mail.ts";
 import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
@@ -44,11 +44,11 @@ for (const a of await reconcile(deps)) console.log(`reconciled fight #${a.number
 const host = process.env["GI_HOST"] ?? "127.0.0.1";
 const port = Number(process.env["GI_PORT"] ?? 3000);
 const publicUrl = process.env["GI_PUBLIC_URL"] ?? `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig() });
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel() });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
-console.log(`Stream overlay for OBS: ${publicUrl}/overlay.html (see docs/SETUP.md §5)`);
+console.log(`Watch page: ${publicUrl}/watch.html · stream overlay for OBS: ${publicUrl}/overlay.html (see docs/SETUP.md §5)`);
 
 // Optional: switch OBS scenes between fight and betting (GI_OBS_URL).
 const obsConfig = loadObsConfig();

@@ -4,7 +4,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocketServer, type WebSocket as ServerSocket } from "ws";
 import { FightBus } from "./bus.ts";
-import { loadObsConfig, ObsSceneSwitcher, obsAuthentication, sceneForState, type ObsConfig } from "./obs.ts";
+import { connectObs, loadObsConfig, ObsSceneSwitcher, obsAuthentication, sceneForState, type ObsClient, type ObsConfig } from "./obs.ts";
+import { setupObsScenes } from "./obs-setup.ts";
 import type { FightState } from "./state-machine.ts";
 
 /**
@@ -175,5 +176,125 @@ describe("ObsSceneSwitcher", () => {
     cleanup.push(() => open.close());
     const c = setup(open);
     await until(() => c.logs.some((l) => l.includes("asks for a password")));
+  });
+});
+
+describe("connectObs", () => {
+  it("sends requests and returns their data, or a clear error", async () => {
+    const server = new WebSocketServer({ port: 0, handleProtocols: () => "obswebsocket.json" });
+    cleanup.push(() => new Promise<void>((r) => server.close(() => r())));
+    server.on("connection", (ws) => {
+      ws.send(JSON.stringify({ op: 0, d: { rpcVersion: 1 } }));
+      ws.on("message", (raw) => {
+        const m = JSON.parse(String(raw)) as { op: number; d: Record<string, unknown> };
+        if (m.op === 1) ws.send(JSON.stringify({ op: 2, d: { negotiatedRpcVersion: 1 } }));
+        if (m.op === 6) {
+          const ok = m.d["requestType"] === "GetVersion";
+          ws.send(
+            JSON.stringify({
+              op: 7,
+              d: {
+                requestType: m.d["requestType"],
+                requestId: m.d["requestId"],
+                requestStatus: ok ? { result: true, code: 100 } : { result: false, code: 204, comment: "Your request type is not valid." },
+                ...(ok ? { responseData: { obsVersion: "32.2.2" } } : {}),
+              },
+            }),
+          );
+        }
+      });
+    });
+    const url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const obs = await connectObs({ url, password: null });
+    cleanup.push(() => obs.close());
+    expect(await obs.request("GetVersion")).toEqual({ obsVersion: "32.2.2" });
+    await expect(obs.request("Nope")).rejects.toMatchObject({ name: "ObsRequestError", requestType: "Nope", code: 204 });
+  });
+
+  it("rejects a wrong password", async () => {
+    const obs = new FakeObs("right");
+    cleanup.push(() => obs.close());
+    await expect(connectObs({ url: obs.url, password: "wrong" })).rejects.toThrow(/wrong password/);
+  });
+});
+
+describe("setupObsScenes", () => {
+  /** An in-memory OBS that answers the requests setup uses. */
+  function memoryObs(kinds = ["browser_source", "screen_capture", "coreaudio_input_capture"]) {
+    const scenes = new Map<string, string[]>([["Scene", []]]);
+    const inputs = new Map<string, { kind: string; settings: Record<string, unknown> }>();
+    const transforms: Record<string, unknown>[] = [];
+    const refreshed: string[] = [];
+    let program = "Scene";
+    const calls: string[] = [];
+    const client: ObsClient = {
+      close: () => {},
+      request: async <T,>(type: string, d: Record<string, unknown> = {}): Promise<T> => {
+        calls.push(type);
+        const r = (v: unknown) => v as T;
+        switch (type) {
+          case "GetVersion":
+            return r({ obsVersion: "32.2.2", obsWebSocketVersion: "5.6.3", platformDescription: "macOS" });
+          case "GetInputKindList":
+            return r({ inputKinds: kinds });
+          case "GetInputDefaultSettings":
+            return r({ defaultInputSettings: { url: "", width: 800, height: 600, css: "" } });
+          case "SetVideoSettings":
+            return r({});
+          case "GetSceneList":
+            return r({ scenes: [...scenes.keys()].map((sceneName) => ({ sceneName })) });
+          case "CreateScene":
+            scenes.set(String(d["sceneName"]), []);
+            return r({});
+          case "GetInputList":
+            return r({ inputs: [...inputs.entries()].filter(([, v]) => !d["inputKind"] || v.kind === d["inputKind"]).map(([inputName]) => ({ inputName })) });
+          case "GetInputSettings":
+            return r({ inputSettings: inputs.get(String(d["inputName"]))!.settings });
+          case "PressInputPropertiesButton":
+            refreshed.push(`${String(d["inputName"])}:${String(d["propertyName"])}`);
+            return r({});
+          case "CreateInput":
+            inputs.set(String(d["inputName"]), { kind: String(d["inputKind"]), settings: d["inputSettings"] as Record<string, unknown> });
+            scenes.get(String(d["sceneName"]))!.push(String(d["inputName"]));
+            return r({});
+          case "GetSceneItemId":
+            return r({ sceneItemId: scenes.get(String(d["sceneName"]))!.indexOf(String(d["sourceName"])) + 1 });
+          case "SetSceneItemTransform":
+            transforms.push(d);
+            return r({});
+          case "SetCurrentProgramScene":
+            program = String(d["sceneName"]);
+            return r({});
+          default:
+            throw new Error(`unexpected ${type}`);
+        }
+      },
+    };
+    return { client, scenes, inputs, transforms, calls, refreshed, program: () => program };
+  }
+  const opts = { fightScene: "Fight", bettingScene: "Betting", overlayUrl: (s: string) => `http://127.0.0.1:3000/overlay.html?scene=${s}`, log: () => {} };
+
+  it("adds both scenes with the capture under the fight bar and the betting screen, filling the canvas", async () => {
+    const obs = memoryObs();
+    await setupObsScenes(obs.client, opts);
+    expect(obs.scenes.get("Fight")).toEqual(["Game capture", "Overlay: fight bar"]);
+    expect(obs.scenes.get("Betting")).toEqual(["Overlay: betting screen"]);
+    expect(obs.inputs.get("Game capture")!.kind).toBe("screen_capture");
+    expect(obs.inputs.get("Overlay: fight bar")).toEqual({ kind: "browser_source", settings: { url: "http://127.0.0.1:3000/overlay.html?scene=fight", width: 1920, height: 1080 } });
+    expect(obs.transforms).toHaveLength(3);
+    expect(obs.transforms[0]).toMatchObject({ sceneItemTransform: { boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: 1920, boundsHeight: 1080 } });
+    expect(obs.program()).toBe("Betting");
+    // Both overlay sources are reloaded (not the screen capture), every run.
+    expect(obs.refreshed).toEqual(["Overlay: fight bar:refreshnocache", "Overlay: betting screen:refreshnocache"]);
+    // Running it again adds nothing.
+    const before = obs.calls.length;
+    await setupObsScenes(obs.client, opts);
+    expect(obs.calls.slice(before)).not.toContain("CreateInput");
+    expect(obs.calls.slice(before)).not.toContain("CreateScene");
+  });
+
+  it("stops with a clear message when OBS lacks a browser or screen capture source", async () => {
+    await expect(setupObsScenes(memoryObs(["screen_capture"]).client, opts)).rejects.toThrow(/Browser source/);
+    await expect(setupObsScenes(memoryObs(["browser_source"]).client, opts)).rejects.toThrow(/no screen capture source/);
   });
 });

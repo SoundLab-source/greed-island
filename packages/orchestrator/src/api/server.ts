@@ -76,6 +76,16 @@ export interface ApiDeps {
   publicUrl?: string;
   auth?: AuthConfig;
   logger?: boolean;
+  /** Twitch channel shown on the watch page (player and chat); null shows the live betting board instead. */
+  twitchChannel?: string | null;
+}
+
+/** GI_TWITCH_CHANNEL: a Twitch login name (4-25 letters, digits or underscores). */
+export function loadTwitchChannel(env: NodeJS.ProcessEnv = process.env): string | null {
+  const raw = env["GI_TWITCH_CHANNEL"]?.trim();
+  if (!raw) return null;
+  if (!/^[a-zA-Z0-9_]{4,25}$/.test(raw)) throw new Error(`GI_TWITCH_CHANNEL "${raw}" isn't a Twitch channel name`);
+  return raw.toLowerCase();
 }
 
 /** JSON.stringify that writes bigints as strings. */
@@ -285,6 +295,9 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     if (!view) throw new HttpError(404, "NOT_FOUND", "no such tournament");
     return send(reply, view);
   });
+
+  // What the watch page embeds.
+  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null }));
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db)));

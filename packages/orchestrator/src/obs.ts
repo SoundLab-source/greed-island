@@ -200,3 +200,74 @@ export class ObsSceneSwitcher {
     }
   }
 }
+
+export class ObsRequestError extends Error {
+  override name = "ObsRequestError";
+  constructor(
+    readonly requestType: string,
+    readonly code: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export interface ObsClient {
+  request<T = Record<string, unknown>>(requestType: string, requestData?: Record<string, unknown>): Promise<T>;
+  close(): void;
+}
+
+/**
+ * A one-off connection for scripts (e.g. `pnpm obs:setup`): connect,
+ * identify, then send requests and await their responses.
+ */
+export function connectObs(cfg: Pick<ObsConfig, "url" | "password">, openSocket: SocketFactory = defaultSocket, timeoutMs = 10_000): Promise<ObsClient> {
+  return new Promise((resolve, reject) => {
+    const socket = openSocket(cfg.url, "obswebsocket.json");
+    const waiting = new Map<string, { type: string; resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+    const send = (m: unknown) => socket.send(JSON.stringify(m));
+    const timer = setTimeout(() => {
+      socket.close(1000);
+      reject(new Error(`OBS didn't answer at ${cfg.url} within ${timeoutMs / 1000}s`));
+    }, timeoutMs);
+    const client: ObsClient = {
+      request: <T>(requestType: string, requestData?: Record<string, unknown>) =>
+        new Promise<T>((res, rej) => {
+          const requestId = randomUUID();
+          waiting.set(requestId, { type: requestType, resolve: res as (v: unknown) => void, reject: rej });
+          send({ op: OP.Request, d: { requestType, requestId, ...(requestData ? { requestData } : {}) } });
+        }),
+      close: () => socket.close(1000),
+    };
+    socket.onerror = () => {};
+    socket.onclose = (ev) => {
+      clearTimeout(timer);
+      const why = ev.code === AUTH_FAILED ? "wrong password (GI_OBS_PASSWORD)" : `connection closed (${ev.code}${ev.reason ? `: ${ev.reason}` : ""})`;
+      reject(new Error(`OBS: ${why}`));
+      for (const w of waiting.values()) w.reject(new Error(`OBS: ${why}`));
+      waiting.clear();
+    };
+    socket.onmessage = (ev) => {
+      const msg = JSON.parse(String(ev.data)) as { op: number; d: Record<string, unknown> };
+      if (msg.op === OP.Hello) {
+        const auth = msg.d["authentication"] as { challenge: string; salt: string } | undefined;
+        if (auth && !cfg.password) {
+          socket.close(1000);
+          reject(new Error("OBS asks for a password: set GI_OBS_PASSWORD"));
+          return;
+        }
+        send({ op: OP.Identify, d: { rpcVersion: 1, eventSubscriptions: 0, ...(auth ? { authentication: obsAuthentication(cfg.password!, auth.salt, auth.challenge) } : {}) } });
+      } else if (msg.op === OP.Identified) {
+        clearTimeout(timer);
+        resolve(client);
+      } else if (msg.op === OP.RequestResponse) {
+        const w = waiting.get(String(msg.d["requestId"]));
+        if (!w) return;
+        waiting.delete(String(msg.d["requestId"]));
+        const status = msg.d["requestStatus"] as { result: boolean; code: number; comment?: string };
+        if (status.result) w.resolve(msg.d["responseData"] ?? {});
+        else w.reject(new ObsRequestError(w.type, status.code, `${w.type}: ${status.comment ?? `code ${status.code}`}`));
+      }
+    };
+  });
+}

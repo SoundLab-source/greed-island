@@ -14,7 +14,7 @@ Phase 2: Ownership (see DESIGN.md §13) is complete, as is Phase 1 (Stream MVP).
 - `packages/db`: Prisma schema, migrations, ledger
 - `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`)
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
-- `apps/web`: minimal dev page to watch and bet (no styling work), and the stream overlay (`overlay.html`) for OBS
+- `apps/web`: minimal dev page (no styling work), the watch page for viewers (`watch.html`), and the stream overlay (`overlay.html`) for OBS
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
 - `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, ikemen-notes, obs-notes
 
@@ -34,11 +34,12 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm ikemen:install-mod`: copy `ikemen/mods/salty_events.lua` into `$IKEMEN_DIR/external/mods/` (the runner refuses to launch if it's missing or outdated)
 - `pnpm match:once [--p1 key] [--p2 key] [--stage id] [--sim] [--p1-attack 115 --p2-life 120 ...]`: one real fight from roster.json (no DB), optionally with upgraded stats; artifacts in `runs/<fightId>/`
 - `pnpm roster:smoke [--dry-run]`: run each enabled fighter and stage once in `sim`; disables failures in roster.json
+- `pnpm obs:setup`: with OBS open and `GI_OBS_URL`/`GI_OBS_PASSWORD` set, create the Fight and Betting scenes (screen capture + overlay) and reload the overlay; safe to re-run
 
 Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.
 
 - `pnpm demo`: migrate, sync roster, then 12 fights on the dev DB with the fake engine and 3 demo players betting (one forced crash → void); prints results, ratings, tier changes, titles earned and the ledger audit; exits non-zero unless ≥10 settle, ≥1 voids and the audit passes
-- `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + dev page at http://127.0.0.1:3000 and the stream overlay at `/overlay.html` (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`; `GI_OBS_URL` to switch OBS scenes). Ctrl+C voids and refunds the fight in progress.
+- `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + dev page at http://127.0.0.1:3000 the watch page at `/watch.html` and the stream overlay at `/overlay.html` (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`; `GI_OBS_URL` to switch OBS scenes). Ctrl+C voids and refunds the fight in progress.
 
 ## Hard rules
 - **Salt is closed-loop.** No code path may buy, sell, deposit, withdraw or convert Salt. No payment or blockchain code in phase 1. T-Salt (tournament balance) never converts to Salt: every ledger transaction stays in one book.

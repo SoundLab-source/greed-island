@@ -13,7 +13,7 @@ import { applyTransition, bookFight, type FightDeps } from "../fights.ts";
 import type { Rng } from "../matchmaking.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { ConsoleMailer } from "../mail.ts";
-import { buildServer } from "./server.ts";
+import { buildServer, loadTwitchChannel } from "./server.ts";
 
 const db = useTestDb();
 const config: Config = { ...loadConfig({}), economy: testEconomy };
@@ -368,7 +368,18 @@ describe("live stream", () => {
     const overlay = await app.inject({ method: "GET", url: "/overlay.html" });
     expect(overlay.statusCode).toBe(200);
     expect(overlay.body).toContain("overlay.js");
-    for (const file of ["/overlay.js", "/overlay.css"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
+    for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
+    // The watch page embeds Twitch only when a channel is configured.
+    expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null });
+    const withTwitch = await buildServer({ db, config, bus, mailer, twitchChannel: "greed_island" });
+    try {
+      expect((await withTwitch.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: "greed_island" });
+    } finally {
+      await withTwitch.close();
+    }
+    expect(loadTwitchChannel({ GI_TWITCH_CHANNEL: " Greed_Island " })).toBe("greed_island");
+    expect(loadTwitchChannel({})).toBeNull();
+    expect(() => loadTwitchChannel({ GI_TWITCH_CHANNEL: "no spaces allowed" })).toThrow(/isn't a Twitch channel name/);
     // Fields the overlay reads: round markers need roundsToWin.
     const f = await openFight();
     const view = (await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json();

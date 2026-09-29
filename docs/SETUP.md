@@ -103,16 +103,18 @@ Add `&site=your.site` to show where people can bet. The overlay is laid out for 
 3. Add a **Browser** source on top: URL `http://127.0.0.1:3000/overlay.html?site=your.site`, width 1920, height 1080.
 4. Run `ENGINE_MODE=live pnpm dev`. The betting screen covers everything between fights; during a fight only the bottom bar shows over the game.
 
-**Option B: OBS with two scenes, switched automatically.**
-1. Scene **Fight**: the game capture, plus a Browser source with `overlay.html?scene=fight`.
-2. Scene **Betting**: a Browser source with `overlay.html?scene=betting` (add music or a camera if you like).
-3. In OBS, Tools → WebSocket Server Settings: enable the server, note the port, set a password.
-4. In `.env`: `GI_OBS_URL=ws://127.0.0.1:<port>` and `GI_OBS_PASSWORD=<password>` (and `GI_OBS_FIGHT_SCENE` / `GI_OBS_BETTING_SCENE` if your scenes have other names).
-5. Run `pnpm dev`. It logs "OBS: connected" and then shows the Fight scene while the engine runs and the Betting scene otherwise. If OBS isn't open yet, it keeps trying quietly; a wrong password or a missing scene is logged, and the stream carries on either way.
+**Option B: OBS with two scenes, switched automatically (recommended).**
+1. In OBS, Tools → WebSocket Server Settings: enable the server, note the port (default 4455), set a password.
+2. In `.env`: `GI_OBS_URL=ws://127.0.0.1:<port>` and `GI_OBS_PASSWORD=<password>` (and `GI_OBS_FIGHT_SCENE` / `GI_OBS_BETTING_SCENE` for other scene names).
+3. With OBS open, run `pnpm obs:setup`. It creates scene **Fight** (a screen capture with `overlay.html?scene=fight` on top) and scene **Betting** (`overlay.html?scene=betting`), sets a 1920x1080 canvas at 60 fps, and reloads the overlay. It only adds what's missing, so it's safe to run again. Or build the same two scenes by hand.
+4. Run `pnpm dev`. It logs "OBS: connected" and then shows the Fight scene while the engine runs and the Betting scene otherwise. If OBS isn't open yet, it keeps trying quietly; a wrong password or a missing scene is logged, and the stream carries on either way.
+5. If the overlay is blank in OBS (it was opened before `pnpm dev` was running), run `pnpm obs:setup` again to reload it, or right-click the source → Refresh.
+
+On the first start OBS shows a permissions window and an auto-configuration wizard: allow **Screen Recording** (needed for the game capture), and cancel the wizard (streaming settings are set later, in Settings → Stream).
 
 Then, in OBS, Settings → Stream: pick Twitch or YouTube and paste the stream key, and press Start Streaming. On a Linux server, OBS can run on the Xvfb display (`obs --startstreaming --minimize-to-tray`).
 
-**UNVERIFIED:** nothing here has been tried with a real OBS yet. The scene switcher follows the official protocol document and is tested against a stand-in server (docs/obs-notes.md). Do a private test stream first.
+**Status:** scene switching and `pnpm obs:setup` work with a real OBS (32.2.2). Still to confirm: the overlay rendering inside OBS and capturing IKEMEN (docs/obs-notes.md). Do a private test recording before going live.
 
 **Option C: ffmpeg straight from the virtual display (server, no OBS).**
 
@@ -125,6 +127,8 @@ ffmpeg -f x11grab -video_size 1280x720 -framerate 60 -i :99 \
 ```
 
 This streams whatever is on display `:99`. Run a kiosk browser (e.g. Chromium in `--kiosk` mode) showing `overlay.html?scene=betting` on the same display, behind the IKEMEN window, so it shows whenever no fight is running. YouTube's RTMP URL is `rtmp://a.rtmp.youtube.com/live2/<key>`.
+
+**The watch page.** `pnpm dev` also serves `/watch.html`, the page viewers use: the video on top, Red/Blue bet buttons with stake shortcuts and the countdown underneath, and chat on the side. Set `GI_TWITCH_CHANNEL` to your Twitch channel name and it embeds that channel's player and chat (Twitch requires the page's domain in the embed, which the page fills in itself; whether Twitch accepts `localhost` while testing is unverified). Without a channel it shows the live betting screen and a feed of fight results instead. It uses the same anonymous player as the dev page.
 
 **Keys and rules.**
 - Stream keys and the OBS password are secrets: keep them in `.env` or the server's secret store, never in the repo (it's public).

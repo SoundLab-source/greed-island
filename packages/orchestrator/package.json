@@ -8,7 +8,8 @@
   },
   "scripts": {
     "demo": "tsx src/scripts/demo.ts",
-    "dev": "tsx src/scripts/dev.ts"
+    "dev": "tsx src/scripts/dev.ts",
+    "obs:setup": "tsx src/scripts/obs-setup.ts"
   },
   "dependencies": {
     "@fastify/static": "10.1.5",

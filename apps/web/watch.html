@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Greed Island: watch and bet</title>
+  <link rel="stylesheet" href="watch.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/watch.html">GREED <span>ISLAND</span></a>
+    <div class="wallet">
+      <span id="me-name" class="muted"></span>
+      <span class="balance"><b id="balance">…</b> Salt</span>
+      <span id="tsalt" class="tsalt" hidden></span>
+      <button id="grant" class="ghost" hidden>Claim daily Salt</button>
+      <button id="bailout" class="ghost" hidden>Bailout</button>
+      <a class="ghost" href="/">Shop &amp; characters</a>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <div class="video"><iframe id="player" title="Live fights" allow="autoplay; fullscreen" allowfullscreen></iframe></div>
+
+      <div class="betbox">
+        <div class="fightline">
+          <span id="fight-label">Loading…</span>
+          <span id="countdown" class="countdown"></span>
+        </div>
+        <div class="sides">
+          <button id="bet1" class="side red" disabled></button>
+          <div class="stakebox">
+            <label for="stake">Stake <span id="stake-currency">Salt</span></label>
+            <input id="stake" type="number" min="1" step="1" value="10" inputmode="numeric">
+            <div class="chips">
+              <button data-add="10">+10</button>
+              <button data-add="100">+100</button>
+              <button data-share="0.25">25%</button>
+              <button data-share="0.5">50%</button>
+              <button data-share="1">All</button>
+            </div>
+            <div id="my-bet" class="my-bet"></div>
+          </div>
+          <button id="bet2" class="side blue" disabled></button>
+        </div>
+        <div id="bet-msg" class="msg" role="status"></div>
+      </div>
+    </section>
+
+    <aside class="social">
+      <iframe id="chat" title="Chat" hidden></iframe>
+      <div id="feed" class="feed">
+        <h2>Live feed</h2>
+        <p class="muted">Chat opens here once the stream is on Twitch.</p>
+        <ol id="feed-list"></ol>
+      </div>
+    </aside>
+  </main>
+
+  <p class="fineprint">Salt is free play money: it can never be bought, sold or cashed out. Tournament fights are bet with T-Salt, which is separate and resets every tournament.</p>
+  <script src="watch.js"></script>
+</body>
+</html>

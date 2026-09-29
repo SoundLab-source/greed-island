@@ -143,7 +143,7 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, license) |
 | `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, `tournament` (started, cancelled, finished with champion and podium), keep-alive comments |
 
-`apps/web` holds plain pages (no build step): the dev page at `/`, and the stream overlay at `/overlay.html` (§12), which uses only public routes and the SSE stream.
+`apps/web` holds plain pages (no build step): the dev page at `/`, the watch page at `/watch.html` (video, betting and chat for viewers; `GET /api/site` says which Twitch channel to embed, `GI_TWITCH_CHANNEL`), and the stream overlay at `/overlay.html` (§12), which uses only public routes and the SSE stream.
 
 ## 7. Data model sketch (Prisma)
 
@@ -215,4 +215,5 @@ fight_state (bus) ──▶ ObsSceneSwitcher ──obs-websocket 5──▶ OBS:
 ```
 
 - **Overlay** (`apps/web/overlay.html`, `.css`, `.js`): laid out on a 1920x1080 grid in CSS units derived from the width, so it scales to any 16:9 browser source. It refetches `/api/fights/current` on state, odds and round events, shows each side's frozen cosmetics (name plate colours, title, badges from §9), odds, win chance, the countdown, pools after lock, round markers (`roundsToWin`), a result banner (winner, rating change, tier change, owner reward, or "no contest"), toasts for titles and tournaments, and a footer with recent results or who's still in the tournament. T-Salt fights are labelled.
+- **Setup** (`pnpm obs:setup`, `packages/orchestrator/src/obs-setup.ts`): creates the Fight and Betting scenes with a screen capture and the two overlay views through the same WebSocket, adds only what's missing, and reloads the overlay sources.
 - **Scene switching** (`packages/orchestrator/src/obs.ts`): optional (`GI_OBS_URL`). Uses Node's built-in WebSocket client, identifies with `eventSubscriptions: 0`, answers the password challenge, and sends `SetCurrentProgramScene` only when the wanted scene changes. It reconnects every 5 s, reports each kind of problem once, and never stops the stream. Protocol facts and what's still unverified: docs/obs-notes.md.
