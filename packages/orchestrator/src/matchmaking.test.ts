@@ -167,10 +167,31 @@ describe("pickShowcase", () => {
 });
 
 describe("cycle", () => {
-  it("books exhibitions in the exhibition segment; the tournament is still a stub", () => {
+  it("books each segment in its own mode", () => {
     expect(bookingModeFor("EXHIBITION")).toBe("EXHIBITION");
     expect(bookingModeFor("MATCHMAKING")).toBe("MATCHMAKING");
-    expect(bookingModeFor("TOURNAMENT")).toBe("MATCHMAKING");
+    expect(bookingModeFor("TOURNAMENT")).toBe("TOURNAMENT");
+  });
+
+  it("keeps the tournament segment going until the bracket is decided", () => {
+    const cfg = { matchmakingFights: 1, tournamentSize: 16, exhibitionFights: 1 };
+    const done = new Set<number>();
+    const next = (p: CyclePosition | null) => nextPosition(p, cfg, (c) => done.has(c));
+    let pos = next(null);
+    expect(pos).toEqual({ cycle: 1, segment: "MATCHMAKING", index: 0 });
+    pos = next(pos);
+    expect(pos).toEqual({ cycle: 1, segment: "TOURNAMENT", index: 0 });
+    // A voided fight needs a replay: far more than 15 fights is fine.
+    for (let i = 0; i < 30; i++) pos = next(pos);
+    expect(pos).toEqual({ cycle: 1, segment: "TOURNAMENT", index: 30 });
+    done.add(1);
+    expect((pos = next(pos))).toEqual({ cycle: 1, segment: "EXHIBITION", index: 0 });
+    expect(next(pos)).toEqual({ cycle: 2, segment: "MATCHMAKING", index: 0 });
+    // A tournament that couldn't be filled is skipped.
+    done.add(2);
+    expect(next({ cycle: 2, segment: "MATCHMAKING", index: 0 })).toEqual({ cycle: 2, segment: "EXHIBITION", index: 0 });
+    // Size below 2 turns tournaments off.
+    expect(nextPosition({ cycle: 3, segment: "MATCHMAKING", index: 0 }, { ...cfg, tournamentSize: 1 }, () => false)).toMatchObject({ segment: "EXHIBITION" });
   });
 
   it("runs 100 matchmaking, a 16-character tournament (15 fights), then 25 exhibitions, and repeats", () => {

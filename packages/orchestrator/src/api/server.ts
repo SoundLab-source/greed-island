@@ -51,12 +51,15 @@ import {
   characterProfile,
   characterRanking,
   currentFightId,
+  currentTournamentId,
   fightView,
   leaderboard,
   meView,
   myChallenges,
   myCharacters,
   recentResults,
+  recentTournaments,
+  tournamentView,
 } from "./views.ts";
 
 export interface ApiDeps {
@@ -270,6 +273,18 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
       return send(reply, { status: c.status, challenges: await myChallenges(db, userId) });
     });
   }
+
+  // Tournaments: bracket, T-Salt standings and podium.
+  app.get("/api/tournaments", async (_req, reply) => send(reply, await recentTournaments(db)));
+  app.get("/api/tournaments/current", async (req, reply) => {
+    const id = await currentTournamentId(db);
+    return send(reply, id ? await tournamentView(db, id, await viewer(req)) : null);
+  });
+  app.get<{ Params: { id: string } }>("/api/tournaments/:id", async (req, reply) => {
+    const view = await tournamentView(db, uuid.parse(req.params.id), await viewer(req));
+    if (!view) throw new HttpError(404, "NOT_FOUND", "no such tournament");
+    return send(reply, view);
+  });
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db)));

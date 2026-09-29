@@ -11,7 +11,7 @@ Scope: house characters, match cycle, Salt ledger, betting, fixed model odds, Gl
   (dev page)             │       ▲                               │                                                                      │
                          │       │ SSE bus                       ▼                                                                      │
                          │  Match cycle scheduler ──▶ Fight state machine: transition(state, event) ──▶ Settlement / Void ──▶ Ratings │
-                         │       │  (matchmaking | tournament stub | exhibitions)            │                                          │
+                         │       │  (matchmaking | tournaments  | exhibitions)               │                                          │
                          │       ▼                                                            │ one DB txn per transition                │
                          │  Engine runner  ──spawn(argv)──▶ IKEMEN GO ──▶ runs/<fightId>/{events.ndjson, stdout, stderr, match.log}  │
                          │   (event source: live | sim | fake)                                                                           │
@@ -60,7 +60,7 @@ stateDiagram-v2
 
 ## 3. One fight end to end
 
-1. **Book.** Scheduler asks the current mode (matchmaking) for a pairing: two enabled characters in the same tier, not a mirror match (same fighter design), not a rematch within the last `rematchCooldown` fights (default 3), model chance in 40–60% (or a deliberate upset, the most lopsided same-tier pair, at the configured rate, default 10%). If no tier has a valid pair (a small roster spread across tiers), the closest-rated cross-tier pair is used (`crossTierFallback`, default on) rather than stalling the stream. Corners are randomized. Stage from `crypto.randomInt`. The fight records its cycle position (`cycle`, `segment`, `segment_index`) and `pair_kind`. Insert `fight` in `BOOKED`. In the exhibition segment the oldest accepted challenge is booked instead (`CHALLENGE`), else a house showcase (`SHOWCASE`), see §10. The tournament segment still books like matchmaking until tournaments are built.
+1. **Book.** Scheduler asks the current mode (matchmaking) for a pairing: two enabled characters in the same tier, not a mirror match (same fighter design), not a rematch within the last `rematchCooldown` fights (default 3), model chance in 40–60% (or a deliberate upset, the most lopsided same-tier pair, at the configured rate, default 10%). If no tier has a valid pair (a small roster spread across tiers), the closest-rated cross-tier pair is used (`crossTierFallback`, default on) rather than stalling the stream. Corners are randomized. Stage from `crypto.randomInt`. The fight records its cycle position (`cycle`, `segment`, `segment_index`) and `pair_kind`. Insert `fight` in `BOOKED`. In the exhibition segment the oldest accepted challenge is booked instead (`CHALLENGE`), else a house showcase (`SHOWCASE`), see §10. In the tournament segment the bracket's next match is booked (`TOURNAMENT`), see §11.
 2. **Open betting.** `OPEN_BETTING`: snapshot both loadouts (stats, rating, RD, volatility, tier) into `fight_loadout`. These are immutable from here. Betting window starts (default 60 s). SSE `state` and live estimated odds.
 3. **Bets.** `POST /fights/:id/bet {side, amount, idempotencyKey}`. In one transaction: take the per-fight ledger lock (shared) and `SELECT … FOR SHARE` the fight row and require `BETTING_OPEN` (the `LOCK` transition takes `FOR UPDATE` on the same row, so no bet can commit after pools are snapshotted), `SELECT … FOR UPDATE` the user's available account, reverse their previous bet on this fight (escrow → user) if any, check funds, post the new stake (user → escrow[side]), and upsert `bet` (latest counts). Enforce the owner cap (0 owners now), min bet 1 and max stake. SSE odds update (model odds only; crowd split hidden).
 4. **Lock.** `LOCK`: compute the model chance from Glicko-2 expected score (both deviations), round it to basis points, clamp to [5%, 95%] (side 2 = 100% − side 1), then per side `multiplierBp = ⌊10000 × (10000 − marginBp) / chanceBp⌋`, floored at `minMultiplierBp` (1.00×). This is exactly `(1/p)(1 − margin)` in integers, e.g. 50% → 19000 (1.90×). From here on, money math is bigint only. The crowd blend (`w = maxWeight × pool/(pool + K)` over per-account-capped stakes) is computed and recorded, but `crowdMaxWeightBp = 0`, so locked odds equal model odds. Live odds shown during betting are model-only. Record `model_chance`, `crowd_chance` (per-account capped share), pools per side, and locked multipliers. Blend weight `w = pool/(pool+K)` is computed and stored but **config weight 0**, so locked = model.
@@ -106,7 +106,7 @@ Double-entry, integer Salt (`numeric(20,0)` ⇄ `bigint`). Every `ledger_txn` ha
 - **Database guards** (migration `ledger_guards`): balances are maintained by a trigger on `ledger_entry` and can't be edited directly; a `CHECK` rejects any negative user or escrow balance; a deferred constraint trigger rejects any txn that doesn't sum to zero at commit; `ledger_txn` and `ledger_entry` are append-only.
 - `ledger:audit`: every txn sums to zero; each `balance_cached` equals Σ entries; no user or escrow account is negative; escrow for terminal fights is 0; Σ all balances per asset is 0.
 - The `asset` column exists everywhere with only `SALT` allowed, so a second asset later is data, not a migration.
-- Tournament balances (phase 2) become separate account kinds (`user_tournament:<userId>`) on the same ledger.
+- Tournament balances (phase 2) are a second currency, `TSALT`, on the same ledger, in one closed **book** per tournament: that tournament's own issuance, house, player and escrow accounts (`user:<id>:TSALT:<tournamentId>`, ...). Plans stay book-agnostic; the db layer maps them to the fight's book. A deferred trigger rejects any transaction that touches two books, so T-Salt can never become Salt (§11).
 
 ## 5. Engine event sources
 
@@ -139,8 +139,9 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `GET /api/shop`, `POST /api/shop/buy`, `GET /api/me/characters` | Current rotation (price, rarity, First Editions left, when it changes), buy `{fighterId, idempotencyKey}`, your characters |
 | `GET /api/challenges/options`, `GET /api/me/challenges`, `POST /api/challenges` | Your characters and other players' you can challenge; your incoming and outgoing challenges (queue position, fight once booked); send `{challengerCharacterId, challengedCharacterId}` (sending an open one again returns it) |
 | `POST /api/challenges/:id/accept`, `/decline`, `/cancel` | The challenged owner accepts or declines; the challenger cancels until it's booked |
+| `GET /api/tournaments`, `/api/tournaments/current`, `/api/tournaments/:id` | Recent tournaments; the bracket by round (seeds, winners, walkovers, fight numbers), T-Salt standings, podium and the viewer's T-Salt |
 | `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, license) |
-| `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, keep-alive comments |
+| `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, `tournament` (started, cancelled, finished with champion and podium), keep-alive comments |
 
 `apps/web` is a plain page (no build step) served at `/` that uses these routes.
 
@@ -154,7 +155,7 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 - `FightLoadout` (fightId, side, characterId, stats, rating, rd, volatility, tier), immutable
 - `FightOdds` (fightId, modelChance[2], crowdChance[2], pool[2], blendWeight, lockedMultiplierBp[2] as integers; chances as floats for analysis only)
 - `FightTransition` (audit), `Bet` (fightId, userId, side, stake, status, payout?), `Account`, `LedgerTxn`, `LedgerEntry`, `IdempotencyKey`
-- Phase 2: `Session`, `LoginToken` (sign-in links), `Character` ownership (serial, First Edition, purchase txn), upgrade levels, sidegrade and `cosmetics` (the owner's pick), `CharacterChange` (upgrade history), `CharacterTitle` (earned titles with the fight and the owner at the time, append-only), `FightLoadout.cosmetics` (frozen with the loadout), `Challenge` (exhibition challenges; status only moves forward), `OWNER_REWARD` ledger transactions. The schema in `packages/db/prisma/schema.prisma` is the source of truth.
+- Phase 2: `Session`, `LoginToken` (sign-in links), `Character` ownership (serial, First Edition, purchase txn), upgrade levels, sidegrade and `cosmetics` (the owner's pick), `CharacterChange` (upgrade history), `CharacterTitle` (earned titles with the fight and the owner at the time, append-only), `FightLoadout.cosmetics` (frozen with the loadout), `Challenge` (exhibition challenges; status only moves forward), `OWNER_REWARD` ledger transactions, `Tournament`, `TournamentEntry` (seeds), `TournamentMatch` (bracket; `Fight.tournamentMatchId` links its fights), `PlayerTitle` (T-Salt podium), `TSALT` accounts with `tournamentId`. The schema in `packages/db/prisma/schema.prisma` is the source of truth.
 
 ## 8. How stat upgrades reach the engine
 
@@ -190,3 +191,18 @@ send (challenger) ──▶ PENDING ──accept──▶ ACCEPTED ──(exhibi
 - **Challenges** are owner vs owner: your character against another player's (never a house character, never your own, never two copies of the same fighter). One open challenge per pair of characters, at most 5 open per player. Free: no Salt changes hands, and everyone bets as usual (owners of either side are capped as in any fight). Rules: `packages/shared/src/exhibitions.ts`; the `challenge_guard` trigger keeps rows and only lets status move forward.
 - **Booking.** Each exhibition slot takes the oldest accepted challenge whose characters are both active (it stays queued otherwise), booked with random corners and `pair_kind = CHALLENGE`. With no challenge waiting, a **house showcase** pairs two of the strongest house characters (X tier first, then rating; pool of 6) across tiers, with the usual no-mirror and no-immediate-rematch rules. If a challenge's fight is voided, the challenge is used up; the owners can send a new one.
 - **Owner rewards.** When a player's character wins on stream, settlement pays its owner 25 Salt from issuance (`OWNER_REWARD`, key `owner-reward:<fightId>`), in the same transaction and before the rating update (user accounts are locked before character rows, as upgrades do). Tournament-segment fights don't pay it. The ledger audit checks each reward belongs to a settled, non-tournament fight and went to the winner's owner. Fight views show the reward; "My characters" shows each character's total.
+
+## 11. Tournaments
+
+```
+cycle position -> TOURNAMENT segment -> ensureTournament(cycle): tier S/A/B/P by cycle, seats, seeds, all bracket matches
+             -> nextTournamentMatch: earliest undecided match with both sides (walkovers for disabled characters) -> fight (TOURNAMENT)
+SETTLE -> decideMatch: winner moves to (round + 1, slot / 2) -> after the final: champion title, T-Salt podium titles, FINISHED
+VOID   -> the match stays open and is booked again
+```
+
+- **When.** The tournament segment of a cycle lasts until its bracket is decided (`nextPosition` takes a "tournament done" check), so voided fights are simply replayed. A tournament that can't seat 2 characters is recorded as CANCELLED and the cycle moves on. Bracket size is `GI_CYCLE_TOURNAMENT_SIZE` (16); below 2 turns tournaments off.
+- **Seats.** Tier rotates S, A, B, P by cycle. Players' characters in the tier first, then its house characters, then house characters from other tiers closest to the band; never X. The bracket is the largest power of two that fills (up to 16), seeded by rating in standard order (1 v 16, 8 v 9, ...). Rules: `packages/shared/src/tournaments.ts`; bracket code: `packages/orchestrator/src/tournaments.ts`.
+- **Fights** rate characters and award fight titles as usual, but pay no owner reward. A disabled character forfeits (walkover). The `tournament_match_guard` trigger keeps decided results and filled sides fixed.
+- **T-Salt.** A player's first bet in a tournament grants them 1,000 T-Salt from that tournament's issuance (`TOURNAMENT_GRANT`, key `tgrant:<tournamentId>:<userId>`). Bets, payouts and refunds on tournament fights run in that book. Main-Salt views (open stakes, bailout, leaderboard) ignore T-Salt. The audit checks each book sums to zero and no transaction crosses books, and reports T-Salt totals separately.
+- **End.** The champion character earns Tournament Champion (with the tournament and final fight). The top 3 T-Salt balances above the starting 1,000 earn player titles (Top, Runner-up, Third-place Bettor), earlier joiner first on a tie.

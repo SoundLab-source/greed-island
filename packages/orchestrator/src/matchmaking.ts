@@ -55,7 +55,7 @@ export const cryptoRng: Rng = {
   chance: () => randomInt(1_000_000) / 1_000_000,
 };
 
-export type PairKind = "CLOSE" | "UPSET" | "NEAREST" | "CROSS_TIER" | "CHALLENGE" | "SHOWCASE";
+export type PairKind = "CLOSE" | "UPSET" | "NEAREST" | "CROSS_TIER" | "CHALLENGE" | "SHOWCASE" | "TOURNAMENT";
 
 /** Extra pick weight per owned character in a pair (a pair of two house characters weighs 1). */
 export const OWNED_WEIGHT = 2;

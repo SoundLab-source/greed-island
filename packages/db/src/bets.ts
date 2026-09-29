@@ -1,4 +1,4 @@
-import { LedgerRuleError, planPlaceBet, type EconomyConfig, type Salt, type Side } from "@greed-island/shared";
+import { LedgerRuleError, MAIN_BOOK, planPlaceBet, type Book, type EconomyConfig, type Salt, type Side } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
 import type { Db, Tx } from "./client.ts";
 import { requestHash, toSalt } from "./convert.ts";
@@ -41,6 +41,8 @@ export interface PlaceBetInput {
    * check (FOR SHARE) that the fight is still open for betting. Throw to reject.
    */
   guard?: ((tx: Tx) => Promise<void>) | undefined;
+  /** The fight's book: main Salt, or its tournament's T-Salt. */
+  book?: Book | undefined;
 }
 
 export interface PlaceBetResult {
@@ -58,6 +60,7 @@ export interface PlaceBetResult {
  */
 export async function placeBet(db: Db, input: PlaceBetInput, economy: EconomyConfig): Promise<PlaceBetResult> {
   const { userId, fightId, side, stake } = input;
+  const book = input.book ?? MAIN_BOOK;
   const key = `bet:${userId}:${input.idempotencyKey}`;
   const hash = requestHash({ op: "bet", userId, fightId, side, stake });
   const where = { userId_fightId: { userId, fightId } };
@@ -65,14 +68,14 @@ export async function placeBet(db: Db, input: PlaceBetInput, economy: EconomyCon
   return withIdempotency<PlaceBetResult>(db, key, hash, {
     lock: async (tx) => {
       await lockFight(tx, fightId, "shared");
-      await lockUserAccount(tx, userId);
+      await lockUserAccount(tx, userId, book);
     },
     run: async (tx) => {
       if (await isFightClosed(tx, fightId)) {
         throw new LedgerRuleError("NOT_ELIGIBLE", "betting on this fight is closed");
       }
       await input.guard?.(tx);
-      const available = await getBalance(tx, userId);
+      const available = await getBalance(tx, userId, book);
       const existing = await tx.bet.findUnique({ where });
       const betId = existing?.id ?? randomUUID();
       const postings = planPlaceBet(
@@ -91,17 +94,17 @@ export async function placeBet(db: Db, input: PlaceBetInput, economy: EconomyCon
       if (postings.length === 0) {
         return { bet: toBetView(existing!), balance: available, replayed: false };
       }
-      await postTransaction(tx, { idempotencyKey: key, requestHash: hash, kind: "BET", userId, fightId, postings });
+      await postTransaction(tx, { idempotencyKey: key, requestHash: hash, kind: "BET", userId, fightId, postings, book });
       const bet = await tx.bet.upsert({
         where,
         create: { id: betId, userId, fightId, side, stake: stake.toString() },
         update: { side, stake: stake.toString() },
       });
-      return { bet: toBetView(bet), balance: await getBalance(tx, userId), replayed: false };
+      return { bet: toBetView(bet), balance: await getBalance(tx, userId, book), replayed: false };
     },
     replay: async (tx) => {
       const bet = await tx.bet.findUniqueOrThrow({ where });
-      return { bet: toBetView(bet), balance: await getBalance(tx, userId), replayed: true };
+      return { bet: toBetView(bet), balance: await getBalance(tx, userId, book), replayed: true };
     },
   });
 }

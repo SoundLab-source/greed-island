@@ -3,6 +3,7 @@ import { economy as testEconomy, ratingSettings, useTestDb } from "@greed-island
 import { createFakeSource, seededRandom } from "@greed-island/engine";
 import { loadConfig, type Config } from "@greed-island/shared";
 import type { FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -267,6 +268,29 @@ describe("exhibition challenges", () => {
     const house = await db.character.findFirstOrThrow({ where: { ownerKind: "HOUSE" } });
     const bad = await app.inject({ method: "POST", url: "/api/challenges", headers: a.auth, payload: { ...payload, challengedCharacterId: house.id } });
     expect(bad.json()).toMatchObject({ error: "NOT_ELIGIBLE" });
+  });
+});
+
+describe("tournaments", () => {
+  it("shows the bracket and takes bets in T-Salt", async () => {
+    // Tournament first: the two house characters (B tier) fill an S-tier final.
+    const tdeps = { ...deps, orch: { ...orch, cycle: { matchmakingFights: 0, tournamentSize: 16, exhibitionFights: 1 } } };
+    const f = (await bookFight(tdeps, rng(), "fake"))!;
+    await applyTransition(tdeps, f.id, { type: "OPEN_BETTING" });
+    const s = await session("Tia");
+    const current = (await app.inject({ method: "GET", url: "/api/fights/current", headers: s.auth })).json();
+    expect(current).toMatchObject({ currency: "T-Salt", tournament: { tier: "S", roundName: "final" } });
+    expect((await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).json().tournament).toMatchObject({ balance: "1000", joined: false });
+    const bet = await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 1, stake: "250", idempotencyKey: "tbet-000001" } });
+    expect(bet.json()).toMatchObject({ balance: "750" });
+    const me = (await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).json();
+    expect(me).toMatchObject({ balance: "400", inOpenBets: "0", tournament: { balance: "750", joined: true } });
+    const bracket = (await app.inject({ method: "GET", url: "/api/tournaments/current", headers: s.auth })).json();
+    expect(bracket).toMatchObject({ status: "RUNNING", size: 2, myBalance: "750", rounds: [{ name: "final", matches: [{ fights: [{ number: f.number }] }] }] });
+    expect((await app.inject({ method: "GET", url: "/api/tournaments" })).json()).toHaveLength(1);
+    expect((await app.inject({ method: "GET", url: `/api/tournaments/${randomUUID()}` })).statusCode).toBe(404);
+    const history = (await app.inject({ method: "GET", url: "/api/me/bets", headers: s.auth })).json();
+    expect(history[0]).toMatchObject({ currency: "T-Salt", stake: "250" });
   });
 });
 

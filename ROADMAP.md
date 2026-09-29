@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after Phase 2 step 5. Update this file at the end of every build step.*
+*Last updated 2026-09-29, after Phase 2 step 6 (phase 2 complete). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | 2 of 4: Ownership. Steps 1–5 of 6 done. |
-| **Next step** | Phase 2 step 6: tournaments |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine), betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, owner-vs-owner exhibition challenges, an API with live updates, and a plain dev page |
-| **Not built yet** | Tournaments, the stream itself (overlay page, OBS/Twitch), anything community or on-chain |
-| **Health** | 387 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) hasn't started. |
+| **Next step** | Recommended: the stream overlay and betting screen, so fights can go out on Twitch/YouTube (see "What's next"). Phase 3 needs a plan agreed with you first. |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, an API with live updates, and a plain dev page |
+| **Not built yet** | The stream itself (overlay page, OBS/Twitch), anything community or on-chain |
+| **Health** | 403 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -32,7 +32,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 | Phase | What it adds | Status |
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
-| **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | 🔨 In progress (5 of 6 steps) |
+| **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | ✅ Done |
 | **3. Community roster** | Archetype templates, fighter submissions, review, voting, seasonal releases, holder perks | Not started |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
@@ -53,38 +53,38 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 7. **Setup guide** (`dc385a2`, `6613d77`): [SETUP.md](docs/SETUP.md); the full cycle ran with real IKEMEN fights.
 - **More characters** (`7558398`): 8 house characters built from Kung Fu Man with different stats, sizes and colours, for 12 in total. Free characters online are almost all ripped from commercial games, so we made our own.
 
-**Phase 2: Ownership** (plan and defaults: [PHASE2.md](docs/PHASE2.md))
+**Phase 2: Ownership** ✅ (plan and defaults: [PHASE2.md](docs/PHASE2.md))
 1. ✅ **Accounts** (`40f5845`): sign in with an emailed one-time link; anonymous players keep their Salt when they add an email.
 2. ✅ **Shop** (`117f15f`): 6 characters every 5 hours, 1,000 Salt (2,000 rare); numbered copies, the first 25 marked First Edition; owned characters join the stream.
 3. ✅ **Upgrades** (`4512166`): 4 stats × 5 levels with shrinking gains, plus one trade-off "sidegrade"; about 10,600 Salt to max a character; attack upgrades confirmed in a real fight.
 4. ✅ **Titles and cosmetics** (`5871e79`): First Blood, 10 Wins, 100 Wins, Giant Slayer and tier firsts, each recording the fight and the owner at the time; badges and name plates owners can pick for the future stream overlay.
-5. ✅ **Owner rewards and exhibitions**: owners get 25 Salt each time their character wins on stream; owners challenge each other's characters, and accepted challenges play in the exhibition part of the cycle, oldest first, with house "showcase" fights between the strongest house characters filling the gaps.
+5. ✅ **Owner rewards and exhibitions** (`0bfe55d`): owners get 25 Salt each time their character wins on stream; owners challenge each other's characters, and accepted challenges play in the exhibition part of the cycle, oldest first, with house "showcase" fights between the strongest house characters filling the gaps.
+6. ✅ **Tournaments**: each cycle plays a single-elimination bracket of up to 16 characters from one tier (rotating S, A, B, P), seeded by rating. Every player bets with 1,000 tournament Salt ("T-Salt") per tournament, kept in a separate set of books that can never turn into Salt. The winning character earns "Tournament Champion" and the top 3 T-Salt balances earn player titles.
 
 ## What's next
 
-**Phase 2 step 6: tournaments** (the last step of phase 2)
-- A 16-character single-elimination bracket from one tier, rotating S, A, B, P each cycle; house characters fill empty seats.
-- Each player gets 1,000 tournament Salt ("T-Salt") per tournament, which can't move to their main balance. Top 3 T-Salt balances earn player titles; the winning character earns "Tournament Champion".
+**Recommended next: the stream overlay and betting screen**
+- A styled page for OBS: fighter name plates, titles and badges (already stored as data), odds, pools and a countdown between fights, fed by the live updates the API already sends.
+- Automatic OBS scene switching between "fight" and "betting" ([SETUP.md](docs/SETUP.md) §5).
 
-**Also needed before a public stream** (not scheduled yet)
-- A styled overlay and betting page, and automatic OBS scene switching ([SETUP.md](docs/SETUP.md) §5).
+**Also needed before a public stream**
 - Running on a Linux server with a virtual display (Xvfb): written up, not yet tried.
 - Replace or license the characters: Kung Fu Man and the 8 house characters built from it are **non-commercial only**. Stage licences also need checking.
 - Check Twitch/YouTube rules on play-money betting.
 
 **Later phases**
-- Phase 3: archetype templates, the submission and voting pipeline, seasons.
+- Phase 3: archetype templates, the submission and voting pipeline, seasons. Needs a plan agreed with you first (like [PHASE2.md](docs/PHASE2.md)), and original or licensed art.
 - Phase 4: a legal review **before** anything else, then NFTs, trading and crowd-blended odds.
 
 ## Decisions waiting on you
 
 - **Defaults to review.** Every number chosen for an open design question (prices, upgrade costs, title rules, name plate colours, etc.) is listed in [PHASE2.md](docs/PHASE2.md) and is a setting that can be changed.
-- **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; tournament entry (free, fee or both); season length and what resets; the crowd-odds constants (set from real data in phase 4).
+- **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; season length and what resets; the crowd-odds constants (set from real data in phase 4). Tournament entry is free for now (a default you can change).
 - **Custom character names** stay automatic ("Grey Monk #1") until there's a moderation plan.
 
 ## How to pick up where we left off
 
-**If you're the project owner:** say "keep going" and Claude continues with the next step above. Everything it needs is in the repo; your machine already has the tools installed.
+**If you're the project owner:** say "keep going" and Claude continues with the recommended next step above, or name a different one. Everything it needs is in the repo; your machine already has the tools installed.
 
 **To run it on your Mac** (from the project folder, with Docker Desktop running):
 

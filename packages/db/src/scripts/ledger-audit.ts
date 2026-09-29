@@ -10,6 +10,11 @@ try {
   const s = report.stats;
   console.log(`Ledger audit: ${s.transactions} transactions, ${s.accounts} accounts`);
   console.log(`  issued ${s.issued} = users ${s.userBalances} + escrow ${s.escrow} + house ${s.house} + spent ${s.sink}`);
+  if (s.tsalt.tournaments > 0) {
+    const t = s.tsalt;
+    const books = `${t.tournaments} tournament book${t.tournaments === 1 ? "" : "s"}`;
+    console.log(`  T-Salt (${books}, kept separate): issued ${t.issued} = players ${t.userBalances} + escrow ${t.escrow} + house ${t.house}`);
+  }
   if (report.ok) {
     console.log("OK: all checks passed");
   } else {

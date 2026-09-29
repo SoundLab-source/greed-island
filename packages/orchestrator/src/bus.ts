@@ -2,7 +2,7 @@
  * In-process event bus. The orchestrator publishes after each committed
  * change; the API's SSE stream (build step 6) subscribes.
  */
-import type { EngineEvent, LiveOdds, LockedOdds, Salt, Side, TitleCode } from "@greed-island/shared";
+import type { EngineEvent, LiveOdds, LockedOdds, Salt, Side, Tier, TitleCode } from "@greed-island/shared";
 import { EventEmitter } from "node:events";
 import type { FightState, VoidReason } from "./state-machine.ts";
 
@@ -13,7 +13,19 @@ export type BusEvent =
   | { type: "engine_event"; fightId: string; event: EngineEvent }
   | { type: "fight_result"; fightId: string; number: number; result: "SETTLED"; winnerSide: Side; winnerCharacterId: string; ownerReward?: Salt }
   | { type: "fight_result"; fightId: string; number: number; result: "VOIDED"; voidReason: VoidReason }
-  | { type: "title_earned"; fightId: string; number: number; characterId: string; name: string; code: TitleCode; label: string };
+  /** fightId/number are null for a tournament won by walkover. */
+  | { type: "title_earned"; fightId: string | null; number: number | null; characterId: string; name: string; code: TitleCode; label: string }
+  | { type: "tournament"; tournamentId: string; number: number; tier: Tier; status: "STARTED"; size: number }
+  | { type: "tournament"; tournamentId: string; number: number; tier: Tier; status: "CANCELLED"; detail: string }
+  | {
+      type: "tournament";
+      tournamentId: string;
+      number: number;
+      tier: Tier;
+      status: "FINISHED";
+      champion: { characterId: string; name: string };
+      podium: { name: string; label: string; balance: Salt }[];
+    };
 
 export class FightBus {
   private readonly emitter = new EventEmitter().setMaxListeners(0);

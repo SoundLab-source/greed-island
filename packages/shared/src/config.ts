@@ -5,6 +5,7 @@ import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
 import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
 import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
+import { DEFAULT_TOURNAMENTS, type TournamentConfig } from "./tournaments.ts";
 
 /**
  * Economy settings. Values marked "open question" come from DESIGN.md §15 or
@@ -33,6 +34,7 @@ export interface Config {
   shop: ShopConfig;
   upgrades: UpgradeConfig;
   exhibitions: ExhibitionConfig;
+  tournaments: TournamentConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -91,6 +93,12 @@ export function validateEconomy(e: EconomyConfig): EconomyConfig {
   if (e.maxPayout < e.minBet) throw new ConfigError("maxPayout must be >= minBet");
   if (e.ownerReward < 0n) throw new ConfigError("ownerReward must be >= 0");
   return e;
+}
+
+export function validateTournaments(t: TournamentConfig): TournamentConfig {
+  if (t.startingBalance < 1n) throw new ConfigError("tournament balance must be >= 1");
+  if (!Number.isInteger(t.podium) || t.podium < 0 || t.podium > 3) throw new ConfigError("tournament podium must be 0-3");
+  return t;
 }
 
 export function validateExhibitions(x: ExhibitionConfig): ExhibitionConfig {
@@ -152,6 +160,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       challengeTtlMs: numberFromEnv(env, "GI_CHALLENGE_TTL_HOURS", DEFAULT_EXHIBITIONS.challengeTtlMs / 3_600_000) * 3_600_000,
       maxOpenPerUser: numberFromEnv(env, "GI_MAX_OPEN_CHALLENGES", DEFAULT_EXHIBITIONS.maxOpenPerUser),
       showcasePool: numberFromEnv(env, "GI_SHOWCASE_POOL", DEFAULT_EXHIBITIONS.showcasePool),
+    }),
+    tournaments: validateTournaments({
+      startingBalance: saltFromEnv(env, "GI_TOURNAMENT_BALANCE", DEFAULT_TOURNAMENTS.startingBalance),
+      podium: numberFromEnv(env, "GI_TOURNAMENT_PODIUM", DEFAULT_TOURNAMENTS.podium),
     }),
   };
 }

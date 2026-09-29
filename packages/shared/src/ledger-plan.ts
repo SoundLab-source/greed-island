@@ -6,8 +6,21 @@
 import type { EconomyConfig } from "./config.ts";
 import { payoutFor, sumSalt, type Salt } from "./money.ts";
 
-export type Asset = "SALT";
+/** SALT is the main currency; TSALT is a tournament's own balance (DESIGN §5), never convertible. */
+export type Asset = "SALT" | "TSALT";
 export type Side = 1 | 2;
+
+/**
+ * Which set of accounts a transaction uses: the main Salt book, or one
+ * tournament's T-Salt book. Each T-Salt book is closed: its own issuance,
+ * house, player and escrow accounts, and no transaction crosses books.
+ */
+export type Book = { asset: "SALT" } | { asset: "TSALT"; tournamentId: string };
+export const MAIN_BOOK: Book = Object.freeze({ asset: "SALT" });
+
+export function tournamentBook(tournamentId: string): Book {
+  return { asset: "TSALT", tournamentId };
+}
 export const SIDES: readonly Side[] = [1, 2];
 
 export type AccountRef =
@@ -17,18 +30,21 @@ export type AccountRef =
   | { kind: "ISSUANCE" }
   | { kind: "SINK" };
 
-export function accountKey(ref: AccountRef, asset: Asset = "SALT"): string {
+export function accountKey(ref: AccountRef, book: Book = MAIN_BOOK): string {
+  // Main book keys are unchanged from phase 1; T-Salt keys carry the tournament.
+  const suffix = book.asset === "SALT" ? "SALT" : `TSALT:${book.tournamentId}`;
   switch (ref.kind) {
     case "USER":
-      return `user:${ref.userId}:${asset}`;
+      return `user:${ref.userId}:${suffix}`;
     case "ESCROW":
-      return `escrow:${ref.fightId}:${ref.side}:${asset}`;
+      return `escrow:${ref.fightId}:${ref.side}:${suffix}`;
     case "HOUSE":
-      return `house:${asset}`;
+      return `house:${suffix}`;
     case "ISSUANCE":
-      return `issuance:${asset}`;
+      return `issuance:${suffix}`;
     case "SINK":
-      return `sink:${asset}`;
+      if (book.asset !== "SALT") throw new LedgerRuleError("NOT_ELIGIBLE", "T-Salt can't be spent in the shop");
+      return `sink:${suffix}`;
   }
 }
 

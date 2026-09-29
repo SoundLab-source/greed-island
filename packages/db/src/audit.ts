@@ -23,6 +23,8 @@ export interface AuditReport {
     house: Salt;
     /** Salt spent in the shop and on upgrades, out of circulation. */
     sink: Salt;
+    /** All tournaments' T-Salt books together (separate from everything above). */
+    tsalt: { tournaments: number; issued: Salt; userBalances: Salt; escrow: Salt; house: Salt };
   };
 }
 
@@ -103,12 +105,26 @@ export async function auditLedger(db: Db): Promise<AuditReport> {
       AND (f."id" IS NULL OR f."state" <> 'SETTLED' OR f."segment" = 'TOURNAMENT' OR c."owner_user_id" IS DISTINCT FROM t."user_id")`;
   for (const r of badRewards) add("owner-reward", `reward txn ${r.id}: ${r.problem}, or not paid to the winner's owner`);
 
-  const sums = await db.$queryRaw<{ kind: string; total: Dec; n: bigint }[]>`
-    SELECT "kind"::text AS kind, SUM("balance") AS total, COUNT(*) AS n FROM "account" GROUP BY "kind"`;
-  const byKind = (k: string) => {
-    const row = sums.find((s) => s.kind === k);
+  // Each tournament's T-Salt book is closed: it sums to zero on its own.
+  const books = await db.$queryRaw<{ tournament_id: string; total: Dec }[]>`
+    SELECT "tournament_id", SUM("balance") AS total FROM "account"
+    WHERE "asset" = 'TSALT' GROUP BY "tournament_id" HAVING SUM("balance") <> 0`;
+  for (const r of books) add("tournament-book", `tournament ${r.tournament_id}'s T-Salt sums to ${toSalt(r.total)}, expected 0`);
+
+  // No transaction moves value between books (Salt and T-Salt, or two tournaments).
+  const mixed = await db.$queryRaw<{ txn_id: string }[]>`
+    SELECT e."txn_id" FROM "ledger_entry" e JOIN "account" a ON a."id" = e."account_id"
+    GROUP BY e."txn_id"
+    HAVING COUNT(DISTINCT a."asset"::text || ':' || COALESCE(a."tournament_id"::text, '')) > 1`;
+  for (const r of mixed) add("one-book", `txn ${r.txn_id} moves value between Salt and T-Salt or between tournaments`);
+
+  const sums = await db.$queryRaw<{ asset: string; kind: string; total: Dec; n: bigint }[]>`
+    SELECT "asset"::text AS asset, "kind"::text AS kind, SUM("balance") AS total, COUNT(*) AS n FROM "account" GROUP BY "asset", "kind"`;
+  const byKind = (k: string, asset = "SALT") => {
+    const row = sums.find((s) => s.kind === k && s.asset === asset);
     return row ? toSalt(row.total) : 0n;
   };
+  const tournaments = await db.$queryRaw<{ n: bigint }[]>`SELECT COUNT(DISTINCT "tournament_id") AS n FROM "account" WHERE "asset" = 'TSALT'`;
 
   return {
     ok: problems.length === 0,
@@ -121,6 +137,13 @@ export async function auditLedger(db: Db): Promise<AuditReport> {
       escrow: byKind("ESCROW"),
       house: byKind("HOUSE"),
       sink: byKind("SINK"),
+      tsalt: {
+        tournaments: Number(tournaments[0]?.n ?? 0),
+        issued: -byKind("ISSUANCE", "TSALT"),
+        userBalances: byKind("USER", "TSALT"),
+        escrow: byKind("ESCROW", "TSALT"),
+        house: byKind("HOUSE", "TSALT"),
+      },
     },
   };
 }

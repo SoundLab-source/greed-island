@@ -1,6 +1,8 @@
 import {
   LedgerRuleError,
+  MAIN_BOOK,
   planSettlement,
+  type Book,
   planVoid,
   type BetOutcome,
   type OpenBet,
@@ -19,6 +21,8 @@ export interface SettleFightInput {
   /** Locked multipliers in basis points (>= 10_000). */
   multiplierBp: Readonly<Record<Side, bigint>>;
   maxPayout: Salt;
+  /** The fight's book: main Salt, or its tournament's T-Salt. */
+  book?: Book | undefined;
 }
 
 async function lockOpenBets(tx: Tx, fightId: string): Promise<OpenBet[]> {
@@ -43,6 +47,7 @@ function closeFightOp(
   kind: Extract<TxnKind, "SETTLE" | "VOID">,
   hashBody: Record<string, unknown>,
   plan: (bets: OpenBet[]) => Plan,
+  book: Book,
 ): { key: string; hash: string; op: IdempotentOp<BetOutcome[]> } {
   const key = `${kind.toLowerCase()}:${fightId}`;
   const otherKey = `${kind === "SETTLE" ? "void" : "settle"}:${fightId}`;
@@ -57,7 +62,7 @@ function closeFightOp(
           throw new LedgerRuleError("NOT_ELIGIBLE", `fight ${fightId} is already closed (${otherKey})`);
         }
         const { postings, outcomes } = plan(await lockOpenBets(tx, fightId));
-        await postTransaction(tx, { idempotencyKey: key, requestHash: hash, kind, fightId, postings });
+        await postTransaction(tx, { idempotencyKey: key, requestHash: hash, kind, fightId, postings, book });
         for (const o of outcomes) {
           await tx.bet.update({ where: { id: o.betId }, data: { status: o.status, returned: o.returned.toString() } });
         }
@@ -70,13 +75,17 @@ function closeFightOp(
 
 function settleOp(input: SettleFightInput) {
   const { fightId, winnerSide, multiplierBp, maxPayout } = input;
-  return closeFightOp(fightId, "SETTLE", { winnerSide, bp1: multiplierBp[1], bp2: multiplierBp[2], maxPayout }, (bets) =>
-    planSettlement({ fightId, bets, winnerSide, multiplierBp, maxPayout }),
+  return closeFightOp(
+    fightId,
+    "SETTLE",
+    { winnerSide, bp1: multiplierBp[1], bp2: multiplierBp[2], maxPayout },
+    (bets) => planSettlement({ fightId, bets, winnerSide, multiplierBp, maxPayout }),
+    input.book ?? MAIN_BOOK,
   );
 }
 
-function voidOp(fightId: string) {
-  return closeFightOp(fightId, "VOID", {}, (bets) => planVoid(fightId, bets));
+function voidOp(fightId: string, book: Book) {
+  return closeFightOp(fightId, "VOID", {}, (bets) => planVoid(fightId, bets), book);
 }
 
 /** Pay winners at the locked multipliers and move losing stakes to the house. */
@@ -92,13 +101,13 @@ export function settleFightLedgerTx(tx: Tx, input: SettleFightInput): Promise<Be
 }
 
 /** Refund every open bet on the fight in full. */
-export function voidFightLedger(db: Db, fightId: string): Promise<BetOutcome[]> {
-  const { key, hash, op } = voidOp(fightId);
+export function voidFightLedger(db: Db, fightId: string, book: Book = MAIN_BOOK): Promise<BetOutcome[]> {
+  const { key, hash, op } = voidOp(fightId, book);
   return withIdempotency(db, key, hash, op);
 }
 
 /** voidFightLedger inside the caller's transaction. */
-export function voidFightLedgerTx(tx: Tx, fightId: string): Promise<BetOutcome[]> {
-  const { key, hash, op } = voidOp(fightId);
+export function voidFightLedgerTx(tx: Tx, fightId: string, book: Book = MAIN_BOOK): Promise<BetOutcome[]> {
+  const { key, hash, op } = voidOp(fightId, book);
   return runIdempotent(tx, key, hash, op);
 }

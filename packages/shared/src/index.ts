@@ -10,3 +10,5 @@ export * from "./shop.ts";
 export * from "./upgrades.ts";
 export * from "./titles.ts";
 export * from "./exhibitions.ts";
+export * from "./tournaments.ts";
+export * from "./players.ts";

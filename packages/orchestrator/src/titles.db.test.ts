@@ -153,8 +153,14 @@ describe("titles table", () => {
     await expect(db.$executeRaw`DELETE FROM "character_title"`).rejects.toThrow(/append-only/);
     await expect(db.characterTitle.create({ data: { characterId: low, code: "FIRST_BLOOD", ownerKind: "USER", ownerUserId: userId } })).rejects.toThrow();
     await expect(db.characterTitle.create({ data: { characterId: high, code: "TIER_B", ownerKind: "HOUSE", ownerUserId: userId } })).rejects.toThrow();
-    // Tournament Champion can be won again.
-    for (let i = 0; i < 2; i++) await db.characterTitle.create({ data: { characterId: high, code: "TOURNAMENT_CHAMPION", ownerKind: "HOUSE" } });
+    // Tournament Champion can be won again, once per tournament, and always names its tournament.
+    const tournaments = [
+      await db.tournament.create({ data: { cycle: 1, tier: "S", size: 2 } }),
+      await db.tournament.create({ data: { cycle: 2, tier: "A", size: 2 } }),
+    ];
+    for (const t of tournaments) await db.characterTitle.create({ data: { characterId: high, code: "TOURNAMENT_CHAMPION", tournamentId: t.id, ownerKind: "HOUSE" } });
+    await expect(db.characterTitle.create({ data: { characterId: low, code: "TOURNAMENT_CHAMPION", tournamentId: tournaments[0]!.id, ownerKind: "USER", ownerUserId: userId } })).rejects.toThrow();
+    await expect(db.characterTitle.create({ data: { characterId: high, code: "TOURNAMENT_CHAMPION", ownerKind: "HOUSE" } })).rejects.toThrow(/character_title_tournament/);
   });
 });
 

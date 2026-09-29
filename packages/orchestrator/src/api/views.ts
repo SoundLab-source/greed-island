@@ -4,7 +4,7 @@
  * Stats shown to bettors (DESIGN §7): rating, tier, record, win rate,
  * head-to-head, last-10 form, tier history.
  */
-import { characterCosmetics, getBalance, openStakes, toSalt, type Db, type Prisma } from "@greed-island/db";
+import { characterCosmetics, getBalance, openStakes, toSalt, tournamentBalance, tournamentBalances, type Db, type Prisma } from "@greed-island/db";
 import {
   describeCosmetics,
   describeUnlocked,
@@ -13,6 +13,9 @@ import {
   maxLevel,
   parseCosmeticChoice,
   parseCosmetics,
+  PLAYER_TITLES,
+  playerName,
+  roundName,
   resolveCosmetics,
   TITLES,
   unlockedCosmetics,
@@ -26,9 +29,7 @@ import {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export function playerName(u: { id: string; displayName: string | null }): string {
-  return u.displayName ?? `Anon-${u.id.slice(0, 6)}`;
-}
+export { playerName };
 
 /** Results of a character's last `n` settled fights, newest first. */
 export async function recentForm(db: Db, characterId: string, n = 10): Promise<("W" | "L")[]> {
@@ -92,15 +93,16 @@ export async function characterTitles(db: Db, characterId: string) {
   const titles = await db.characterTitle.findMany({
     where: { characterId },
     orderBy: { id: "asc" },
-    include: { owner: true, fight: { select: { number: true } } },
+    include: { owner: true, fight: { select: { number: true } }, tournament: { select: { number: true, tier: true } } },
   });
   return titles.map((t) => ({
     code: t.code,
-    label: TITLES[t.code].label,
+    label: t.tournament ? `${TITLES[t.code].label} (Tournament #${t.tournament.number}, ${t.tournament.tier} tier)` : TITLES[t.code].label,
     description: TITLES[t.code].description,
     earnedBy: t.owner ? { kind: "player" as const, name: playerName(t.owner) } : { kind: "house" as const, name: "House" },
     fightId: t.fightId,
     fightNumber: t.fight?.number ?? null,
+    tournamentNumber: t.tournament?.number ?? null,
     at: t.earnedAt,
   }));
 }
@@ -162,9 +164,16 @@ export async function characterProfile(db: Db, characterId: string) {
 export async function fightView(db: Db, config: Config, fightId: string, viewerId?: string) {
   const f = await db.fight.findUnique({
     where: { id: fightId },
-    include: { stage: true, loadouts: { orderBy: { side: "asc" } }, odds: true, rounds: { orderBy: { round: "asc" } } },
+    include: {
+      stage: true,
+      loadouts: { orderBy: { side: "asc" } },
+      odds: true,
+      rounds: { orderBy: { round: "asc" } },
+      tournamentMatch: { include: { tournament: true } },
+    },
   });
   if (!f) return null;
+  const tm = f.tournamentMatch;
 
   const side = async (s: Side) => {
     const characterId = s === 1 ? f.side1CharacterId : f.side2CharacterId;
@@ -248,6 +257,11 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     odds,
     rounds: f.rounds.map((r) => ({ round: r.round, winnerSide: r.winnerSide, reason: r.reason })),
     challenge: challenge ? { challenger: playerName(challenge.challenger), challenged: playerName(challenge.challenged), acceptedAt: challenge.acceptedAt } : null,
+    /** Which currency bets on this fight use: tournament fights use that tournament's T-Salt. */
+    currency: tm ? ("T-Salt" as const) : ("Salt" as const),
+    tournament: tm
+      ? { id: tm.tournamentId, number: tm.tournament.number, tier: tm.tournament.tier, round: tm.round, roundName: roundName(tm.round, tm.tournament.size), slot: tm.slot }
+      : null,
     result:
       f.state === "SETTLED"
         ? { kind: "settled", winnerSide: f.winnerSide, ownerReward: rewardAmount?.toString() ?? null }
@@ -272,6 +286,10 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
   const stakes = await openStakes(db, userId);
   const today = now.toISOString().slice(0, 10);
   const grant = await db.ledgerTxn.findUnique({ where: { idempotencyKey: `grant:daily:${userId}:${today}` }, select: { id: true } });
+  // The running tournament's T-Salt: the starting amount until the player's first bet there.
+  const running = await db.tournament.findFirst({ where: { status: "RUNNING" }, orderBy: { number: "desc" } });
+  const tBalance = running ? await tournamentBalance(db, userId, running.id) : null;
+  const titles = await db.playerTitle.findMany({ where: { userId }, orderBy: { id: "desc" }, include: { tournament: { select: { number: true, tier: true } } } });
   return {
     id: user.id,
     name: playerName(user),
@@ -279,17 +297,34 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
     email: user.email,
     balance: balance.toString(),
     inOpenBets: stakes.toString(),
+    tournament: running
+      ? { id: running.id, number: running.number, tier: running.tier, balance: (tBalance ?? config.tournaments.startingBalance).toString(), joined: tBalance !== null }
+      : null,
+    titles: titles.map((t) => ({
+      code: t.code,
+      label: PLAYER_TITLES[t.code].label,
+      tournamentNumber: t.tournament.number,
+      tier: t.tournament.tier,
+      balance: t.balance.toFixed(0),
+      at: t.earnedAt,
+    })),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,
     bailoutAvailable: stakes === 0n && balance < config.economy.bailoutFloor,
   };
 }
 
 export async function betHistory(db: Db, userId: string, take = 50) {
-  const bets = await db.bet.findMany({ where: { userId }, orderBy: { placedAt: "desc" }, take, include: { fight: { select: { number: true, state: true } } } });
+  const bets = await db.bet.findMany({
+    where: { userId },
+    orderBy: { placedAt: "desc" },
+    take,
+    include: { fight: { select: { number: true, state: true, tournamentMatchId: true } } },
+  });
   return bets.map((b) => ({
     fightId: b.fightId,
     fightNumber: b.fight.number,
     fightState: b.fight.state,
+    currency: b.fight.tournamentMatchId ? ("T-Salt" as const) : ("Salt" as const),
     side: b.side,
     stake: b.stake.toFixed(0),
     status: b.status,
@@ -301,7 +336,7 @@ export async function betHistory(db: Db, userId: string, take = 50) {
 /** Players by balance (available Salt, excluding open bets). */
 export async function leaderboard(db: Db, take = 20) {
   const accounts = await db.account.findMany({
-    where: { kind: "USER" },
+    where: { kind: "USER", asset: "SALT" },
     orderBy: [{ balance: "desc" }, { createdAt: "asc" }],
     take,
     include: { user: true },
@@ -436,4 +471,82 @@ export async function challengeOptions(db: Db, userId: string) {
   const mine = await db.character.findMany({ where: { ...active, ownerUserId: userId }, orderBy: { rating: "desc" }, include: { owner: true } });
   const others = await db.character.findMany({ where: { ...active, ownerKind: "USER", NOT: { ownerUserId: userId } }, orderBy: { rating: "desc" }, include: { owner: true } });
   return { mine: mine.map(brief), opponents: others.map(brief) };
+}
+
+/** A tournament's bracket, T-Salt standings and podium. */
+export async function tournamentView(db: Db, tournamentId: string, viewerId?: string) {
+  const t = await db.tournament.findUnique({
+    where: { id: tournamentId },
+    include: {
+      champion: true,
+      entries: { orderBy: { seed: "asc" }, include: { character: { include: { owner: true } } } },
+      matches: {
+        orderBy: [{ round: "asc" }, { slot: "asc" }],
+        include: { side1Character: true, side2Character: true, fights: { orderBy: { number: "asc" }, select: { id: true, number: true, state: true } } },
+      },
+      playerTitles: { orderBy: { code: "asc" }, include: { user: true } },
+    },
+  });
+  if (!t) return null;
+  const seedOf = new Map(t.entries.map((e) => [e.characterId, e.seed]));
+  const side = (c: { id: string; name: string } | null) => (c ? { characterId: c.id, name: c.name, seed: seedOf.get(c.id) ?? null } : null);
+  const rounds = [...new Set(t.matches.map((m) => m.round))].map((round) => ({
+    round,
+    name: roundName(round, t.size),
+    matches: t.matches
+      .filter((m) => m.round === round)
+      .map((m) => ({
+        id: m.id,
+        slot: m.slot,
+        sides: { 1: side(m.side1Character), 2: side(m.side2Character) },
+        winnerCharacterId: m.winnerCharacterId,
+        walkover: m.walkover,
+        fights: m.fights,
+      })),
+  }));
+  const balances = await tournamentBalances(db, t.id);
+  const users = new Map((await db.user.findMany({ where: { id: { in: balances.map((b) => b.userId) } } })).map((u) => [u.id, u]));
+  const standings = balances
+    .sort((a, b) => (b.balance > a.balance ? 1 : b.balance < a.balance ? -1 : a.joinedAt.getTime() - b.joinedAt.getTime()))
+    .slice(0, 10)
+    .map((b, i) => ({ rank: i + 1, name: playerName(users.get(b.userId)!), balance: b.balance.toString() }));
+  const mine = viewerId ? await tournamentBalance(db, viewerId, t.id) : null;
+  return {
+    id: t.id,
+    number: t.number,
+    cycle: t.cycle,
+    tier: t.tier,
+    size: t.size,
+    status: t.status,
+    cancelReason: t.cancelReason,
+    createdAt: t.createdAt,
+    finishedAt: t.finishedAt,
+    champion: t.champion ? { id: t.champion.id, name: t.champion.name } : null,
+    entries: t.entries.map((e) => ({ seed: e.seed, characterId: e.characterId, name: e.character.name, tier: e.tier, rating: Math.round(e.rating), owner: ownerOf(e.character) })),
+    rounds,
+    standings,
+    podium: t.playerTitles.map((p) => ({ code: p.code, label: PLAYER_TITLES[p.code].label, name: playerName(p.user), balance: p.balance.toFixed(0) })),
+    myBalance: mine === null ? null : mine.toString(),
+  };
+}
+
+/** The running tournament, else the most recent one. */
+export async function currentTournamentId(db: Db): Promise<string | null> {
+  const t =
+    (await db.tournament.findFirst({ where: { status: "RUNNING" }, orderBy: { number: "desc" }, select: { id: true } })) ??
+    (await db.tournament.findFirst({ where: { status: { not: "CANCELLED" } }, orderBy: { number: "desc" }, select: { id: true } }));
+  return t?.id ?? null;
+}
+
+export async function recentTournaments(db: Db, take = 20) {
+  const list = await db.tournament.findMany({ orderBy: { number: "desc" }, take, include: { champion: true } });
+  return list.map((t) => ({
+    id: t.id,
+    number: t.number,
+    tier: t.tier,
+    size: t.size,
+    status: t.status,
+    champion: t.champion ? { id: t.champion.id, name: t.champion.name } : null,
+    finishedAt: t.finishedAt,
+  }));
 }

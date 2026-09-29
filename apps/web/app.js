@@ -61,7 +61,9 @@ function renderFight(f) {
   text($("fight-title"), `Fight #${f.number}: ${f.sides[1].name} vs ${f.sides[2].name}`);
   text($("fight-state"), ` [${f.state}]`);
   const h = f.headToHead;
-  const kind = f.challenge ? `Exhibition challenge: ${f.challenge.challenger} vs ${f.challenge.challenged}. ` : f.pairKind === "SHOWCASE" ? "House showcase. " : "";
+  const kind = f.tournament ? `Tournament #${f.tournament.number} (${f.tournament.tier} tier), ${f.tournament.roundName}: bets in T-Salt. `
+    : f.challenge ? `Exhibition challenge: ${f.challenge.challenger} vs ${f.challenge.challenged}. ` : f.pairKind === "SHOWCASE" ? "House showcase. " : "";
+  text($("stake-currency"), f.currency ?? "Salt");
   text($("fight-meta"), `${kind}Stage: ${f.stage.displayName}. Head-to-head: ${h.fights} fights, ${h.wins[1]}-${h.wins[2]}.` +
     (f.odds && f.odds.locked ? ` Pools: ${f.odds.pool[1]} / ${f.odds.pool[2]} Salt from ${f.odds.bettors} bettors.` : ""));
   $("side1").innerHTML = sideCard(1, f.sides[1], f.odds);
@@ -70,7 +72,7 @@ function renderFight(f) {
   $("result").textContent = r ? (r.kind === "settled" ? `Winner: ${f.sides[r.winnerSide].name}${r.ownerReward ? ` (owner ${f.sides[r.winnerSide].owner.name} earns ${r.ownerReward} Salt)` : ""}` : `Void (${r.reason}) — all bets refunded`) :
     f.rounds.length ? `Rounds: ${f.rounds.map((x) => (x.winnerSide ? `R${x.round}: ${x.winnerSide === 1 ? "Red" : "Blue"} (${x.reason})` : `R${x.round}: draw`)).join(", ")}` : "";
   const b = f.myBet;
-  text($("my-bet"), b ? `Your bet: ${b.stake} on ${b.side === 1 ? "Red" : "Blue"} (${b.status}${b.returned != null ? `, ${b.returned} back` : ""})` : "No bet on this fight.");
+  text($("my-bet"), b ? `Your bet: ${b.stake} ${f.currency} on ${b.side === 1 ? "Red" : "Blue"} (${b.status}${b.returned != null ? `, ${b.returned} back` : ""})` : "No bet on this fight.");
   const open = f.state === "BETTING_OPEN";
   $("bet1").disabled = !open;
   $("bet2").disabled = !open;
@@ -118,6 +120,9 @@ async function refreshMe() {
   text($("balance"), me.balance);
   text($("in-bets"), me.inOpenBets !== "0" ? `(+${me.inOpenBets} in open bets)` : "");
   text($("player-name"), `Leaderboard name: ${me.name}`);
+  const t = me.tournament;
+  text($("tsalt"), t ? `Tournament #${t.number} (${t.tier} tier): ${t.balance} T-Salt${t.joined ? "" : " when you place your first tournament bet"}. T-Salt is separate from Salt and never moves to it.` : "");
+  text($("player-titles"), me.titles.length ? `Your titles: ${me.titles.map((x) => `${x.label} (Tournament #${x.tournamentNumber}, ${x.balance} T-Salt)`).join(", ")}` : "");
   $("grant").disabled = !me.dailyGrantAvailable;
   $("bailout").disabled = !me.bailoutAvailable;
 }
@@ -207,6 +212,25 @@ async function saveLook(id) {
   } catch (e) {
     text($("shop-msg"), e.message);
   }
+}
+
+// The current tournament: bracket by round, T-Salt standings and podium.
+async function refreshTournament() {
+  const t = await api("GET", "/api/tournaments/current");
+  if (!t) {
+    text($("tournament-status"), "none yet: one runs in each cycle, after the matchmaking fights");
+    $("tournament-bracket").innerHTML = "";
+    text($("tournament-standings"), "");
+    return;
+  }
+  const status = t.status === "FINISHED" ? `finished, champion ${t.champion.name}` : t.status === "CANCELLED" ? `cancelled (${t.cancelReason})` : "running";
+  text($("tournament-status"), `#${t.number}, ${t.tier} tier, ${t.size} characters, ${status}`);
+  const who = (s) => (s ? `${esc(s.name)} <span class="muted">(${s.seed})</span>` : `<span class="muted">tbd</span>`);
+  const winner = (m, s) => (s && m.winnerCharacterId === s.characterId ? `<strong>${who(s)}</strong>` : who(s));
+  $("tournament-bracket").innerHTML = t.rounds.map((r) => `<div><strong>${esc(r.name)}</strong>: ${r.matches.map((m) =>
+    `${winner(m, m.sides[1])} vs ${winner(m, m.sides[2])}${m.walkover ? " (walkover)" : m.fights.length ? ` <span class="muted">#${m.fights.at(-1).number}</span>` : ""}`).join(" · ")}</div>`).join("");
+  const podium = t.podium.length ? ` Podium: ${t.podium.map((p) => `${p.label} ${p.name} (${p.balance})`).join(", ")}.` : "";
+  text($("tournament-standings"), (t.standings.length ? `T-Salt standings: ${t.standings.map((x) => `${x.rank}. ${x.name} ${x.balance}`).join(", ")}.` : "No T-Salt bets yet.") + podium);
 }
 
 // Exhibition challenges: send one with your character, answer ones sent to you.
@@ -300,7 +324,7 @@ function connectStream() {
     const d = JSON.parse(e.data);
     log(`fight #${d.number}: ${d.state}`);
     refreshFight().then(refreshMe).catch(() => {});
-    if (d.state === "BOOKED" || d.state === "SETTLED" || d.state === "VOIDED") Promise.all([refreshTables(), refreshMine(), refreshChallenges()]).catch(() => {});
+    if (d.state === "BOOKED" || d.state === "SETTLED" || d.state === "VOIDED") Promise.all([refreshTables(), refreshMine(), refreshChallenges(), refreshTournament()]).catch(() => {});
   });
   es.addEventListener("engine_event", (e) => {
     const { event } = JSON.parse(e.data);
@@ -313,7 +337,14 @@ function connectStream() {
   });
   es.addEventListener("title_earned", (e) => {
     const d = JSON.parse(e.data);
-    log(`${d.name} earned the title "${d.label}" (fight #${d.number})`);
+    log(`${d.name} earned the title "${d.label}"${d.number ? ` (fight #${d.number})` : ""}`);
+  });
+  es.addEventListener("tournament", (e) => {
+    const d = JSON.parse(e.data);
+    log(d.status === "STARTED" ? `tournament #${d.number} (${d.tier} tier, ${d.size} characters) starts`
+      : d.status === "CANCELLED" ? `tournament #${d.number} (${d.tier} tier) skipped: ${d.detail}`
+      : `tournament #${d.number} won by ${d.champion.name}${d.podium.length ? `; top bettor ${d.podium[0].name}` : ""}`);
+    Promise.all([refreshTournament(), refreshMe()]).catch(() => {});
   });
   es.onerror = () => log("stream disconnected, retrying…");
 }
@@ -341,6 +372,6 @@ $("bailout").onclick = () => api("POST", "/api/me/bailout").then(refreshMe).catc
 (async () => {
   await redeemLoginFromUrl();
   await ensureSession();
-  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine(), refreshChallenges()]);
+  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine(), refreshChallenges(), refreshTournament()]);
   connectStream();
 })().catch((e) => log(`error: ${e.message}`));

@@ -88,6 +88,16 @@ export function higherBand(a: BandTier | null, b: BandTier | null): BandTier | n
   return tierRank(a) >= tierRank(b) ? a : b;
 }
 
+/** Player titles: the tournament T-Salt podium (docs/PHASE2.md step 6). */
+export const PLAYER_TITLE_CODES = ["BETTOR_1ST", "BETTOR_2ND", "BETTOR_3RD"] as const;
+export type PlayerTitleCode = (typeof PLAYER_TITLE_CODES)[number];
+
+export const PLAYER_TITLES: Readonly<Record<PlayerTitleCode, { label: string; description: string }>> = Object.freeze({
+  BETTOR_1ST: { label: "Top Bettor", description: "Finished a tournament with the highest T-Salt balance." },
+  BETTOR_2ND: { label: "Runner-up Bettor", description: "Finished a tournament with the second-highest T-Salt balance." },
+  BETTOR_3RD: { label: "Third-place Bettor", description: "Finished a tournament with the third-highest T-Salt balance." },
+});
+
 /** Tier order for "tiers higher": P < B < A < S < X. */
 export function tierRank(tier: Tier): number {
   return tier === "X" ? BAND_TIERS.length : BAND_TIERS.indexOf(tier);

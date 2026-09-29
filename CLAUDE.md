@@ -3,7 +3,7 @@
 Always-on AI-vs-AI fighting-game stream (IKEMEN GO engine) with free play-money betting (Salt), owned characters, and a community-voted roster. The full game design is in @docs/DESIGN.md. Read it before making any design decision; if code and the design disagree, ask rather than guess.
 
 ## Current phase
-Phase 2: Ownership (see DESIGN.md §13). Phase 1 (Stream MVP) is complete. Build order and default values for DESIGN.md §15 open questions are in `docs/PHASE2.md`. Nothing on-chain, no trading, no payments. `ROADMAP.md` is the project overview: status, history, what's next and how to pick up the work.
+Phase 2: Ownership (see DESIGN.md §13) is complete, as is Phase 1 (Stream MVP). Phase 3 (community roster) hasn't started: agree its plan with the owner first, as was done in `docs/PHASE2.md`. Nothing on-chain, no trading, no payments. `ROADMAP.md` is the project overview: status, history, what's next and how to pick up the work.
 
 ## Stack
 - TypeScript on Node (current LTS), pnpm workspaces, Postgres via Prisma, Fastify, Vitest.
@@ -26,7 +26,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm db:migrate:dev`: create a new migration after editing `packages/db/prisma/schema.prisma`
 - `pnpm test`: all Vitest suites; needs Postgres running (tests migrate and wipe the test DB, never the dev DB)
 - `pnpm typecheck`: TypeScript check across all packages
-- `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts, escrow = open stakes
+- `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts, escrow = open stakes, owner rewards, and that each tournament's T-Salt book is closed
 - `pnpm titles:backfill`: award titles for fights settled before titles existed (replays frozen loadouts; safe to re-run)
 - `pnpm roster:scan`: draft entries from `$IKEMEN_DIR/chars` and `stages` into `packages/engine/roster.draft.json` (gitignored) for review
 - `pnpm roster:sync`: load `packages/engine/roster.json` into the DB (creates/updates/disables; never resets ratings or records)
@@ -41,7 +41,7 @@ Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `
 - `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + dev page at http://127.0.0.1:3000 (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`). Ctrl+C voids and refunds the fight in progress.
 
 ## Hard rules
-- **Salt is closed-loop.** No code path may buy, sell, deposit, withdraw or convert Salt. No payment or blockchain code in phase 1.
+- **Salt is closed-loop.** No code path may buy, sell, deposit, withdraw or convert Salt. No payment or blockchain code in phase 1. T-Salt (tournament balance) never converts to Salt: every ledger transaction stays in one book.
 - **Money math:** integer Salt units, `numeric(20,0)` in Postgres, `bigint` in TypeScript. Never `number` or floats for balances, stakes or payouts. Odds math may use floats, but convert to integer payouts with explicit rounding (round down; remainder to the house account).
 - **Double-entry ledger:** every ledger transaction's entries sum to zero. Balances are derived from entries or cached with a check. Every write has an idempotency key.
 - **Match state changes** go through the pure `transition(state, event)` function, one DB transaction each, with optimistic concurrency and an audit row.

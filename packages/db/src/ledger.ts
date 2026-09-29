@@ -1,4 +1,4 @@
-import { accountKey, assertBalanced, type AccountRef, type Posting, type Salt } from "@greed-island/shared";
+import { accountKey, assertBalanced, MAIN_BOOK, type AccountRef, type Book, type Posting, type Salt } from "@greed-island/shared";
 import { Prisma, type Db, type Tx } from "./client.ts";
 import { fromSalt, toSalt } from "./convert.ts";
 import type { TxnKind } from "./generated/prisma/client.ts";
@@ -86,17 +86,18 @@ export async function withRetry<T>(db: Db, body: (tx: Tx) => Promise<T>): Promis
   }
 }
 
-/** Create any missing accounts and return their ids by key. */
-export async function ensureAccounts(tx: Tx, refs: readonly AccountRef[]): Promise<Map<string, string>> {
+/** Create any missing accounts in the book and return their ids by key. */
+export async function ensureAccounts(tx: Tx, refs: readonly AccountRef[], book: Book = MAIN_BOOK): Promise<Map<string, string>> {
   const byKey = new Map<string, AccountRef>();
-  for (const ref of refs) byKey.set(accountKey(ref), ref);
+  for (const ref of refs) byKey.set(accountKey(ref, book), ref);
+  const tournamentId = book.asset === "TSALT" ? book.tournamentId : null;
   for (const [key, ref] of byKey) {
     const userId = ref.kind === "USER" ? ref.userId : null;
     const fightId = ref.kind === "ESCROW" ? ref.fightId : null;
     const side = ref.kind === "ESCROW" ? ref.side : null;
     await tx.$executeRaw`
-      INSERT INTO "account" ("key", "kind", "user_id", "fight_id", "side")
-      VALUES (${key}, ${ref.kind}::"AccountKind", ${userId}::uuid, ${fightId}::uuid, ${side}::smallint)
+      INSERT INTO "account" ("key", "kind", "asset", "user_id", "fight_id", "side", "tournament_id")
+      VALUES (${key}, ${ref.kind}::"AccountKind", ${book.asset}::"Asset", ${userId}::uuid, ${fightId}::uuid, ${side}::smallint, ${tournamentId}::uuid)
       ON CONFLICT ("key") DO NOTHING`;
   }
   const rows = await tx.account.findMany({ where: { key: { in: [...byKey.keys()] } }, select: { id: true, key: true } });
@@ -110,6 +111,8 @@ export interface PostTxnInput {
   userId?: string | undefined;
   fightId?: string | undefined;
   postings: readonly Posting[];
+  /** Which book the postings are in (default: main Salt). A transaction never spans books. */
+  book?: Book | undefined;
 }
 
 /**
@@ -118,9 +121,11 @@ export interface PostTxnInput {
  */
 export async function postTransaction(tx: Tx, input: PostTxnInput): Promise<string> {
   if (input.postings.length > 0) assertBalanced(input.postings);
+  const book = input.book ?? MAIN_BOOK;
   const ids = await ensureAccounts(
     tx,
     input.postings.map((p) => p.account),
+    book,
   );
   const txn = await tx.ledgerTxn.create({
     data: {
@@ -136,7 +141,7 @@ export async function postTransaction(tx: Tx, input: PostTxnInput): Promise<stri
     await tx.ledgerEntry.createMany({
       data: input.postings.map((p) => ({
         txnId: txn.id,
-        accountId: ids.get(accountKey(p.account))!,
+        accountId: ids.get(accountKey(p.account, book))!,
         amount: fromSalt(p.amount),
         betId: p.betId ?? null,
       })),
@@ -166,9 +171,9 @@ export async function isFightClosed(tx: Tx, fightId: string): Promise<boolean> {
   return count > 0;
 }
 
-/** Lock the user's SALT account row for the rest of the transaction and return its balance. */
-export async function lockUserAccount(tx: Tx, userId: string): Promise<Salt> {
-  const key = accountKey({ kind: "USER", userId });
+/** Lock the user's account row in a book (default: main Salt) for the rest of the transaction and return its balance. */
+export async function lockUserAccount(tx: Tx, userId: string, book: Book = MAIN_BOOK): Promise<Salt> {
+  const key = accountKey({ kind: "USER", userId }, book);
   const rows = await tx.$queryRaw<{ balance: Prisma.Decimal }[]>`
     SELECT "balance" FROM "account" WHERE "key" = ${key} FOR UPDATE`;
   const row = rows[0];
@@ -176,17 +181,17 @@ export async function lockUserAccount(tx: Tx, userId: string): Promise<Salt> {
   return toSalt(row.balance);
 }
 
-export async function getBalance(db: Db | Tx, userId: string): Promise<Salt> {
+export async function getBalance(db: Db | Tx, userId: string, book: Book = MAIN_BOOK): Promise<Salt> {
   const account = await db.account.findUnique({
-    where: { key: accountKey({ kind: "USER", userId }) },
+    where: { key: accountKey({ kind: "USER", userId }, book) },
     select: { balance: true },
   });
   if (!account) throw new NotFoundError(`no account for user ${userId}`);
   return toSalt(account.balance);
 }
 
-/** Sum of the user's stakes on fights that haven't settled or voided yet. */
+/** Sum of the user's main-Salt stakes on fights that haven't settled or voided yet (T-Salt bets excluded). */
 export async function openStakes(tx: Db | Tx, userId: string): Promise<Salt> {
-  const agg = await tx.bet.aggregate({ where: { userId, status: "OPEN" }, _sum: { stake: true } });
+  const agg = await tx.bet.aggregate({ where: { userId, status: "OPEN", fight: { tournamentMatchId: null } }, _sum: { stake: true } });
   return agg._sum.stake ? toSalt(agg._sum.stake) : 0n;
 }

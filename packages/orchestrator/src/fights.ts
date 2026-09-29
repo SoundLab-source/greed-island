@@ -20,11 +20,12 @@ import {
   type Prisma,
   type Tx,
 } from "@greed-island/db";
-import { liveOdds, lockOdds, TITLES, type Config, type RoundEndEvent, type Side, type Stake } from "@greed-island/shared";
+import { liveOdds, lockOdds, TITLES, type Config, type RoundEndEvent, type Side, type Stake, type Tier } from "@greed-island/shared";
 import type { BusEvent, FightBus } from "./bus.ts";
 import { bookingModeFor, nextPosition, type CyclePosition } from "./cycle.ts";
 import type { OrchestratorConfig } from "./config.ts";
 import { expireChallenges, nextAcceptedChallenge } from "./challenges.ts";
+import { bookOf, decideMatch, ensureTournament, nextTournamentMatch, type TournamentFinished } from "./tournaments.ts";
 import { pairingFor, pickMatch, pickShowcase, pickStage, type Candidate, type Pairing, type Rng } from "./matchmaking.ts";
 import { transition, type Effect, type FightEvent, type FightState } from "./state-machine.ts";
 
@@ -49,7 +50,9 @@ type FightRow = Prisma.FightGetPayload<object>;
 /** Book the next fight (state BOOKED). Returns null when no valid pairing or stage exists. */
 export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | "fake"): Promise<FightRow | null> {
   const { db, orch } = deps;
+  const notices: BusEvent[] = [];
   const booked = await withRetry(db, async (tx) => {
+    notices.length = 0;
     const characters = await tx.character.findMany({
       where: { enabled: true, fighter: { enabled: true } },
       orderBy: { id: "asc" },
@@ -70,11 +73,38 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
       owned: c.ownerKind === "USER",
     }));
     const recentPairs = recent.map((f) => [f.side1CharacterId, f.side2CharacterId] as [string, string]);
-    const pos: CyclePosition = nextPosition(last ? { cycle: last.cycle, segment: last.segment, index: last.segmentIndex } : null, orch.cycle);
+    const lastPos: CyclePosition | null = last ? { cycle: last.cycle, segment: last.segment, index: last.segmentIndex } : null;
+
+    // The tournament segment lasts until its bracket is decided. Cycles whose
+    // tournament is over (or couldn't be filled) skip straight past it.
+    const decided = new Set(
+      (await tx.tournament.findMany({ where: { status: { not: "RUNNING" }, cycle: { gte: lastPos?.cycle ?? 1 } }, select: { cycle: true } })).map((t) => t.cycle),
+    );
+    let pos: CyclePosition = nextPosition(lastPos, orch.cycle, (c) => decided.has(c));
+    let pairing: Pairing | null = null;
+    let tournamentMatchId: string | null = null;
+    // Bounded: a full tier rotation of tournaments that can't be filled means nothing can be booked.
+    for (let tries = 0; pos.segment === "TOURNAMENT"; tries++) {
+      if (tries > 4) return null;
+      const { tournament, created } = await ensureTournament(tx, pos.cycle, orch.cycle.tournamentSize, deps.config);
+      if (created) notices.push(tournamentNotice(tournament));
+      if (tournament.status === "RUNNING") {
+        const next = await nextTournamentMatch(tx, tournament, deps.config, deps.now());
+        if (next.finished) notices.push(...finishedNotices(next.finished));
+        const a = candidates.find((c) => c.characterId === next.match?.side1CharacterId);
+        const b = candidates.find((c) => c.characterId === next.match?.side2CharacterId);
+        if (next.match && a && b) {
+          pairing = pairingFor(a, b, "TOURNAMENT", rng);
+          tournamentMatchId = next.match.id;
+          break;
+        }
+      }
+      decided.add(pos.cycle);
+      pos = nextPosition(lastPos, orch.cycle, (c) => decided.has(c));
+    }
     const mode = bookingModeFor(pos.segment);
 
     // Exhibitions: the oldest accepted challenge, else a house showcase, else a normal pairing.
-    let pairing: Pairing | null = null;
     let challengeId: string | null = null;
     if (mode === "EXHIBITION") {
       await expireChallenges(tx, deps.now());
@@ -104,6 +134,7 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
         side2CharacterId: pairing.sides[2].characterId,
         roundsToWin: orch.roundsToWin,
         bookedAt: deps.now(),
+        tournamentMatchId,
       },
     });
     await tx.fightTransition.create({
@@ -112,15 +143,43 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
         fromState: null,
         toState: "BOOKED",
         event: "BOOK",
-        payload: { mode, pairKind: pairing.kind, chanceSide1Bp: Number(pairing.chanceSide1Bp), ...(challengeId ? { challengeId } : {}) },
+        payload: {
+          mode,
+          pairKind: pairing.kind,
+          chanceSide1Bp: Number(pairing.chanceSide1Bp),
+          ...(challengeId ? { challengeId } : {}),
+          ...(tournamentMatchId ? { tournamentMatchId } : {}),
+        },
         version: fight.version,
       },
     });
     if (challengeId) await tx.challenge.update({ where: { id: challengeId }, data: { status: "BOOKED", fightId: fight.id, closedAt: deps.now() } });
     return fight;
   });
+  for (const n of notices) deps.bus.publish(n);
   if (booked) deps.bus.publish({ type: "fight_state", fightId: booked.id, number: booked.number, state: "BOOKED", version: booked.version });
   return booked;
+}
+
+function tournamentNotice(t: { id: string; number: number; tier: Tier; size: number; status: string; cancelReason: string | null }): BusEvent {
+  return t.status === "CANCELLED"
+    ? { type: "tournament", tournamentId: t.id, number: t.number, tier: t.tier, status: "CANCELLED", detail: t.cancelReason ?? "" }
+    : { type: "tournament", tournamentId: t.id, number: t.number, tier: t.tier, status: "STARTED", size: t.size };
+}
+
+function finishedNotices(f: TournamentFinished): BusEvent[] {
+  return [
+    {
+      type: "tournament",
+      tournamentId: f.tournamentId,
+      number: f.number,
+      tier: f.tier,
+      status: "FINISHED",
+      champion: { characterId: f.championCharacterId, name: f.championName },
+      podium: f.podium.map((p) => ({ name: p.name, label: p.label, balance: p.balance })),
+    },
+    { type: "title_earned", fightId: null, number: null, characterId: f.championCharacterId, name: f.championName, code: "TOURNAMENT_CHAMPION", label: TITLES.TOURNAMENT_CHAMPION.label },
+  ];
 }
 
 async function loadouts(tx: Tx, fightId: string) {
@@ -219,6 +278,7 @@ async function runEffect(
         winnerSide,
         multiplierBp: { 1: BigInt(odds.multiplierBp1), 2: BigInt(odds.multiplierBp2) },
         maxPayout: deps.config.economy.maxPayout,
+        book: await bookOf(tx, fight),
       });
       const l = await loadouts(tx, fight.id);
       // Before the rating update: user accounts are locked before character rows, as upgrades do.
@@ -249,6 +309,12 @@ async function runEffect(
         const name = l[1].characterId === t.characterId ? l[1].name : l[2].name;
         notices.push({ type: "title_earned", fightId: fight.id, number: fight.number, characterId: t.characterId, name, code: t.code, label: TITLES[t.code].label });
       }
+      // A tournament fight moves its winner on in the bracket (and may finish the tournament).
+      if (fight.tournamentMatchId) {
+        const match = await tx.tournamentMatch.findUniqueOrThrow({ where: { id: fight.tournamentMatchId } });
+        const finished = await decideMatch(tx, match, l[winnerSide].characterId, { walkover: false, fightId: fight.id, now }, deps.config);
+        if (finished) notices.push(...finishedNotices(finished));
+      }
       return;
     }
     case "RECORD_VOID":
@@ -257,7 +323,8 @@ async function runEffect(
       data.endedAt = fight.endedAt ?? now;
       return;
     case "REFUND_ALL":
-      await voidFightLedgerTx(tx, fight.id);
+      // A voided tournament fight leaves its match open, so it's played again.
+      await voidFightLedgerTx(tx, fight.id, await bookOf(tx, fight));
       data.closedAt = now;
       notices.push({ type: "fight_result", fightId: fight.id, number: fight.number, result: "VOIDED", voidReason: fight.voidReason! });
       return;

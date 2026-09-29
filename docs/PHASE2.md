@@ -13,7 +13,7 @@ Each step is committed with tests green, like phase 1.
 3. ✅ **Upgrades and sidegrades.** Levelled stats with diminishing returns and a cap. Every change widens rating deviation. Stats reach the engine only through verified mechanisms.
 4. ✅ **Titles and effects.** Achievement titles with provenance ("earned by", "when"), plus overlay cosmetics (badges, name plates) stored as data for the stream overlay.
 5. ✅ **Owner rewards and exhibitions.** Salt for owners when their character wins. Owner-vs-owner challenges fill the exhibition segment of the cycle.
-6. **Tournaments.** A 16-character single-elimination bracket per tier, rotating tiers, bet on with a separate tournament balance.
+6. ✅ **Tournaments.** A 16-character single-elimination bracket per tier, rotating tiers, bet on with a separate tournament balance.
 
 ## Defaults
 
@@ -62,6 +62,11 @@ Each step is committed with tests green, like phase 1.
 - 16 characters from one tier, top-rated first; house characters fill empty seats. The tier rotates each cycle (S, A, B, P).
 - Every player gets a fresh tournament balance of 1,000 T-Salt per tournament. T-Salt can't be moved to the main balance. The top 3 T-Salt balances at the end earn titles; the champion character earns "Tournament Champion".
 - Tournament fights update ratings like any other fight.
+- Entry is free (DESIGN §15 asks: free, a fee, or both). Seats go to players' characters in the tier first (by rating), then the tier's house characters, then house characters from other tiers closest to the tier's rating band. X-tier characters never play.
+- If fewer than 16 can play, the bracket is the largest power of two that fills (8, 4 or 2). With fewer than 2, that cycle's tournament is skipped.
+- Seeded by rating in standard order (1 v 16, 8 v 9, ...). A voided fight (draw or crash) is replayed; a character that's disabled mid-tournament forfeits.
+- You get your T-Salt with your first bet in that tournament. The podium counts only players who finished above 1,000 T-Salt; on a tie, whoever joined first ranks higher. Titles: Top Bettor, Runner-up Bettor, Third-place Bettor.
+- No owner rewards for tournament fights (the champion title is the prize).
 
 **Exhibitions**
 - Owners can challenge another owner's character. Accepted challenges are booked in the exhibition segment, oldest first; house showcase fights fill any gaps.

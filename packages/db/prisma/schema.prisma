@@ -17,6 +17,8 @@ datasource db {
 
 enum Asset {
   SALT
+  /// A tournament's own balance (phase 2): never converts to SALT.
+  TSALT
 }
 
 enum UserKind {
@@ -44,6 +46,8 @@ enum TxnKind {
   UPGRADE
   /// Paid to a character's owner when it wins on stream (phase 2).
   OWNER_REWARD
+  /// A player's T-Salt for one tournament (phase 2).
+  TOURNAMENT_GRANT
 }
 
 enum BetStatus {
@@ -74,6 +78,7 @@ model User {
   titlesEarned     CharacterTitle[]
   challengesSent   Challenge[]       @relation("ChallengeFrom")
   challengesGot    Challenge[]       @relation("ChallengeTo")
+  playerTitles     PlayerTitle[]
 
   @@map("user")
 }
@@ -90,6 +95,9 @@ model Account {
   fightId   String?       @map("fight_id") @db.Uuid
   fight     Fight?        @relation(fields: [fightId], references: [id])
   side      Int?          @db.SmallInt
+  /// TSALT accounts only: the tournament whose book this is.
+  tournamentId String?     @map("tournament_id") @db.Uuid
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id])
   /// Maintained by a trigger on ledger_entry; never written by the app.
   balance   Decimal       @default(0) @db.Decimal(20, 0)
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -97,6 +105,7 @@ model Account {
 
   @@index([userId])
   @@index([fightId])
+  @@index([tournamentId])
   @@map("account")
 }
 
@@ -290,6 +299,11 @@ model Character {
   titles         CharacterTitle[]
   challengesSent Challenge[]    @relation("ChallengerCharacter")
   challengesGot  Challenge[]    @relation("ChallengedCharacter")
+  tournamentsWon Tournament[]
+  tournamentEntries TournamentEntry[]
+  matchesSide1   TournamentMatch[] @relation("MatchSide1")
+  matchesSide2   TournamentMatch[] @relation("MatchSide2")
+  matchesWon     TournamentMatch[] @relation("MatchWinner")
 
   @@unique([fighterId, serial])
   @@index([tier, enabled])
@@ -351,6 +365,8 @@ enum PairKind {
   CHALLENGE
   /// Exhibition: house characters from the top of the rankings.
   SHOWCASE
+  /// A tournament bracket match.
+  TOURNAMENT
 }
 
 model Fight {
@@ -397,8 +413,12 @@ model Fight {
   tierChanges       TierHistory[]
   titles            CharacterTitle[]
   challenge         Challenge?
+  /// Tournament fights: the bracket match (a voided fight is replayed as a new fight for the same match).
+  tournamentMatchId String?           @map("tournament_match_id") @db.Uuid
+  tournamentMatch   TournamentMatch?  @relation(fields: [tournamentMatchId], references: [id])
 
   @@index([state])
+  @@index([tournamentMatchId])
   @@index([bookedAt])
   @@map("fight")
 }
@@ -574,9 +594,12 @@ model CharacterTitle {
   characterId String    @map("character_id") @db.Uuid
   character   Character @relation(fields: [characterId], references: [id])
   code        TitleCode
-  /// The fight that earned it.
+  /// The fight that earned it (none for a tournament won by walkover).
   fightId     String?   @map("fight_id") @db.Uuid
   fight       Fight?    @relation(fields: [fightId], references: [id])
+  /// Tournament Champion: which tournament.
+  tournamentId String?     @map("tournament_id") @db.Uuid
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id])
   /// Owner at the time it was earned.
   ownerKind   OwnerKind @map("owner_kind")
   ownerUserId String?   @map("owner_user_id") @db.Uuid
@@ -630,4 +653,101 @@ model Challenge {
   @@index([challengerUserId, status])
   @@index([challengedUserId, status])
   @@map("challenge")
+}
+
+// ---------------------------------------------------------------------------
+// Tournaments (phase 2, step 6)
+
+enum TournamentStatus {
+  RUNNING
+  FINISHED
+  /// Not enough characters to fill a bracket.
+  CANCELLED
+}
+
+enum PlayerTitleCode {
+  BETTOR_1ST
+  BETTOR_2ND
+  BETTOR_3RD
+}
+
+/// One cycle's single-elimination tournament (DESIGN §5). Bets use the tournament's own T-Salt book.
+model Tournament {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number              Int              @unique @default(autoincrement())
+  /// The stream cycle it belongs to: one tournament per cycle.
+  cycle               Int              @unique
+  tier                Tier
+  /// Bracket size (a power of two); 0 when cancelled.
+  size                Int              @db.SmallInt
+  status              TournamentStatus @default(RUNNING)
+  cancelReason        String?          @map("cancel_reason")
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  finishedAt          DateTime?        @map("finished_at") @db.Timestamptz(3)
+  championCharacterId String?          @map("champion_character_id") @db.Uuid
+  champion            Character?       @relation(fields: [championCharacterId], references: [id])
+  entries             TournamentEntry[]
+  matches             TournamentMatch[]
+  accounts            Account[]
+  titles              CharacterTitle[]
+  playerTitles        PlayerTitle[]
+
+  @@map("tournament")
+}
+
+/// A seat in the bracket, seeded by rating when the tournament starts.
+model TournamentEntry {
+  tournamentId String     @map("tournament_id") @db.Uuid
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  seed         Int        @db.SmallInt
+  characterId  String     @map("character_id") @db.Uuid
+  character    Character  @relation(fields: [characterId], references: [id])
+  /// Rating and tier when seeded.
+  rating       Float
+  tier         Tier
+
+  @@id([tournamentId, seed])
+  @@unique([tournamentId, characterId])
+  @@map("tournament_entry")
+}
+
+/// A bracket match. Sides fill in as earlier rounds finish; round 1 is the first round.
+model TournamentMatch {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId      String     @map("tournament_id") @db.Uuid
+  tournament        Tournament @relation(fields: [tournamentId], references: [id])
+  round             Int        @db.SmallInt
+  /// 0-based position within the round.
+  slot              Int        @db.SmallInt
+  side1CharacterId  String?    @map("side1_character_id") @db.Uuid
+  side1Character    Character? @relation("MatchSide1", fields: [side1CharacterId], references: [id])
+  side2CharacterId  String?    @map("side2_character_id") @db.Uuid
+  side2Character    Character? @relation("MatchSide2", fields: [side2CharacterId], references: [id])
+  winnerCharacterId String?    @map("winner_character_id") @db.Uuid
+  winnerCharacter   Character? @relation("MatchWinner", fields: [winnerCharacterId], references: [id])
+  /// Decided without a fight because a character was disabled.
+  walkover          Boolean    @default(false)
+  decidedAt         DateTime?  @map("decided_at") @db.Timestamptz(3)
+  fights            Fight[]
+
+  @@unique([tournamentId, round, slot])
+  @@map("tournament_match")
+}
+
+/// A player's title from a tournament's T-Salt podium, with the final balance.
+model PlayerTitle {
+  id           BigInt          @id @default(autoincrement())
+  userId       String          @map("user_id") @db.Uuid
+  user         User            @relation(fields: [userId], references: [id])
+  code         PlayerTitleCode
+  tournamentId String          @map("tournament_id") @db.Uuid
+  tournament   Tournament      @relation(fields: [tournamentId], references: [id])
+  /// T-Salt balance at the end of the tournament.
+  balance      Decimal         @db.Decimal(20, 0)
+  earnedAt     DateTime        @default(now()) @map("earned_at") @db.Timestamptz(3)
+
+  @@unique([tournamentId, code])
+  @@unique([tournamentId, userId])
+  @@index([userId])
+  @@map("player_title")
 }

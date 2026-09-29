@@ -41,8 +41,9 @@
     <div class="col box">
       <h3>Your bet</h3>
       <div>Balance: <strong id="balance">…</strong> Salt <span id="in-bets" class="muted"></span></div>
+      <div id="tsalt" class="muted"></div>
       <div>
-        <label>Stake <input id="stake" type="number" min="1" step="1" value="10" style="width: 8em"></label>
+        <label>Stake <input id="stake" type="number" min="1" step="1" value="10" style="width: 8em"> <span id="stake-currency">Salt</span></label>
         <button id="bet1">Bet Red (P1)</button>
         <button id="bet2">Bet Blue (P2)</button>
       </div>
@@ -61,6 +62,7 @@
         <button id="grant">Claim daily grant</button>
         <button id="bailout">Bailout</button>
         <span id="player-name" class="muted"></span>
+        <div id="player-titles" class="muted"></div>
       </div>
     </div>
     <div class="col box">
@@ -76,6 +78,14 @@
       <div id="shop-msg" class="muted"></div>
     </div>
     <div class="col box"><h3>My characters</h3><table id="mine"></table></div>
+  </div>
+
+  <div class="row">
+    <div class="col box">
+      <h3>Tournament <small id="tournament-status" class="muted"></small></h3>
+      <div id="tournament-bracket"></div>
+      <div id="tournament-standings" class="muted"></div>
+    </div>
   </div>
 
   <div class="row">
