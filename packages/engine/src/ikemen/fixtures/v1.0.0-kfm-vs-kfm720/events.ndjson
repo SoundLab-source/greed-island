@@ -1,0 +1,8 @@
+{"type":"match_start","p1":"Kung Fu Man","p2":"Kung Fu Man 720"}
+{"type":"round_start","round":1}
+{"type":"round_end","round":1,"winnerSide":1,"reason":"ko"}
+{"type":"round_start","round":2}
+{"type":"round_end","round":2,"winnerSide":2,"reason":"ko"}
+{"type":"round_start","round":3}
+{"type":"round_end","round":3,"winnerSide":2,"reason":"ko"}
+{"type":"match_end","winnerSide":2,"wins":[1,2]}

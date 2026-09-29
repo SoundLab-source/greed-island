@@ -7,10 +7,10 @@ All `file:line` references below are relative to `vendor/Ikemen-GO/`.
 
 Status legend:
 - **SOURCE**: confirmed by reading v1.0.0 source.
-- **RUN**: confirmed by a real run (fixtures in `packages/engine/fixtures/`).
+- **RUN**: confirmed by a real run (fixtures in `packages/engine/src/ikemen/fixtures/`).
 - **UNVERIFIED**: not confirmed. Keep it behind an adapter and don't rely on it.
 
-No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothing is **RUN** yet.
+First real run: 2026-09-29, macOS arm64 (Apple M4 Max), `pnpm match:once --sim`, Kung Fu Man vs Kung Fu Man 720 on `stages/kfm.def`, P2 won 2-1. Fixture: `packages/engine/src/ikemen/fixtures/v1.0.0-kfm-vs-kfm720/`.
 
 ---
 
@@ -18,9 +18,9 @@ No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothin
 
 | Item | Status | Finding |
 |---|---|---|
-| Quick VS trigger | SOURCE | Runs only when both `-p1` and `-p2` are set **and** `-loadmotif` is absent (`external/script/main.lua:1170`). Positional `kfm kfm` also works, but only before any flag (`src/main.go:319-323`). **We pass `-p1 <def> -p2 <def>` explicitly.** |
+| Quick VS trigger | SOURCE, RUN | Runs only when both `-p1` and `-p2` are set **and** `-loadmotif` is absent (`external/script/main.lua:1170`). Positional `kfm kfm` also works, but only before any flag (`src/main.go:319-323`). **We pass `-p1 <def> -p2 <def>` explicitly**; paths like `chars/kfm/kfm.def` work (RUN). |
 | Arg parsing | SOURCE | `src/main.go:215-332`. Any `-x` not in the bool list is a value flag that consumes the next token, which is how unknown custom flags get stored (`:314-317`). Bool flags: `-windowed -togglelifebars -maxpowermode -debug -nojoy -nomusic -nosound` (`:234-242`). |
-| `-p<n>.ai <lvl>` | SOURCE | `main.lua:990-993`, applied by `setCom(num, ai)` (`:1115`). **Default is 0, meaning human control.** Always pass `-p1.ai 8 -p2.ai 8`. |
+| `-p<n>.ai <lvl>` | SOURCE, RUN | `main.lua:990-993`, applied by `setCom(num, ai)` (`:1115`). **Default is 0, meaning human control.** Always pass `-p1.ai 8 -p2.ai 8`. |
 | `-p<n>.life`, `.lifeMax`, `.power` | SOURCE | `main.lua:999-1007`, folded into `loadStart` params as `p<side>.<member>.life=` etc. (`:1117-1121`) and parsed in `src/select_params.go:440-470`. |
 | `-p<n>.dizzyPoints`, `.guardPoints` | SOURCE | Same path (`main.lua:1008-1013`). |
 | `-p<n>.color` / `.pal` | SOURCE | `main.lua:976-977`. |
@@ -28,14 +28,14 @@ No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothin
 | `-rounds <n>` | SOURCE | **Rounds needed to win (first to n), not total rounds.** It sets `Match.Wins` for single/simul/tag (`main.lua:1022-1027`, then `setMatchWins` at `:1049-1061`). **Best of 3 is `-rounds 2`**, which is also the default config (`Match.Wins = 2`, `src/resources/defaultConfig.ini:41`). The help text "plays for n rounds, then quits" is misleading. |
 | `-draws <n>` | SOURCE | Undocumented. Sets max draw rounds per side (`main.lua:1028-1031`). Default `Match.MaxDrawGames = 1` (`defaultConfig.ini:43`). |
 | `-time <n>` | SOURCE | Round time in counts; `-1` disables the timer (`main.lua:1020-1021, 1064`). |
-| Exits after one match | SOURCE | Quick VS calls `game()` once, writes `-log`, then `os.exit()` (`main.lua:1162-1166`). **UNVERIFIED by run** (e.g. whether any post-match screen blocks). |
-| `-log <file>` | SOURCE | After the match: `main.f_printTable(getGameStats().Matches[matchNo()], file)` (`main.lua:1163-1165`). The format is a Lua table dump, not JSON (`main.lua:113-143`), in `pairs()` order (unordered). Contents: see §4. |
+| Exits after one match | SOURCE, RUN | Quick VS calls `game()` once, writes `-log`, then `os.exit()` (`main.lua:1162-1166`). The real run exited by itself right after the win poses. |
+| `-log <file>` | SOURCE, RUN | After the match: `main.f_printTable(getGameStats().Matches[matchNo()], file)` (`main.lua:1163-1165`). The format is a Lua table dump, not JSON (`main.lua:113-143`), in `pairs()` order (unordered). Contents: see §4. |
 | `-nosound`, `-nomusic` | SOURCE | Bool flags; `-nosound` also sets master volume to 0 (`main.lua:228-230`). |
 | `-windowed`, `-width`, `-height` | SOURCE | `src/system.go:397`, `src/config.go:386-395`. |
 | `-speed <n>` | SOURCE | **Range is −9..9 in v1.0.0, not 10–200 as the wiki says.** Mapped to `setGameSpeed` (`main.lua:193-209`). `GameSpeedStep = 5` FPS per step (`defaultConfig.ini`). |
-| `-speedtest [mult]` | SOURCE | Speeds the match by `mult` (default `Debug.SpeedTest`) (`main.lua:211-218`). **Use this for `sim` mode.** |
+| `-speedtest [mult]` | SOURCE, RUN | Speeds the match by `mult` (default `Debug.SpeedTest`) (`main.lua:211-218`). **Use this for `sim` mode.** `-speedtest 4`: a 3-round match (MatchTime 14349 ticks) ran in about 1.5 minutes. |
 | `-ailevel <1-8>` | SOURCE | Global difficulty (`main.lua:190-192`). |
-| `-config <path>` | SOURCE | Defaults to `save/config.ini` (**INI, not `config.json`**) (`src/main.go:163-170`). A missing file means pure defaults. A user file overlays the defaults, and the first duplicate key wins (`src/config.go:244-278`). |
+| `-config <path>` | SOURCE, RUN | Defaults to `save/config.ini` (**INI, not `config.json`**) (`src/main.go:163-170`). A missing file means pure defaults. A user file overlays the defaults, and the first duplicate key wins (`src/config.go:244-278`). **The engine rewrites the file it was given with the full merged config** (RUN); our `Lua1` line survives. This is why each run gets its own copy. |
 | `-stats <path>` | SOURCE | Stats JSON path, default `save/stats.json` (`src/main.go:140-152`). Point it into `runs/<fightId>/` so runs don't share state. |
 | Working dir | SOURCE | Relative paths (`chars/`, `stages/`, `external/`, `save/`) resolve against the CWD. The macOS `bundle_run.sh` cds to the folder containing the `.app` and runs `I.K.E.M.E.N-Go.app/Contents/MacOS/Ikemen_GO_MacOSARM`. **The runner spawns the binary directly with `cwd = IKEMEN_DIR`.** |
 | Missing character file | SOURCE | `AddChar` does **not** fail on a missing .def: it substitutes a dummy character (`useDummy("DEF not found")`, `src/system.go:5334-5337`). Paths are resolved with `SearchFile(def, ["", "data/"], "chars/")`. **The runner therefore checks every .def exists before launching.** |
@@ -49,7 +49,7 @@ No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothin
 |---|---|---|
 | `external/mods/*.lua` autoload | SOURCE | Loaded at `main.lua:3987-4006` (files starting with `-` skipped). **This comes after the quick-VS branch at `main.lua:1170`, which calls `os.exit()`, so mods do NOT load in quick VS.** `Common.Modules` from config load at the same point (`:3997`), so the same applies. |
 | Per-frame `loop` hook | SOURCE | `function loop() hook.run("loop"); hook.run("loop#"..gameMode()) end` (`external/script/debug.lua:229-232`, required at `main.lua:640`, before quick VS). It is called because config `[Common] Lua = loop()` (`defaultConfig.ini:24-25`) is run with `DoString` every frame (`src/system.go:3000-3008`). |
-| Extra per-frame Lua | SOURCE | `[Common]` accepts `Lua`, `Lua1`, `Lua2`… (regex `^(?i)Lua[0-9]*$`, `src/config.go:53`), run in sorted key order by `uiAction()` (`src/system.go:2981-3008`), which `runMatch()` calls every frame (`src/system.go:4106`). Each value is a `[]string` and **may be split on commas: keep injected code comma-free** (UNVERIFIED either way). |
+| Extra per-frame Lua | SOURCE, RUN | `[Common]` accepts `Lua`, `Lua1`, `Lua2`… (regex `^(?i)Lua[0-9]*$`, `src/config.go:53`), run in sorted key order by `uiAction()` (`src/system.go:2981-3008`), which `runMatch()` calls every frame (`src/system.go:4106`). Each value is a `[]string` and **may be split on commas: keep injected code comma-free** (UNVERIFIED either way). |
 | Hook system | SOURCE | `hook.add(list, name, fn)`, `hook.run`, `hook.runFirst`, `hook.stop` (`main.lua:258-291`). |
 | `main.f_commandLine` / `.player` hooks | SOURCE | Exist (`main.lua:1014, 1130`) but are useless in quick VS, because no mod is loaded yet when they fire. |
 | `start.f_selectLoading.member` hook | SOURCE | Exists (`external/script/start.lua:3912`), but `start.lua` is only required at `main.lua:1830`, after the quick-VS exit. **Not available in quick VS.** |
@@ -61,7 +61,7 @@ No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothin
 
 ### Decision: how the event mod gets loaded
 
-Because quick VS exits before mods load, `ikemen/mods/salty_events.lua` can't rely on autoload. Implemented in `packages/engine/src/ikemen/` (**UNVERIFIED until a real run**; the runner is tested against a stand-in engine):
+Because quick VS exits before mods load, `ikemen/mods/salty_events.lua` can't rely on autoload. Implemented in `packages/engine/src/ikemen/` and **confirmed by a real run** (RUN): the mod loaded via `Lua1`, wrote all 8 events, and its result matched `-log`. The runner is also tested against a stand-in engine for crash, hang, garbage and log-only cases.
 
 1. `scripts/install-mod` copies `salty_events.lua` into `<IKEMEN_DIR>/external/mods/`. In normal (menu) mode it autoloads and does nothing without the flag.
 2. For each fight, the runner writes `runs/<fightId>/config.ini`: a copy of `<IKEMEN_DIR>/save/config.ini` if it exists, plus a `[Common]` entry
@@ -87,7 +87,9 @@ Per round: `index` (1-based), `timer`, `score[2]`, `fighters[side][member]` with
 Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adapter maps both to our `1 | 2 | 0`.
 `winSide` is just the engine's `winTeam` at match end, i.e. the **last round's** result. The fallback parser therefore decides the match winner from `wins[]` against the match win count (exactly one side reached it → winner; both or neither → draw/void), and only cross-checks it against `winSide`. If they disagree, void.
 
-**Stdout contents: UNVERIFIED.** Source shows `print('Loading module: …')` and error prints only. Needs a real run.
+**Real `-log` (RUN):** keys are the Go field names, capitalized (`WinSide`, `Wins`, `LastRound`, `Rounds`, `Fighters`, `Name`, `AILevel`, `WinKO`, …), not the json tags; arrays are 1-based Lua tables. `WinSide` 1 = P2 confirmed. The parser matches keys case-insensitively.
+
+**Stdout/stderr (RUN, macOS):** stdout has only renderer start-up lines ("Check A: Selecting Renderer" … "Check D: We are GOOD"). stderr has the OpenGL/Metal version, character-file warnings (e.g. KFM state 1027 "Unknown state controller parameter(s): x, y"), and "Failed to open BGM: open sound/kfm.mid" (the release ships without that MIDI; harmless). Neither carries match results, so the event file and `-log` are the only result sources. Normal exit code: 0.
 
 ## 5. Per-fighter stat mechanisms (for phase 2)
 
@@ -104,11 +106,14 @@ Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adap
 - Screenpack / lifebars: CC-BY 3.0, fonts CC-BY-NC 3.0 (install `LICENSES.txt`).
 - Stages bundled with the release: license not stated per stage. Check before streaming.
 
-## 7. Open items to verify with a real run
+## 7. Open items
 
-1. Process exits cleanly after exactly one best-of-3 match (`-rounds 2`).
-2. `Lua1 = require(...)` loads the mod in quick VS; the event file is written and flushed per line.
-3. Whether commas in `Common.Lua` values are split.
-4. Stdout/stderr contents and exit code (normal, crash, killed).
-5. Actual `-log` output for one match (becomes a fixture).
-6. Xvfb on Linux.
+Confirmed by the first real run (2026-09-29): single-match exit with `-rounds 2`, mod loading via `Lua1`, per-line event output, `-log` format, stdout/stderr contents.
+
+Still open:
+1. Whether commas in `Common.Lua` values are split (our line has none, so it doesn't matter yet).
+2. Exit codes when the engine crashes or is killed on a real build (runner handles any exit without `match_end` as a crash).
+3. A draw or double-KO round in a real match (event and `-log` shape for `winnerSide: 0`).
+4. `live` mode (no `-speedtest`) end to end; only `sim` has been run.
+5. Xvfb on Linux.
+6. macOS: opening the `.app` from Finder runs it translocated (read-only copy), which fails with "open save/stats.json: read-only file system". Launching the binary directly with `cwd = IKEMEN_DIR`, as the runner does, works once the user has approved the app.
