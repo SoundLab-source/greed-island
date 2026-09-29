@@ -8,7 +8,10 @@
   },
   "scripts": {
     "roster:scan": "tsx src/scripts/roster-scan.ts",
-    "roster:sync": "tsx src/scripts/roster-sync.ts"
+    "roster:sync": "tsx src/scripts/roster-sync.ts",
+    "ikemen:install-mod": "tsx src/scripts/install-mod.ts",
+    "match:once": "tsx src/scripts/match-once.ts",
+    "roster:smoke": "tsx src/scripts/roster-smoke.ts"
   },
   "dependencies": {
     "@greed-island/db": "workspace:*",

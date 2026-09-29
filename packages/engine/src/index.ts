@@ -3,3 +3,12 @@ export { scanIkemen, detectLicense, slugify, type ScanResult } from "./roster/sc
 export { syncRoster, RosterSyncError, type SyncReport } from "./roster/sync.ts";
 export { missingDefFiles } from "./roster/files.ts";
 export { parseIni, iniValue } from "./roster/ini.ts";
+export { specFromRoster } from "./roster/spec.ts";
+export type { EngineMode, EventSource, FightSpec, FighterSpec, RunOptions } from "./types.ts";
+export { OutcomeTracker } from "./outcome.ts";
+export { createFakeSource, generateScript, seededRandom, type FakeOptions, type FakeScript, type FakeEnding } from "./fake.ts";
+export { createIkemenSource, type IkemenSourceOptions } from "./ikemen/runner.ts";
+export { buildArgs, statArgs, runConfigIni } from "./ikemen/args.ts";
+export { findIkemenBinary, installMod, isModInstalled, readBaseLife, MOD_SOURCE } from "./ikemen/install.ts";
+export { parseLuaDump, outcomeFromDump, outcomeFromLog } from "./ikemen/log.ts";
+export { loadEngineConfig, type EngineConfig } from "./config.ts";

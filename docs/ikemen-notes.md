@@ -38,6 +38,9 @@ No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothin
 | `-config <path>` | SOURCE | Defaults to `save/config.ini` (**INI, not `config.json`**) (`src/main.go:163-170`). A missing file means pure defaults. A user file overlays the defaults, and the first duplicate key wins (`src/config.go:244-278`). |
 | `-stats <path>` | SOURCE | Stats JSON path, default `save/stats.json` (`src/main.go:140-152`). Point it into `runs/<fightId>/` so runs don't share state. |
 | Working dir | SOURCE | Relative paths (`chars/`, `stages/`, `external/`, `save/`) resolve against the CWD. The macOS `bundle_run.sh` cds to the folder containing the `.app` and runs `I.K.E.M.E.N-Go.app/Contents/MacOS/Ikemen_GO_MacOSARM`. **The runner spawns the binary directly with `cwd = IKEMEN_DIR`.** |
+| Missing character file | SOURCE | `AddChar` does **not** fail on a missing .def: it substitutes a dummy character (`useDummy("DEF not found")`, `src/system.go:5334-5337`). Paths are resolved with `SearchFile(def, ["", "data/"], "chars/")`. **The runner therefore checks every .def exists before launching.** |
+| `-speedtest` default | SOURCE | Without a value, uses config `Debug.SpeedTest = 100` (`src/resources/defaultConfig.ini:193`), i.e. 100×. The runner always passes an explicit multiplier (`GI_SIM_SPEED`, default 4). How high is stable: UNVERIFIED. |
+| macOS Gatekeeper | RUN (local) | The v1.0.0 macOS release is unsigned (`spctl`: "no usable signature") and downloads arrive quarantined, so macOS blocks the binary until the user allows it once (e.g. by opening `Ikemen_GO.command`, which removes the quarantine flag itself). |
 | Headless | UNVERIFIED | SDL video init is mandatory (`src/main.go:113`, `src/system.go`); there is no headless flag in the parser. Linux servers need Xvfb (+ Mesa for GL). Not tested. |
 
 ## 2. Lua: mods and hooks
@@ -58,13 +61,14 @@ No real run has been done yet (`IKEMEN_DIR` was unset during Phase 0), so nothin
 
 ### Decision: how the event mod gets loaded
 
-Because quick VS exits before mods load, `ikemen/mods/salty_events.lua` can't rely on autoload. Plan (**UNVERIFIED until a real run**):
+Because quick VS exits before mods load, `ikemen/mods/salty_events.lua` can't rely on autoload. Implemented in `packages/engine/src/ikemen/` (**UNVERIFIED until a real run**; the runner is tested against a stand-in engine):
 
 1. `scripts/install-mod` copies `salty_events.lua` into `<IKEMEN_DIR>/external/mods/`. In normal (menu) mode it autoloads and does nothing without the flag.
 2. For each fight, the runner writes `runs/<fightId>/config.ini`: a copy of `<IKEMEN_DIR>/save/config.ini` if it exists, plus a `[Common]` entry
    `Lua1 = require('external.mods.salty_events')`.
    `require` caches, so after the first frame this line is a no-op. On first load the module does `hook.add('loop', 'salty_events', tick)`, so events start on the second frame (still pre-intro).
 3. The runner passes `-config runs/<fightId>/config.ini -salty.events <abs path>/events.ndjson`. The mod reads the path with `getCommandLineValue('-salty.events')`. A custom flag is stored by the parser (`src/main.go:314-317`). Alternative: `os.getenv('SALTY_EVENTS')`.
+   Round results are read when `roundState()` first reaches 4 (win poses), when `winTeam` can no longer change: side n won if `player(n)` and `win()` (`src/char.go:6357-6362`); reason is `ko` if the winner's `winKO()`, else `time`; a draw is a double KO if both sides' `life() <= 0`, else a time-out. `match_end` is emitted in the same tick when `matchOver()` is true, with `getWinnerTeam()` and the mod's own win tally; the runner voids the fight if they disagree (this also voids the rare case where the engine awards both sides a win for a draw round).
 4. **Fallback** if this fails on the pinned build: parse `-log` output after exit (§4). It has per-round winners, KO/time flags and the match `winSide`.
 
 ## 3. Match outcome semantics

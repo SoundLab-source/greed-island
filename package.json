@@ -15,7 +15,10 @@
     "db:migrate:dev": "pnpm --filter @greed-island/db run db:migrate:dev",
     "ledger:audit": "pnpm --filter @greed-island/db run ledger:audit",
     "roster:scan": "pnpm --filter @greed-island/engine run roster:scan",
-    "roster:sync": "pnpm --filter @greed-island/engine run roster:sync"
+    "roster:sync": "pnpm --filter @greed-island/engine run roster:sync",
+    "ikemen:install-mod": "pnpm --filter @greed-island/engine run ikemen:install-mod",
+    "match:once": "pnpm --filter @greed-island/engine run match:once",
+    "roster:smoke": "pnpm --filter @greed-island/engine run roster:smoke"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
