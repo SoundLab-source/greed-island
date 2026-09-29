@@ -1,5 +1,6 @@
 import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
+import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 
 /**
@@ -23,6 +24,7 @@ export interface Config {
   economy: EconomyConfig;
   ratings: RatingsConfig;
   tiers: TierConfig;
+  odds: OddsConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -85,6 +87,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         S: numberFromEnv(env, "GI_TIER_S", DEFAULT_TIERS.thresholds.S),
       },
       hysteresis: numberFromEnv(env, "GI_TIER_HYSTERESIS", DEFAULT_TIERS.hysteresis),
+    }),
+    odds: validateOdds({
+      marginBp: saltFromEnv(env, "GI_MARGIN_BP", DEFAULT_ODDS.marginBp),
+      minChanceBp: saltFromEnv(env, "GI_MIN_CHANCE_BP", DEFAULT_ODDS.minChanceBp),
+      minMultiplierBp: saltFromEnv(env, "GI_MIN_MULTIPLIER_BP", DEFAULT_ODDS.minMultiplierBp),
+      crowdCapPerAccount: saltFromEnv(env, "GI_CROWD_CAP_PER_ACCOUNT", DEFAULT_ODDS.crowdCapPerAccount),
+      crowdBlendK: saltFromEnv(env, "GI_CROWD_BLEND_K", DEFAULT_ODDS.crowdBlendK),
+      crowdMaxWeightBp: saltFromEnv(env, "GI_CROWD_MAX_WEIGHT_BP", DEFAULT_ODDS.crowdMaxWeightBp),
+      ownerBetCap: saltFromEnv(env, "GI_OWNER_BET_CAP", DEFAULT_ODDS.ownerBetCap),
     }),
   };
 }

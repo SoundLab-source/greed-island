@@ -34,6 +34,8 @@ export interface PlaceBetInput {
   stake: Salt;
   /** Client-supplied; scoped per user, so two users can't collide. */
   idempotencyKey: string;
+  /** Set by the caller when the user owns a character in this fight (odds.ownerBetCap). */
+  ownerCap?: Salt | undefined;
 }
 
 export interface PlaceBetResult {
@@ -76,6 +78,7 @@ export async function placeBet(db: Db, input: PlaceBetInput, economy: EconomyCon
           stake,
           previous: existing ? { side: existing.side as Side, stake: toSalt(existing.stake) } : undefined,
           available,
+          ownerCap: input.ownerCap,
         },
         economy,
       );

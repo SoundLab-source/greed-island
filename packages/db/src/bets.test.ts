@@ -85,6 +85,13 @@ describe("placeBet", () => {
     expect(await getBalance(db, userId)).toBe(350n);
   });
 
+  it("applies the owner cap when the caller passes one", async () => {
+    const capped = (stake: bigint, key: string) =>
+      placeBet(db, { userId, fightId, side: 1, stake, idempotencyKey: key, ownerCap: 100n }, economy);
+    await expect(capped(101n, "o1")).rejects.toMatchObject({ code: "ABOVE_OWNER_CAP" });
+    expect((await capped(100n, "o2")).bet.stake).toBe(100n);
+  });
+
   it("is refused once the fight is closed", async () => {
     await voidFightLedger(db, fightId);
     await expect(bet(1, 10n, "late")).rejects.toMatchObject({ code: "NOT_ELIGIBLE" });

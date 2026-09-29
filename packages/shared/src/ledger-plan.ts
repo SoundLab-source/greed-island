@@ -46,6 +46,7 @@ export type LedgerRuleCode =
   | "INVALID_AMOUNT"
   | "BELOW_MIN_BET"
   | "ABOVE_MAX_STAKE"
+  | "ABOVE_OWNER_CAP"
   | "INSUFFICIENT_FUNDS"
   | "NOT_ELIGIBLE"
   | "UNBALANCED";
@@ -105,6 +106,8 @@ export interface PlaceBetInput {
   previous?: { side: Side; stake: Salt } | undefined;
   /** The user's available balance before this change. */
   available: Salt;
+  /** Set when the user owns a character in this fight: their stake is capped at this. */
+  ownerCap?: Salt | undefined;
 }
 
 /**
@@ -112,13 +115,16 @@ export interface PlaceBetInput {
  * and escrow the new one. Returns [] when nothing changes.
  */
 export function planPlaceBet(input: PlaceBetInput, economy: EconomyConfig): Posting[] {
-  const { userId, fightId, betId, side, stake, previous, available } = input;
+  const { userId, fightId, betId, side, stake, previous, available, ownerCap } = input;
   if (!isSide(side)) throw new LedgerRuleError("INVALID_SIDE", `side must be 1 or 2, got ${String(side)}`);
   if (stake < economy.minBet) {
     throw new LedgerRuleError("BELOW_MIN_BET", `minimum bet is ${economy.minBet}`);
   }
   if (stake > economy.maxPayout) {
     throw new LedgerRuleError("ABOVE_MAX_STAKE", `maximum bet is ${economy.maxPayout}`);
+  }
+  if (ownerCap !== undefined && stake > ownerCap) {
+    throw new LedgerRuleError("ABOVE_OWNER_CAP", `owners may bet at most ${ownerCap} on a fight with their own character`);
   }
   const refundable = previous?.stake ?? 0n;
   if (available + refundable < stake) {
