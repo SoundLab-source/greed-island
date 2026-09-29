@@ -3,7 +3,7 @@
 Always-on AI-vs-AI fighting-game stream (IKEMEN GO engine) with free play-money betting (Salt), owned characters, and a community-voted roster. The full game design is in @docs/DESIGN.md. Read it before making any design decision; if code and the design disagree, ask rather than guess.
 
 ## Current phase
-Phase 1: Stream MVP (see DESIGN.md §13). Build only phase 1 features, but keep the data model ready for phase 2 (owned characters, shop, upgrades, titles). Nothing on-chain yet.
+Phase 2: Ownership (see DESIGN.md §13). Phase 1 (Stream MVP) is complete. Build order and default values for DESIGN.md §15 open questions are in `docs/PHASE2.md`. Nothing on-chain, no trading, no payments.
 
 ## Stack
 - TypeScript on Node (current LTS), pnpm workspaces, Postgres via Prisma, Fastify, Vitest.
@@ -16,7 +16,7 @@ Phase 1: Stream MVP (see DESIGN.md §13). Build only phase 1 features, but keep 
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
 - `apps/web`: minimal dev page to watch and bet (no styling work)
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
-- `docs/`: DESIGN, ARCHITECTURE, SETUP, ikemen-notes
+- `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, ikemen-notes
 
 ## Commands
 <!-- Claude: keep this list accurate as scripts are added. -->
