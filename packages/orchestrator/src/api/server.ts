@@ -1,16 +1,22 @@
 /**
  * HTTP API and SSE stream (build step 6). Amounts in and out are integer
  * strings (Salt is bigint); a JSON number is accepted for stakes only if it's
- * a safe integer. Auth: anonymous session token as `Authorization: Bearer`.
- * Email sign-in needs a mail provider and is not part of phase 1.
+ * a safe integer. Auth: a session token as `Authorization: Bearer`, from an
+ * anonymous session or an emailed one-time sign-in link.
  */
 import fastifyStatic from "@fastify/static";
 import {
+  AuthError,
   claimBailout,
   claimDailyGrant,
   createUser,
-  findUserBySessionToken,
+  DEFAULT_AUTH,
+  findSessionUser,
   IdempotencyKeyReusedError,
+  issueLoginLink,
+  redeemLoginLink,
+  revokeSession,
+  type AuthConfig,
   NotFoundError,
   REPO_ROOT,
   type Db,
@@ -21,6 +27,7 @@ import path from "node:path";
 import { z } from "zod";
 import { placeFightBet } from "../betting.ts";
 import type { BusEvent, FightBus } from "../bus.ts";
+import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { betHistory, characterProfile, characterRanking, currentFightId, fightView, leaderboard, meView, recentResults } from "./views.ts";
 
 export interface ApiDeps {
@@ -31,6 +38,11 @@ export interface ApiDeps {
   webRoot?: string;
   /** SSE keep-alive interval. */
   heartbeatMs?: number;
+  /** Sends sign-in links. Defaults to printing them to the console. */
+  mailer?: Mailer;
+  /** Base URL used in emailed links, e.g. https://greed-island.example (default http://127.0.0.1:3000). */
+  publicUrl?: string;
+  auth?: AuthConfig;
   logger?: boolean;
 }
 
@@ -46,6 +58,8 @@ const BetBody = z.object({
   idempotencyKey: z.string().min(8).max(100),
 });
 const SessionBody = z.object({ displayName: z.string().trim().min(1).max(24).optional() }).optional();
+const EmailBody = z.object({ email: z.string().max(254) });
+const VerifyBody = z.object({ token: z.string().min(20).max(200) });
 
 class HttpError extends Error {
   constructor(
@@ -59,10 +73,17 @@ class HttpError extends Error {
 
 export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   const { db, config, bus } = deps;
+  const mailer = deps.mailer ?? new ConsoleMailer();
+  const publicUrl = (deps.publicUrl ?? "http://127.0.0.1:3000").replace(/\/$/, "");
+  const authCfg = deps.auth ?? DEFAULT_AUTH;
   const app = Fastify({ logger: deps.logger ?? false });
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code, message: err.message });
+    if (err instanceof AuthError) {
+      const status = err.code === "RATE_LIMITED" ? 429 : 400;
+      return reply.status(status).send({ error: err.code, message: err.message });
+    }
     if (err instanceof LedgerRuleError) {
       const status = err.code === "INSUFFICIENT_FUNDS" || err.code === "NOT_ELIGIBLE" ? 409 : 400;
       return reply.status(status).send({ error: err.code, message: err.message });
@@ -79,11 +100,13 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     return reply.status(500).send({ error: "INTERNAL", message: "something went wrong" });
   });
 
-  const viewer = async (req: FastifyRequest): Promise<string | undefined> => {
+  const bearer = (req: FastifyRequest): string | undefined => {
     const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer ")) return undefined;
-    const user = await findUserBySessionToken(db, header.slice(7).trim());
-    return user?.id;
+    return header?.startsWith("Bearer ") ? header.slice(7).trim() : undefined;
+  };
+  const viewer = async (req: FastifyRequest): Promise<string | undefined> => {
+    const token = bearer(req);
+    return token ? (await findSessionUser(db, token))?.id : undefined;
   };
   const requireViewer = async (req: FastifyRequest): Promise<string> => {
     const id = await viewer(req);
@@ -98,6 +121,25 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const created = await createUser(db, { kind: "ANONYMOUS" }, config.economy);
     if (body?.displayName) await db.user.update({ where: { id: created.user.id }, data: { displayName: body.displayName } });
     return send(reply.status(201), { token: created.sessionToken, me: await meView(db, config, created.user.id) });
+  });
+
+  // Email sign-in: send a one-time link; an anonymous player keeps their Salt.
+  app.post("/api/auth/email", async (req, reply) => {
+    const { email } = EmailBody.parse(req.body);
+    const link = await issueLoginLink(db, { email, currentUserId: await viewer(req) }, authCfg);
+    await mailer.send(signInMail(link.email, `${publicUrl}/?login=${encodeURIComponent(link.token)}`, Math.round(authCfg.loginLinkTtlMs / 60_000)));
+    // Same answer whether or not the email has an account.
+    return send(reply.status(202), { sent: true, email: link.email });
+  });
+  app.post("/api/auth/verify", async (req, reply) => {
+    const { token } = VerifyBody.parse(req.body);
+    const signed = await redeemLoginLink(db, token, config.economy, authCfg);
+    return send(reply, { token: signed.sessionToken, created: signed.created, me: await meView(db, config, signed.user.id) });
+  });
+  app.post("/api/auth/logout", async (req, reply) => {
+    const token = bearer(req);
+    if (token) await revokeSession(db, token);
+    return reply.status(204).send();
   });
 
   app.get("/api/me", async (req, reply) => send(reply, await meView(db, config, await requireViewer(req))));

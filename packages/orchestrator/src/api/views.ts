@@ -197,6 +197,7 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
     id: user.id,
     name: playerName(user),
     kind: user.kind,
+    email: user.email,
     balance: balance.toString(),
     inOpenBets: stakes.toString(),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,

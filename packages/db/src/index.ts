@@ -14,7 +14,23 @@ export {
   type IdempotentOp,
   withRetry,
 } from "./ledger.ts";
-export { createUser, findUserBySessionToken, claimDailyGrant, claimBailout, type NewUser, type CreatedUser, type GrantResult } from "./users.ts";
+export { createUser, createUserTx, claimDailyGrant, claimBailout, type NewUser, type CreatedUser, type GrantResult } from "./users.ts";
+export {
+  AuthError,
+  createSession,
+  DEFAULT_AUTH,
+  findSessionUser,
+  hashToken,
+  issueLoginLink,
+  loadAuthConfig,
+  normalizeEmail,
+  redeemLoginLink,
+  revokeSession,
+  type AuthConfig,
+  type IssuedLink,
+  type LoginRequest,
+  type SignedIn,
+} from "./auth.ts";
 export { placeBet, listBets, toBetView, type BetView, type PlaceBetInput, type PlaceBetResult } from "./bets.ts";
 export { settleFightLedger, settleFightLedgerTx, voidFightLedger, voidFightLedgerTx, type SettleFightInput } from "./settlement.ts";
 export { auditLedger, type AuditReport, type AuditProblem } from "./audit.ts";

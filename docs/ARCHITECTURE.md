@@ -122,11 +122,12 @@ Engine events (NDJSON, zod-validated): `match_start`, `round_start {round}`, `ro
 
 ## 6. API and live updates
 
-Fastify, same process as the orchestrator (they share the event bus). Salt amounts are integer strings in and out; a JSON number is accepted for a stake only if it's a safe integer. Auth is an anonymous session: `POST /api/session` creates a player (starting balance) and returns a token for `Authorization: Bearer`; only its SHA-256 is stored. Email sign-in needs a mail provider and isn't in phase 1.
+Fastify, same process as the orchestrator (they share the event bus). Salt amounts are integer strings in and out; a JSON number is accepted for a stake only if it's a safe integer. Auth: a session token in `Authorization: Bearer`, from `POST /api/session` (anonymous player with the starting balance) or an emailed one-time sign-in link. Sessions live in their own table (several devices, 30-day expiry, sign-out); tokens and links are stored only as SHA-256 hashes. A sign-in link requested by an anonymous player attaches the email to that player, keeping their Salt and bets; if the email already has an account, the link signs in to it instead. Links expire after 15 minutes, work once, and are limited to 5 per email per hour. Mail goes through SMTP when `GI_SMTP_URL` is set, otherwise it's printed to the server console.
 
 | Route | Purpose |
 |---|---|
 | `POST /api/session` | New anonymous player + token |
+| `POST /api/auth/email`, `POST /api/auth/verify`, `POST /api/auth/logout` | Send a sign-in link (`{email}`), redeem it (`{token}` → session token), sign out this device |
 | `GET /api/me`, `GET /api/me/bets` | Balance, open stakes, grant/bailout availability; bet history |
 | `POST /api/me/daily-grant`, `POST /api/me/bailout` | Faucets |
 | `GET /api/fights/current`, `GET /api/fights/:id` | Fighters (frozen loadout once betting opens), tier, rating, record, win rate, last-10 form, head-to-head, odds (live model estimate before lock; locked odds, pools and crowd chance after), rounds, result, the viewer's bet |

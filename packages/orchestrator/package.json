@@ -16,10 +16,12 @@
     "@greed-island/engine": "workspace:*",
     "@greed-island/shared": "workspace:*",
     "fastify": "5.12.5",
+    "nodemailer": "10.0.12",
     "pg": "8.23.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@types/nodemailer": "8.0.2",
     "@types/pg": "8.23.1"
   }
 }

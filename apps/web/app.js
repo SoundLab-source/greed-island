@@ -26,8 +26,7 @@ async function ensureSession() {
     try { return await api("GET", "/api/me"); } catch { /* expired or DB reset: make a new one */ }
   }
   const s = await api("POST", "/api/session", {});
-  memoryToken = s.token;
-  try { localStorage.setItem(TOKEN_KEY, s.token); } catch { /* keep the in-memory copy */ }
+  setToken(s.token);
   return s.me;
 }
 
@@ -81,11 +80,35 @@ function renderFight(f) {
 
 async function refreshFight() { renderFight(await api("GET", "/api/fights/current")); }
 
+function setToken(t) {
+  memoryToken = t;
+  try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* in-memory only */ }
+}
+
+// Arriving from an emailed sign-in link: /?login=<token>
+async function redeemLoginFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const login = params.get("login");
+  if (!login) return;
+  history.replaceState(null, "", location.pathname);
+  try {
+    const r = await api("POST", "/api/auth/verify", { token: login });
+    setToken(r.token);
+    text($("account-msg"), r.created ? "Account created. Welcome!" : "Signed in.");
+  } catch (e) {
+    text($("account-msg"), `Sign-in link didn't work: ${e.message}`);
+  }
+}
+
 async function refreshMe() {
   const me = await api("GET", "/api/me");
+  const signedIn = me.kind === "EMAIL";
+  text($("account-status"), signedIn ? `Signed in as ${me.email}` : "Playing anonymously: add your email to keep your Salt on any device.");
+  $("signin-form").style.display = signedIn ? "none" : "";
+  $("logout").style.display = signedIn ? "" : "none";
   text($("balance"), me.balance);
   text($("in-bets"), me.inOpenBets !== "0" ? `(+${me.inOpenBets} in open bets)` : "");
-  text($("player-name"), `Signed in as ${me.name}`);
+  text($("player-name"), `Leaderboard name: ${me.name}`);
   $("grant").disabled = !me.dailyGrantAvailable;
   $("bailout").disabled = !me.bailoutAvailable;
 }
@@ -134,10 +157,26 @@ function connectStream() {
 
 $("bet1").onclick = () => bet(1);
 $("bet2").onclick = () => bet(2);
+$("send-link").onclick = async () => {
+  try {
+    const r = await api("POST", "/api/auth/email", { email: $("email").value });
+    text($("account-msg"), `Sign-in link sent to ${r.email}. It works once, for 15 minutes.`);
+  } catch (e) {
+    text($("account-msg"), e.message);
+  }
+};
+$("logout").onclick = async () => {
+  await api("POST", "/api/auth/logout").catch(() => {});
+  setToken(null);
+  await ensureSession();
+  await refreshMe();
+  text($("account-msg"), "Signed out.");
+};
 $("grant").onclick = () => api("POST", "/api/me/daily-grant").then(refreshMe).catch((e) => text($("bet-error"), e.message));
 $("bailout").onclick = () => api("POST", "/api/me/bailout").then(refreshMe).catch((e) => text($("bet-error"), e.message));
 
 (async () => {
+  await redeemLoginFromUrl();
   await ensureSession();
   await Promise.all([refreshFight(), refreshMe(), refreshTables()]);
   connectStream();

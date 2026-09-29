@@ -11,6 +11,7 @@ import { DEFAULT_ORCHESTRATOR } from "../config.ts";
 import { applyTransition, bookFight, type FightDeps } from "../fights.ts";
 import type { Rng } from "../matchmaking.ts";
 import { Orchestrator } from "../orchestrator.ts";
+import { ConsoleMailer } from "../mail.ts";
 import { buildServer } from "./server.ts";
 
 const db = useTestDb();
@@ -24,6 +25,7 @@ const rng = (seed = "api"): Rng => {
 let app: FastifyInstance;
 let bus: FightBus;
 let deps: FightDeps;
+let mailer: ConsoleMailer;
 
 beforeEach(async () => {
   bus = new FightBus();
@@ -33,7 +35,8 @@ beforeEach(async () => {
     await db.$transaction((tx) => createCharacter(tx, { rosterKey: id, fighterId: id, name: `Char ${id}` }, ratingSettings));
   }
   await db.stage.create({ data: { id: "s1", displayName: "Stage One", defPath: "stages/s1.def", licenseNote: "test" } });
-  app = await buildServer({ db, config, bus, heartbeatMs: 50 });
+  mailer = new ConsoleMailer(() => {});
+  app = await buildServer({ db, config, bus, heartbeatMs: 50, mailer, publicUrl: "https://gi.test/" });
 });
 afterEach(() => app.close());
 
@@ -78,6 +81,50 @@ describe("sessions and the player", () => {
     const res = await app.inject({ method: "POST", url: "/api/me/bailout", headers: s.auth });
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toBe("NOT_ELIGIBLE");
+  });
+});
+
+describe("email sign-in", () => {
+  const linkToken = () => {
+    const m = /\?login=([^\s]+)/.exec(mailer.sent.at(-1)!.text);
+    return decodeURIComponent(m![1]!);
+  };
+
+  it("emails a one-time link that signs in and creates the account", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/auth/email", payload: { email: "Pat@Example.com" } });
+    expect(res.statusCode).toBe(202);
+    expect(res.json()).toEqual({ sent: true, email: "pat@example.com" });
+    expect(mailer.sent.at(-1)).toMatchObject({ to: "pat@example.com" });
+    expect(mailer.sent.at(-1)!.text).toContain("https://gi.test/?login=");
+    const verify = await app.inject({ method: "POST", url: "/api/auth/verify", payload: { token: linkToken() } });
+    expect(verify.statusCode).toBe(200);
+    const body = verify.json();
+    expect(body).toMatchObject({ created: true, me: { kind: "EMAIL", email: "pat@example.com", balance: "400" } });
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { authorization: `Bearer ${body.token}` } });
+    expect(me.json().email).toBe("pat@example.com");
+    // The link only works once.
+    expect((await app.inject({ method: "POST", url: "/api/auth/verify", payload: { token: linkToken() } })).statusCode).toBe(400);
+  });
+
+  it("lets an anonymous player keep their Salt by adding an email", async () => {
+    const s = await session();
+    await app.inject({ method: "POST", url: "/api/me/daily-grant", headers: s.auth });
+    await app.inject({ method: "POST", url: "/api/auth/email", headers: s.auth, payload: { email: "keep@example.com" } });
+    const verify = (await app.inject({ method: "POST", url: "/api/auth/verify", payload: { token: linkToken() } })).json();
+    expect(verify.me).toMatchObject({ id: s.me.id, kind: "EMAIL", email: "keep@example.com", balance: "500" });
+  });
+
+  it("signs out a device", async () => {
+    const s = await session();
+    expect((await app.inject({ method: "POST", url: "/api/auth/logout", headers: s.auth })).statusCode).toBe(204);
+    expect((await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).statusCode).toBe(401);
+  });
+
+  it("rejects bad emails and rate-limits link requests", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/auth/email", payload: { email: "nope" } })).json().error).toBe("INVALID_EMAIL");
+    let last = 0;
+    for (let i = 0; i < 6; i++) last = (await app.inject({ method: "POST", url: "/api/auth/email", payload: { email: "flood@example.com" } })).statusCode;
+    expect(last).toBe(429);
   });
 });
 

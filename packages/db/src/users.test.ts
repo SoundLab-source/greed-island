@@ -5,7 +5,8 @@ import { placeBet } from "./bets.ts";
 import { getBalance } from "./ledger.ts";
 import { settleFightLedger } from "./settlement.ts";
 import { createTestFight, economy, useTestDb } from "./test/db.ts";
-import { claimBailout, claimDailyGrant, createUser, findUserBySessionToken } from "./users.ts";
+import { findSessionUser } from "./auth.ts";
+import { claimBailout, claimDailyGrant, createUser } from "./users.ts";
 
 const db = useTestDb();
 
@@ -14,9 +15,9 @@ describe("createUser", () => {
     const created = await createUser(db, { kind: "ANONYMOUS" }, economy);
     expect(created.balance).toBe(400n);
     expect(created.sessionToken).toBeTypeOf("string");
-    const found = await findUserBySessionToken(db, created.sessionToken!);
+    const found = await findSessionUser(db, created.sessionToken!);
     expect(found?.id).toBe(created.user.id);
-    expect(found?.sessionTokenHash).not.toBe(created.sessionToken);
+    expect(await db.session.count({ where: { tokenHash: created.sessionToken! } })).toBe(0); // only the hash is stored
   });
 
   it("normalizes email and rejects duplicates", async () => {

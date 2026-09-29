@@ -1,10 +1,11 @@
 // `pnpm dev`: the orchestrator plus the API, SSE stream and dev page, in one
 // process. ENGINE_MODE=fake (default, no IKEMEN) or live (needs IKEMEN_DIR).
-import { createDb, loadRepoEnv } from "@greed-island/db";
+import { createDb, loadAuthConfig, loadRepoEnv } from "@greed-island/db";
 import { createFakeSource, createIkemenSource, loadEngineConfig, type EventSource } from "@greed-island/engine";
 import { loadConfig } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
 import { buildServer } from "../api/server.ts";
+import { loadMailer } from "../mail.ts";
 import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
 import { acquireOrchestratorLock } from "../lock.ts";
@@ -39,9 +40,10 @@ const bus = new FightBus();
 const deps = { db, config, orch, bus, now: () => new Date() };
 for (const a of await reconcile(deps)) console.log(`reconciled fight #${a.number}: ${a.from} → ${a.to}`);
 
-const app = await buildServer({ db, config, bus });
 const host = process.env["GI_HOST"] ?? "127.0.0.1";
 const port = Number(process.env["GI_PORT"] ?? 3000);
+const publicUrl = process.env["GI_PUBLIC_URL"] ?? `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig() });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 

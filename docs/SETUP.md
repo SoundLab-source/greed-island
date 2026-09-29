@@ -52,6 +52,8 @@ ENGINE_MODE=live pnpm dev     # the full cycle with real fights
 
 **macOS: allowing IKEMEN to run.** The macOS release isn't signed, so macOS blocks it at first. Try to open `I.K.E.M.E.N-Go.app` once, click Done, then System Settings → Privacy & Security → **Open Anyway**. After that the runner can launch it. (Opening the app from Finder right after that may show "open save/stats.json: read-only file system": macOS runs newly downloaded apps from a temporary read-only copy. It's harmless; the runner launches the engine from your folder.)
 
+**Signing in with email.** In development there's no mail server, so when you ask for a sign-in link on the page, the link is printed in the `pnpm dev` terminal: copy it into the browser. For real email, set `GI_SMTP_URL` (your mail provider's SMTP address, e.g. `smtps://user:password@smtp.example.com:465`), `GI_MAIL_FROM` and `GI_PUBLIC_URL` (the site's public address) in `.env`.
+
 **Where things go.** Each real fight writes its logs, the engine's result file and the event stream to `runs/<fightId>/` (gitignored). Your `.env` never leaves your machine.
 
 ## 3. Linux server (24/7 stream)
