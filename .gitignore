@@ -1,0 +1,33 @@
+# Dependencies and build output
+node_modules/
+dist/
+vendor/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime output
+runs/
+*.log
+
+# OS
+.DS_Store
+
+# IKEMEN GO content: engine, characters, stages, assets (never commit)
+ikemen-install/
+Ikemen_GO-*/
+chars/
+stages/
+*.sff
+*.snd
+Ikemen_GO
+Ikemen_GO.exe
+Ikemen_GO_Linux
+Ikemen_GO_MacOS
+Ikemen_GO_MacOSARM
+*.app/
+
+# Local tool downloads
+libresprite-*.zip
