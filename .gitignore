@@ -31,3 +31,6 @@ Ikemen_GO_MacOSARM
 
 # Local tool downloads
 libresprite-*.zip
+
+# Prisma generated client
+packages/db/src/generated/

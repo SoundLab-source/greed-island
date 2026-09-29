@@ -20,14 +20,18 @@ Phase 1: Stream MVP (see DESIGN.md §13). Build only phase 1 features, but keep 
 
 ## Commands
 <!-- Claude: keep this list accurate as scripts are added. -->
-Planned (Phase 0). None exist yet.
-- `docker compose up -d`: start Postgres
-- `pnpm install`, then `pnpm db:migrate`: install deps and apply Prisma migrations
-- `pnpm test`: all Vitest suites, including ledger/odds property tests (no engine, no network)
+Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is in `~/.docker/bin` (both on PATH via `~/.zshrc`). Copy `.env.example` to `.env` first.
+- `docker compose up -d`: start Postgres (port 54329; dev DB `greed_island`, test DB `greed_island_test`)
+- `pnpm install`, then `pnpm db:migrate`: install deps (also generates the Prisma client) and apply migrations
+- `pnpm db:migrate:dev`: create a new migration after editing `packages/db/prisma/schema.prisma`
+- `pnpm test`: all Vitest suites; needs Postgres running (tests migrate and wipe the test DB, never the dev DB)
+- `pnpm typecheck`: TypeScript check across all packages
+- `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts, escrow = open stakes
+
+Planned (not built yet):
 - `pnpm demo`: fake engine, 3 users betting over ≥10 fights with at least one void, then `ledger:audit`
 - `pnpm dev`: orchestrator + API/SSE + dev page (`ENGINE_MODE=fake|live`)
 - `pnpm match:once`: one real `live` fight; needs `IKEMEN_DIR`
-- `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts
 - `pnpm roster:scan`: draft `roster.json` entries from `$IKEMEN_DIR/chars` and `stages`
 - `pnpm roster:smoke`: run each roster entry once in `sim`; disable crashes/hangs
 - `pnpm ikemen:install-mod`: copy `ikemen/mods/salty_events.lua` into `$IKEMEN_DIR/external/mods/`

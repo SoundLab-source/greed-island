@@ -1,0 +1,24 @@
+import { describe, expect, it } from "vitest";
+import { ConfigError, DEFAULT_ECONOMY, loadConfig } from "./config.ts";
+
+describe("loadConfig", () => {
+  it("uses defaults when env is empty", () => {
+    expect(loadConfig({}).economy).toEqual(DEFAULT_ECONOMY);
+    expect(DEFAULT_ECONOMY.startingBalance).toBe(400n);
+  });
+
+  it("reads integer overrides", () => {
+    const cfg = loadConfig({ GI_STARTING_BALANCE: "1000", GI_MAX_PAYOUT: "25" });
+    expect(cfg.economy.startingBalance).toBe(1000n);
+    expect(cfg.economy.maxPayout).toBe(25n);
+  });
+
+  it("rejects fractional amounts", () => {
+    expect(() => loadConfig({ GI_DAILY_GRANT: "10.5" })).toThrow(ConfigError);
+  });
+
+  it("rejects inconsistent limits", () => {
+    expect(() => loadConfig({ GI_MIN_BET: "10", GI_MAX_PAYOUT: "5" })).toThrow(ConfigError);
+    expect(() => loadConfig({ GI_MIN_BET: "0" })).toThrow(ConfigError);
+  });
+});

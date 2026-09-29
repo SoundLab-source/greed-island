@@ -1,0 +1,138 @@
+// Greed Island database schema.
+// Money columns are numeric(20,0) and handled as bigint in TypeScript.
+// Extra guarantees (zero-sum transactions, immutable entries, trigger-maintained
+// balances, non-negative user/escrow accounts) live in the SQL migrations.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  importFileExtension    = "ts"
+  generatedFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Asset {
+  SALT
+}
+
+enum UserKind {
+  ANONYMOUS
+  EMAIL
+}
+
+enum AccountKind {
+  USER
+  ESCROW
+  HOUSE
+  ISSUANCE
+}
+
+enum TxnKind {
+  GRANT_START
+  GRANT_DAILY
+  BAILOUT
+  BET
+  SETTLE
+  VOID
+}
+
+enum BetStatus {
+  OPEN
+  WON
+  LOST
+  REFUNDED
+}
+
+model User {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind             UserKind
+  /// Lower-cased. Unique when present.
+  email            String?   @unique
+  /// SHA-256 of the anonymous session token; the token itself is never stored.
+  sessionTokenHash String?   @unique @map("session_token_hash")
+  /// Reserved for a later phase. Nothing in phase 1 reads or writes it.
+  walletAddress    String?   @unique @map("wallet_address")
+  displayName      String?   @map("display_name")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  accounts         Account[]
+  bets             Bet[]
+
+  @@map("user")
+}
+
+model Account {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// e.g. "user:<id>:SALT", "escrow:<fightId>:1:SALT", "house:SALT", "issuance:SALT"
+  key       String        @unique
+  kind      AccountKind
+  asset     Asset         @default(SALT)
+  userId    String?       @map("user_id") @db.Uuid
+  user      User?         @relation(fields: [userId], references: [id])
+  /// Escrow accounts only. Foreign key to fight arrives with the fight table.
+  fightId   String?       @map("fight_id") @db.Uuid
+  side      Int?          @db.SmallInt
+  /// Maintained by a trigger on ledger_entry; never written by the app.
+  balance   Decimal       @default(0) @db.Decimal(20, 0)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  entries   LedgerEntry[]
+
+  @@index([userId])
+  @@index([fightId])
+  @@map("account")
+}
+
+model LedgerTxn {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idempotencyKey String        @unique @map("idempotency_key")
+  /// SHA-256 of the request that created this txn, to catch key reuse.
+  requestHash    String        @map("request_hash")
+  kind           TxnKind
+  userId         String?       @map("user_id") @db.Uuid
+  fightId        String?       @map("fight_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  entries        LedgerEntry[]
+
+  @@index([userId])
+  @@index([fightId])
+  @@map("ledger_txn")
+}
+
+model LedgerEntry {
+  id        BigInt    @id @default(autoincrement())
+  txnId     String    @map("txn_id") @db.Uuid
+  txn       LedgerTxn @relation(fields: [txnId], references: [id])
+  accountId String    @map("account_id") @db.Uuid
+  account   Account   @relation(fields: [accountId], references: [id])
+  /// Signed and non-zero: positive credits the account.
+  amount    Decimal   @db.Decimal(20, 0)
+  betId     String?   @map("bet_id") @db.Uuid
+
+  @@index([txnId])
+  @@index([accountId])
+  @@index([betId])
+  @@map("ledger_entry")
+}
+
+/// One row per user per fight: only the latest bet counts.
+model Bet {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id])
+  /// Foreign key to fight arrives with the fight table.
+  fightId   String    @map("fight_id") @db.Uuid
+  side      Int       @db.SmallInt
+  stake     Decimal   @db.Decimal(20, 0)
+  status    BetStatus @default(OPEN)
+  /// Salt returned at settlement: payout if WON, stake if REFUNDED, 0 if LOST.
+  returned  Decimal?  @db.Decimal(20, 0)
+  placedAt  DateTime  @default(now()) @map("placed_at") @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([userId, fightId])
+  @@index([fightId, status])
+  @@map("bet")
+}
