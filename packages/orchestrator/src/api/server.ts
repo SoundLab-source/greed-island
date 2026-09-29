@@ -40,11 +40,24 @@ import path from "node:path";
 import { z } from "zod";
 import { placeFightBet } from "../betting.ts";
 import type { BusEvent, FightBus } from "../bus.ts";
+import { answerChallenge, expireChallenges, sendChallenge, type ChallengeAnswer } from "../challenges.ts";
 import { setCosmetics } from "../cosmetics.ts";
 import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { buyCharacter, currentShop } from "../shop.ts";
 import { setSidegrade, upgradeStat } from "../upgrades.ts";
-import { betHistory, characterProfile, characterRanking, currentFightId, fightView, leaderboard, meView, myCharacters, recentResults } from "./views.ts";
+import {
+  betHistory,
+  challengeOptions,
+  characterProfile,
+  characterRanking,
+  currentFightId,
+  fightView,
+  leaderboard,
+  meView,
+  myChallenges,
+  myCharacters,
+  recentResults,
+} from "./views.ts";
 
 export interface ApiDeps {
   db: Db;
@@ -79,6 +92,7 @@ const VerifyBody = z.object({ token: z.string().min(20).max(200) });
 const BuyBody = z.object({ fighterId: z.string().min(1).max(64), idempotencyKey: z.string().min(8).max(100) });
 const UpgradeBody = z.object({ stat: z.enum(UPGRADE_STATS), idempotencyKey: z.string().min(8).max(100) });
 const SidegradeBody = z.object({ sidegrade: z.enum(SIDEGRADES).nullable(), idempotencyKey: z.string().min(8).max(100) });
+const ChallengeBody = z.object({ challengerCharacterId: z.string().uuid(), challengedCharacterId: z.string().uuid() });
 /** Replaces the whole pick; leave a field out for automatic. */
 const CosmeticsBody = z
   .object({
@@ -234,6 +248,28 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const equipped = await setCosmetics(db, { userId, characterId, choice: body });
     return send(reply, { equipped: describeCosmetics(equipped), character: await characterProfile(db, characterId) });
   });
+
+  // Exhibitions: owner-vs-owner challenges.
+  app.get("/api/me/challenges", async (req, reply) => {
+    const userId = await requireViewer(req);
+    await expireChallenges(db, new Date());
+    return send(reply, await myChallenges(db, userId));
+  });
+  app.get("/api/challenges/options", async (req, reply) => send(reply, await challengeOptions(db, await requireViewer(req))));
+  app.post("/api/challenges", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const body = ChallengeBody.parse(req.body);
+    const r = await sendChallenge(db, config, { userId, ...body });
+    return send(reply.status(r.replayed ? 200 : 201), { challengeId: r.challenge.id, replayed: r.replayed, challenges: await myChallenges(db, userId) });
+  });
+  for (const [path, action] of [["accept", "ACCEPT"], ["decline", "DECLINE"], ["cancel", "CANCEL"]] as const satisfies readonly (readonly [string, ChallengeAnswer])[]) {
+    app.post<{ Params: { id: string } }>(`/api/challenges/:id/${path}`, async (req, reply) => {
+      const userId = await requireViewer(req);
+      const challengeId = uuid.parse(req.params.id);
+      const c = await answerChallenge(db, { userId, challengeId, action });
+      return send(reply, { status: c.status, challenges: await myChallenges(db, userId) });
+    });
+  }
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db)));

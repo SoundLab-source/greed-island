@@ -1,8 +1,8 @@
 import { seededRandom } from "@greed-island/engine";
 import type { Tier } from "@greed-island/shared";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CYCLE, nextPosition, type CyclePosition } from "./cycle.ts";
-import { DEFAULT_MATCHMAKING, pickMatch, pickStage, type Candidate, type Rng } from "./matchmaking.ts";
+import { bookingModeFor, DEFAULT_CYCLE, nextPosition, type CyclePosition } from "./cycle.ts";
+import { DEFAULT_MATCHMAKING, pairingFor, pickMatch, pickShowcase, pickStage, type Candidate, type Rng } from "./matchmaking.ts";
 
 function rng(seed = "mm"): Rng {
   const r = seededRandom(seed);
@@ -121,7 +121,58 @@ describe("pickMatch", () => {
   });
 });
 
+describe("pickShowcase", () => {
+  const roster = [
+    c("x1", 1900, "X"),
+    c("s1", 1800, "S"),
+    c("s2", 1780, "S"),
+    c("a1", 1650, "A"),
+    c("p1", 1300, "P"),
+    { ...c("own", 2000, "S"), owned: true },
+  ];
+
+  it("pairs house characters from the strongest few, across tiers, X first", () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      const p = pickShowcase(roster, [], rng(`sc${i}`), 3)!;
+      expect(p.kind).toBe("SHOWCASE");
+      for (const s of [p.sides[1], p.sides[2]]) seen.add(s.characterId);
+    }
+    // Pool of 3: X first, then the two best S. Never the owned character or the weaker ones.
+    expect([...seen].sort()).toEqual(["s1", "s2", "x1"]);
+  });
+
+  it("follows the no-mirror and no-immediate-rematch rules", () => {
+    const pool = [c("a", 1800, "S", "kfm"), c("b", 1790, "S", "kfm"), c("d", 1700, "A", "crane")];
+    for (let i = 0; i < 50; i++) {
+      const p = pickShowcase(pool, [["a", "d"]], rng(`m${i}`), 3)!;
+      const ids = [p.sides[1].characterId, p.sides[2].characterId].sort();
+      expect(ids).toEqual(["b", "d"]);
+    }
+    expect(pickShowcase([c("a", 1800, "S")], [], rng(), 3)).toBeNull();
+    expect(pickShowcase(roster, [], rng(), 1)).toBeNull();
+  });
+
+  it("gives a fixed pairing its chance and random corners", () => {
+    const corners = new Set<string>();
+    for (let i = 0; i < 40; i++) {
+      const p = pairingFor(c("a", 1700), c("b", 1500), "CHALLENGE", rng(`p${i}`));
+      expect(p.kind).toBe("CHALLENGE");
+      const aSide = p.sides[1].characterId === "a" ? 1 : 2;
+      expect(aSide === 1 ? p.chanceSide1Bp : 10_000n - p.chanceSide1Bp).toBeGreaterThan(5_000n);
+      corners.add(p.sides[1].characterId);
+    }
+    expect(corners.size).toBe(2);
+  });
+});
+
 describe("cycle", () => {
+  it("books exhibitions in the exhibition segment; the tournament is still a stub", () => {
+    expect(bookingModeFor("EXHIBITION")).toBe("EXHIBITION");
+    expect(bookingModeFor("MATCHMAKING")).toBe("MATCHMAKING");
+    expect(bookingModeFor("TOURNAMENT")).toBe("MATCHMAKING");
+  });
+
   it("runs 100 matchmaking, a 16-character tournament (15 fights), then 25 exhibitions, and repeats", () => {
     let pos: CyclePosition | null = null;
     const counts: Record<string, number> = {};

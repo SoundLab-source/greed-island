@@ -61,12 +61,13 @@ function renderFight(f) {
   text($("fight-title"), `Fight #${f.number}: ${f.sides[1].name} vs ${f.sides[2].name}`);
   text($("fight-state"), ` [${f.state}]`);
   const h = f.headToHead;
-  text($("fight-meta"), `Stage: ${f.stage.displayName}. Head-to-head: ${h.fights} fights, ${h.wins[1]}-${h.wins[2]}.` +
+  const kind = f.challenge ? `Exhibition challenge: ${f.challenge.challenger} vs ${f.challenge.challenged}. ` : f.pairKind === "SHOWCASE" ? "House showcase. " : "";
+  text($("fight-meta"), `${kind}Stage: ${f.stage.displayName}. Head-to-head: ${h.fights} fights, ${h.wins[1]}-${h.wins[2]}.` +
     (f.odds && f.odds.locked ? ` Pools: ${f.odds.pool[1]} / ${f.odds.pool[2]} Salt from ${f.odds.bettors} bettors.` : ""));
   $("side1").innerHTML = sideCard(1, f.sides[1], f.odds);
   $("side2").innerHTML = sideCard(2, f.sides[2], f.odds);
   const r = f.result;
-  $("result").textContent = r ? (r.kind === "settled" ? `Winner: ${f.sides[r.winnerSide].name}` : `Void (${r.reason}) — all bets refunded`) :
+  $("result").textContent = r ? (r.kind === "settled" ? `Winner: ${f.sides[r.winnerSide].name}${r.ownerReward ? ` (owner ${f.sides[r.winnerSide].owner.name} earns ${r.ownerReward} Salt)` : ""}` : `Void (${r.reason}) — all bets refunded`) :
     f.rounds.length ? `Rounds: ${f.rounds.map((x) => (x.winnerSide ? `R${x.round}: ${x.winnerSide === 1 ? "Red" : "Blue"} (${x.reason})` : `R${x.round}: draw`)).join(", ")}` : "";
   const b = f.myBet;
   text($("my-bet"), b ? `Your bet: ${b.stake} on ${b.side === 1 ? "Red" : "Blue"} (${b.status}${b.returned != null ? `, ${b.returned} back` : ""})` : "No bet on this fight.");
@@ -163,7 +164,7 @@ async function refreshMine() {
         : `<button data-upgrade="${c.id}" data-stat="${k}">+${STAT_LABELS[k]} (${c.prices.next[k]})</button>`).join(" ");
     const options = [`<option value="">no sidegrade</option>`].concat(Object.entries(SIDEGRADE_LABELS).map(([k, label]) => `<option value="${k}" ${c.sidegrade === k ? "selected" : ""}>${label}</option>`)).join("");
     return `<tr><td>${nameplate(c.name, c.cosmetics)}${c.firstEdition ? " ★" : ""}<br><span class="muted">tier ${c.tier}, rating ${c.rating} ±${c.deviation}, ${c.record.wins}-${c.record.losses}, last 10: ${c.last10.join(" ") || "-"}</span>
-      <br><span class="muted">life ${st.lifePct}%, attack ${st.attackPct}%, defense ${st.defensePct}%, start power ${st.startPower}</span>
+      <br><span class="muted">life ${st.lifePct}%, attack ${st.attackPct}%, defense ${st.defensePct}%, start power ${st.startPower}; earned ${c.earnings} Salt from wins</span>
       <br>${buttons}
       <br><select data-sidegrade="${c.id}">${options}</select> <button data-set-sidegrade="${c.id}">Set sidegrade (${c.prices.sidegrade}, removing is free)</button>
       <br><span class="muted">Titles: ${c.titles.length ? c.titles.map((t) => `${esc(t.label)} (fight #${t.fightNumber}, ${esc(t.earnedBy.name)})`).join(", ") : "none yet: win fights to earn them"}</span>
@@ -208,6 +209,45 @@ async function saveLook(id) {
   }
 }
 
+// Exhibition challenges: send one with your character, answer ones sent to you.
+const STATUS_LABELS = { PENDING: "waiting for an answer", ACCEPTED: "accepted, waiting to play", DECLINED: "declined", CANCELLED: "cancelled", EXPIRED: "expired", BOOKED: "booked" };
+
+async function refreshChallenges() {
+  const [options, mine] = await Promise.all([api("GET", "/api/challenges/options"), api("GET", "/api/me/challenges")]);
+  const opt = (list) => list.map((c) => `<option value="${c.id}">${esc(c.name)} (${c.tier} ${c.rating}${c.owner ? `, ${esc(c.owner)}` : ""})</option>`).join("");
+  $("challenge-form").innerHTML = !options.mine.length
+    ? `<span class="muted">Buy a character to challenge other players.</span>`
+    : !options.opponents.length
+      ? `<span class="muted">No other players' characters to challenge yet.</span>`
+      : `<select id="ch-mine">${opt(options.mine)}</select> challenges <select id="ch-theirs">${opt(options.opponents)}</select> <button id="ch-send">Send challenge (free)</button>`;
+  if ($("ch-send")) $("ch-send").onclick = () => challengeAction("POST", "/api/challenges", { challengerCharacterId: $("ch-mine").value, challengedCharacterId: $("ch-theirs").value }, "Challenge sent.");
+  const row = (c, incoming) => {
+    const other = incoming ? c.challenger : c.challenged;
+    const me = incoming ? c.challenged : c.challenger;
+    const status = c.status === "BOOKED" && c.fight ? `fight #${c.fight.number}`
+      : c.status === "ACCEPTED" && c.queuePosition ? `accepted, #${c.queuePosition} in the queue`
+      : c.status === "PENDING" ? `waiting for an answer until ${new Date(c.expiresAt).toLocaleString()}`
+      : STATUS_LABELS[c.status];
+    const buttons = incoming && c.status === "PENDING"
+      ? `<button data-ch="${c.id}" data-act="accept">Accept</button><button data-ch="${c.id}" data-act="decline">Decline</button>`
+      : !incoming && (c.status === "PENDING" || c.status === "ACCEPTED") ? `<button data-ch="${c.id}" data-act="cancel">Cancel</button>` : "";
+    return `<tr><td>${incoming ? "from" : "to"} ${esc(other.owner)}</td><td>${esc(me.name)} vs ${esc(other.name)} <span class="muted">(${other.tier} ${other.rating})</span></td><td class="muted">${status}</td><td>${buttons}</td></tr>`;
+  };
+  const rows = mine.incoming.map((c) => row(c, true)).concat(mine.outgoing.map((c) => row(c, false)));
+  $("challenges").innerHTML = rows.length ? rows.join("") : `<tr><td class="muted">No challenges yet.</td></tr>`;
+  for (const b of document.querySelectorAll("[data-ch]")) b.onclick = () => challengeAction("POST", `/api/challenges/${b.dataset.ch}/${b.dataset.act}`, undefined, `Challenge ${b.dataset.act === "accept" ? "accepted: it plays in the next exhibition slot that's free" : b.dataset.act + "d"}.`);
+}
+
+async function challengeAction(method, path, body, done) {
+  try {
+    await api(method, path, body);
+    text($("challenge-msg"), done);
+    await refreshChallenges();
+  } catch (e) {
+    text($("challenge-msg"), e.message);
+  }
+}
+
 async function upgrade(id, stat) {
   try {
     await api("POST", `/api/characters/${id}/upgrade`, { stat, idempotencyKey: crypto.randomUUID() });
@@ -233,7 +273,7 @@ async function buy(fighterId) {
   try {
     const r = await api("POST", "/api/shop/buy", { fighterId, idempotencyKey: crypto.randomUUID() });
     text($("shop-msg"), `You bought ${r.character.name}${r.character.firstEdition ? " (First Edition)" : ""}. It joins the stream in tier P.`);
-    await Promise.all([refreshShop(), refreshMine(), refreshMe()]);
+    await Promise.all([refreshShop(), refreshMine(), refreshMe(), refreshChallenges()]);
   } catch (e) {
     text($("shop-msg"), e.message);
   }
@@ -260,7 +300,7 @@ function connectStream() {
     const d = JSON.parse(e.data);
     log(`fight #${d.number}: ${d.state}`);
     refreshFight().then(refreshMe).catch(() => {});
-    if (d.state === "SETTLED" || d.state === "VOIDED") Promise.all([refreshTables(), refreshMine()]).catch(() => {});
+    if (d.state === "BOOKED" || d.state === "SETTLED" || d.state === "VOIDED") Promise.all([refreshTables(), refreshMine(), refreshChallenges()]).catch(() => {});
   });
   es.addEventListener("engine_event", (e) => {
     const { event } = JSON.parse(e.data);
@@ -269,7 +309,7 @@ function connectStream() {
   });
   es.addEventListener("fight_result", (e) => {
     const d = JSON.parse(e.data);
-    log(d.result === "SETTLED" ? `fight #${d.number}: ${d.winnerSide === 1 ? "Red" : "Blue"} wins` : `fight #${d.number}: void (${d.voidReason})`);
+    log(d.result === "SETTLED" ? `fight #${d.number}: ${d.winnerSide === 1 ? "Red" : "Blue"} wins${d.ownerReward ? ` (owner reward ${d.ownerReward} Salt)` : ""}` : `fight #${d.number}: void (${d.voidReason})`);
   });
   es.addEventListener("title_earned", (e) => {
     const d = JSON.parse(e.data);
@@ -301,6 +341,6 @@ $("bailout").onclick = () => api("POST", "/api/me/bailout").then(refreshMe).catc
 (async () => {
   await redeemLoginFromUrl();
   await ensureSession();
-  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine()]);
+  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine(), refreshChallenges()]);
   connectStream();
 })().catch((e) => log(`error: ${e.message}`));

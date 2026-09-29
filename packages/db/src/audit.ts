@@ -13,7 +13,7 @@ export interface AuditReport {
   stats: {
     transactions: number;
     accounts: number;
-    /** Total Salt ever created (grants and bailouts). */
+    /** Total Salt ever created (grants, bailouts and owner rewards). */
     issued: Salt;
     /** Salt held by users (available, not in escrow). */
     userBalances: Salt;
@@ -92,6 +92,16 @@ export async function auditLedger(db: Db): Promise<AuditReport> {
     WHERE (f."state" = 'SETTLED' AND NOT EXISTS (SELECT 1 FROM "ledger_txn" t WHERE t."idempotency_key" = 'settle:' || f."id"))
        OR (f."state" = 'VOIDED' AND NOT EXISTS (SELECT 1 FROM "ledger_txn" t WHERE t."idempotency_key" = 'void:' || f."id"))`;
   for (const r of unclosed) add("fight-closed-in-ledger", `fight #${r.number} is ${r.state} but the ledger has no matching settle/void`);
+
+  // Owner rewards: only for a settled, non-tournament fight, paid to the winner's owner.
+  const badRewards = await db.$queryRaw<{ id: string; problem: string }[]>`
+    SELECT t."id", COALESCE('fight is ' || f."state"::text || ' in ' || f."segment"::text, 'no fight') AS problem
+    FROM "ledger_txn" t
+    LEFT JOIN "fight" f ON f."id" = t."fight_id"
+    LEFT JOIN "character" c ON c."id" = f."winner_character_id"
+    WHERE t."kind" = 'OWNER_REWARD'
+      AND (f."id" IS NULL OR f."state" <> 'SETTLED' OR f."segment" = 'TOURNAMENT' OR c."owner_user_id" IS DISTINCT FROM t."user_id")`;
+  for (const r of badRewards) add("owner-reward", `reward txn ${r.id}: ${r.problem}, or not paid to the winner's owner`);
 
   const sums = await db.$queryRaw<{ kind: string; total: Dec; n: bigint }[]>`
     SELECT "kind"::text AS kind, SUM("balance") AS total, COUNT(*) AS n FROM "account" GROUP BY "kind"`;

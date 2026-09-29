@@ -3,7 +3,7 @@
  * so most fights are close, with occasional deliberate upset bouts. No mirror
  * matches (same fighter design) and no immediate rematches.
  */
-import { clampChance, DEFAULT_ODDS, modelChanceBp, type Rating, type Side, type Tier } from "@greed-island/shared";
+import { clampChance, DEFAULT_ODDS, modelChanceBp, tierRank, type Rating, type Side, type Tier } from "@greed-island/shared";
 import { randomInt } from "node:crypto";
 
 export interface Candidate {
@@ -55,7 +55,7 @@ export const cryptoRng: Rng = {
   chance: () => randomInt(1_000_000) / 1_000_000,
 };
 
-export type PairKind = "CLOSE" | "UPSET" | "NEAREST" | "CROSS_TIER";
+export type PairKind = "CLOSE" | "UPSET" | "NEAREST" | "CROSS_TIER" | "CHALLENGE" | "SHOWCASE";
 
 /** Extra pick weight per owned character in a pair (a pair of two house characters weighs 1). */
 export const OWNED_WEIGHT = 2;
@@ -146,11 +146,56 @@ export function pickMatch(
     return null;
   }
 
-  // Random corner assignment, so the favourite isn't always red.
+  return withCorners(chosen, kind, rng);
+}
+
+/** Random corner assignment, so the favourite (or the challenger) isn't always red. */
+function withCorners(p: Pair, kind: PairKind, rng: Rng): Pairing {
   const flip = rng.int(2) === 1;
-  const [s1, s2] = flip ? [chosen.b, chosen.a] : [chosen.a, chosen.b];
-  const chanceSide1Bp = flip ? 10_000n - chosen.chanceA : chosen.chanceA;
+  const [s1, s2] = flip ? [p.b, p.a] : [p.a, p.b];
+  const chanceSide1Bp = flip ? 10_000n - p.chanceA : p.chanceA;
   return { sides: { 1: s1, 2: s2 }, chanceSide1Bp, kind };
+}
+
+/** A fixed pairing (an accepted challenge), with its chance and random corners. */
+export function pairingFor(a: Candidate, b: Candidate, kind: PairKind, rng: Rng): Pairing {
+  return withCorners({ a, b, chanceA: clampChance(modelChanceBp(a.rating, b.rating), DEFAULT_ODDS)[0] }, kind, rng);
+}
+
+/**
+ * House showcase (fills the exhibition segment when no challenge is waiting,
+ * DESIGN §5): two house characters from the `pool` strongest (X tier first,
+ * then by rating), across tiers. No mirror matches, never an immediate
+ * rematch, and pairs that met within the cooldown only if nothing fresher exists.
+ */
+export function pickShowcase(
+  candidates: readonly Candidate[],
+  recent: readonly [string, string][],
+  rng: Rng,
+  pool: number,
+  cfg: MatchmakingConfig = DEFAULT_MATCHMAKING,
+): Pairing | null {
+  const strongest = candidates
+    .filter((c) => !c.owned)
+    .sort((x, y) => tierRank(y.tier) - tierRank(x.tier) || y.rating.rating - x.rating.rating || (x.characterId < y.characterId ? -1 : 1))
+    .slice(0, pool);
+  const immediate = cfg.rematchCooldown >= 1 && recent[0] ? pairKey(recent[0][0], recent[0][1]) : null;
+  const cooling = new Set(recent.slice(0, cfg.rematchCooldown).map(([a, b]) => pairKey(a, b)));
+  const fresh: Pair[] = [];
+  const cooled: Pair[] = [];
+  for (let i = 0; i < strongest.length; i++) {
+    for (let j = i + 1; j < strongest.length; j++) {
+      const a = strongest[i]!;
+      const b = strongest[j]!;
+      if (a.fighterId === b.fighterId) continue;
+      const key = pairKey(a.characterId, b.characterId);
+      if (key === immediate) continue;
+      (cooling.has(key) ? cooled : fresh).push({ a, b, chanceA: clampChance(modelChanceBp(a.rating, b.rating), DEFAULT_ODDS)[0] });
+    }
+  }
+  const pairs = fresh.length > 0 ? fresh : cooled;
+  if (pairs.length === 0) return null;
+  return withCorners(pairs[rng.int(pairs.length)]!, "SHOWCASE", rng);
 }
 
 /** Uniformly random stage. */

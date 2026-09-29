@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after Phase 2 step 4 (commit `5871e79`). Update this file at the end of every build step.*
+*Last updated 2026-09-29, after Phase 2 step 5. Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | 2 of 4: Ownership. Steps 1–4 of 6 done. |
-| **Next step** | Phase 2 step 5: owner rewards and exhibitions |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine), betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, an API with live updates, and a plain dev page |
-| **Not built yet** | Owner rewards, exhibitions, tournaments, the stream itself (overlay page, OBS/Twitch), anything community or on-chain |
-| **Health** | 367 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Phase** | 2 of 4: Ownership. Steps 1–5 of 6 done. |
+| **Next step** | Phase 2 step 6: tournaments |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine), betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, owner-vs-owner exhibition challenges, an API with live updates, and a plain dev page |
+| **Not built yet** | Tournaments, the stream itself (overlay page, OBS/Twitch), anything community or on-chain |
+| **Health** | 387 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -32,7 +32,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 | Phase | What it adds | Status |
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
-| **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | 🔨 In progress (4 of 6 steps) |
+| **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | 🔨 In progress (5 of 6 steps) |
 | **3. Community roster** | Archetype templates, fighter submissions, review, voting, seasonal releases, holder perks | Not started |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
@@ -58,14 +58,11 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 2. ✅ **Shop** (`117f15f`): 6 characters every 5 hours, 1,000 Salt (2,000 rare); numbered copies, the first 25 marked First Edition; owned characters join the stream.
 3. ✅ **Upgrades** (`4512166`): 4 stats × 5 levels with shrinking gains, plus one trade-off "sidegrade"; about 10,600 Salt to max a character; attack upgrades confirmed in a real fight.
 4. ✅ **Titles and cosmetics** (`5871e79`): First Blood, 10 Wins, 100 Wins, Giant Slayer and tier firsts, each recording the fight and the owner at the time; badges and name plates owners can pick for the future stream overlay.
+5. ✅ **Owner rewards and exhibitions**: owners get 25 Salt each time their character wins on stream; owners challenge each other's characters, and accepted challenges play in the exhibition part of the cycle, oldest first, with house "showcase" fights between the strongest house characters filling the gaps.
 
 ## What's next
 
-**Phase 2 step 5: owner rewards and exhibitions**
-- Owners get 25 Salt each time their character wins on stream (not in tournaments, which have their own prizes).
-- Owners can challenge another owner's character. Accepted challenges play in the exhibition part of the cycle, oldest first; house showcase fights fill any gaps.
-
-**Phase 2 step 6: tournaments**
+**Phase 2 step 6: tournaments** (the last step of phase 2)
 - A 16-character single-elimination bracket from one tier, rotating S, A, B, P each cycle; house characters fill empty seats.
 - Each player gets 1,000 tournament Salt ("T-Salt") per tournament, which can't move to their main balance. Top 3 T-Salt balances earn player titles; the winning character earns "Tournament Champion".
 

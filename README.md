@@ -2,7 +2,7 @@
 
 An always-on stream of AI-vs-AI fights on the [IKEMEN GO](https://github.com/ikemen-engine/Ikemen-GO) engine, with free play-money betting (Salt), rating-based odds, Glicko-2 ratings and tiers.
 
-**Status:** Phase 1 (Stream MVP) is built, and Phase 2 (Ownership) is under way: accounts, a character shop, upgrades, and titles are done. Salt can never be bought, sold or cashed out.
+**Status:** Phase 1 (Stream MVP) is built, and Phase 2 (Ownership) is almost done: accounts, a character shop, upgrades, titles, owner rewards and exhibition challenges are built; tournaments are next. Salt can never be bought, sold or cashed out.
 
 - **Start here:** [ROADMAP.md](ROADMAP.md): the mission, what's done, what's next, and how to pick up the work
 - Game design: [docs/DESIGN.md](docs/DESIGN.md)

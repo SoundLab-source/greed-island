@@ -2,7 +2,7 @@
  * In-process event bus. The orchestrator publishes after each committed
  * change; the API's SSE stream (build step 6) subscribes.
  */
-import type { EngineEvent, LiveOdds, LockedOdds, Side, TitleCode } from "@greed-island/shared";
+import type { EngineEvent, LiveOdds, LockedOdds, Salt, Side, TitleCode } from "@greed-island/shared";
 import { EventEmitter } from "node:events";
 import type { FightState, VoidReason } from "./state-machine.ts";
 
@@ -11,7 +11,7 @@ export type BusEvent =
   | { type: "odds_live"; fightId: string; odds: LiveOdds }
   | { type: "odds_locked"; fightId: string; odds: LockedOdds }
   | { type: "engine_event"; fightId: string; event: EngineEvent }
-  | { type: "fight_result"; fightId: string; number: number; result: "SETTLED"; winnerSide: Side; winnerCharacterId: string }
+  | { type: "fight_result"; fightId: string; number: number; result: "SETTLED"; winnerSide: Side; winnerCharacterId: string; ownerReward?: Salt }
   | { type: "fight_result"; fightId: string; number: number; result: "VOIDED"; voidReason: VoidReason }
   | { type: "title_earned"; fightId: string; number: number; characterId: string; name: string; code: TitleCode; label: string };
 

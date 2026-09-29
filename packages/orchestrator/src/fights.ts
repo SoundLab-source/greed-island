@@ -11,6 +11,7 @@ import {
   characterCosmetics,
   lockFight,
   NotFoundError,
+  payOwnerRewardTx,
   settleFightLedgerTx,
   toSalt,
   voidFightLedgerTx,
@@ -23,7 +24,8 @@ import { liveOdds, lockOdds, TITLES, type Config, type RoundEndEvent, type Side,
 import type { BusEvent, FightBus } from "./bus.ts";
 import { bookingModeFor, nextPosition, type CyclePosition } from "./cycle.ts";
 import type { OrchestratorConfig } from "./config.ts";
-import { pickMatch, pickStage, type Candidate, type Rng } from "./matchmaking.ts";
+import { expireChallenges, nextAcceptedChallenge } from "./challenges.ts";
+import { pairingFor, pickMatch, pickShowcase, pickStage, type Candidate, type Pairing, type Rng } from "./matchmaking.ts";
 import { transition, type Effect, type FightEvent, type FightState } from "./state-machine.ts";
 
 export interface FightDeps {
@@ -67,11 +69,29 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
       rating: { rating: c.rating, deviation: c.deviation, volatility: c.volatility },
       owned: c.ownerKind === "USER",
     }));
-    const pairing = pickMatch(candidates, recent.map((f) => [f.side1CharacterId, f.side2CharacterId] as [string, string]), rng, orch.matchmaking);
+    const recentPairs = recent.map((f) => [f.side1CharacterId, f.side2CharacterId] as [string, string]);
+    const pos: CyclePosition = nextPosition(last ? { cycle: last.cycle, segment: last.segment, index: last.segmentIndex } : null, orch.cycle);
+    const mode = bookingModeFor(pos.segment);
+
+    // Exhibitions: the oldest accepted challenge, else a house showcase, else a normal pairing.
+    let pairing: Pairing | null = null;
+    let challengeId: string | null = null;
+    if (mode === "EXHIBITION") {
+      await expireChallenges(tx, deps.now());
+      const challenge = await nextAcceptedChallenge(tx);
+      const a = candidates.find((c) => c.characterId === challenge?.challengerCharacterId);
+      const b = candidates.find((c) => c.characterId === challenge?.challengedCharacterId);
+      if (challenge && a && b) {
+        pairing = pairingFor(a, b, "CHALLENGE", rng);
+        challengeId = challenge.id;
+      } else {
+        pairing = pickShowcase(candidates, recentPairs, rng, deps.config.exhibitions.showcasePool, orch.matchmaking);
+      }
+    }
+    pairing ??= pickMatch(candidates, recentPairs, rng, orch.matchmaking);
     const stage = pickStage(stages, rng);
     if (!pairing || !stage) return null;
 
-    const pos: CyclePosition = nextPosition(last ? { cycle: last.cycle, segment: last.segment, index: last.segmentIndex } : null, orch.cycle);
     const fight = await tx.fight.create({
       data: {
         engineMode,
@@ -92,10 +112,11 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
         fromState: null,
         toState: "BOOKED",
         event: "BOOK",
-        payload: { mode: bookingModeFor(pos.segment), pairKind: pairing.kind, chanceSide1Bp: Number(pairing.chanceSide1Bp) },
+        payload: { mode, pairKind: pairing.kind, chanceSide1Bp: Number(pairing.chanceSide1Bp), ...(challengeId ? { challengeId } : {}) },
         version: fight.version,
       },
     });
+    if (challengeId) await tx.challenge.update({ where: { id: challengeId }, data: { status: "BOOKED", fightId: fight.id, closedAt: deps.now() } });
     return fight;
   });
   if (booked) deps.bus.publish({ type: "fight_state", fightId: booked.id, number: booked.number, state: "BOOKED", version: booked.version });
@@ -200,6 +221,8 @@ async function runEffect(
         maxPayout: deps.config.economy.maxPayout,
       });
       const l = await loadouts(tx, fight.id);
+      // Before the rating update: user accounts are locked before character rows, as upgrades do.
+      const reward = await payOwnerRewardTx(tx, { fightId: fight.id, winnerCharacterId: l[winnerSide].characterId, segment: fight.segment }, deps.config.economy);
       const changes = await applyFightRating(
         tx,
         { side1: l[1].characterId, side2: l[2].characterId, scoreSide1: winnerSide === 1 ? 1 : 0, fightId: fight.id },
@@ -213,7 +236,15 @@ async function runEffect(
       }
       const titles = await awardFightTitles(tx, { fightId: fight.id, winnerSide, loadoutTiers: { 1: l[1].tier, 2: l[2].tier }, changes, earnedAt: now });
       data.closedAt = now;
-      notices.push({ type: "fight_result", fightId: fight.id, number: fight.number, result: "SETTLED", winnerSide, winnerCharacterId: l[winnerSide].characterId });
+      notices.push({
+        type: "fight_result",
+        fightId: fight.id,
+        number: fight.number,
+        result: "SETTLED",
+        winnerSide,
+        winnerCharacterId: l[winnerSide].characterId,
+        ...(reward ? { ownerReward: reward.amount } : {}),
+      });
       for (const t of titles) {
         const name = l[1].characterId === t.characterId ? l[1].name : l[2].name;
         notices.push({ type: "title_earned", fightId: fight.id, number: fight.number, characterId: t.characterId, name, code: t.code, label: TITLES[t.code].label });

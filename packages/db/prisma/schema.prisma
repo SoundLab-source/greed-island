@@ -42,6 +42,8 @@ enum TxnKind {
   VOID
   PURCHASE
   UPGRADE
+  /// Paid to a character's owner when it wins on stream (phase 2).
+  OWNER_REWARD
 }
 
 enum BetStatus {
@@ -70,6 +72,8 @@ model User {
   loginTokens      LoginToken[]
   characterChanges CharacterChange[]
   titlesEarned     CharacterTitle[]
+  challengesSent   Challenge[]       @relation("ChallengeFrom")
+  challengesGot    Challenge[]       @relation("ChallengeTo")
 
   @@map("user")
 }
@@ -284,6 +288,8 @@ model Character {
   loadouts       FightLoadout[]
   changes        CharacterChange[]
   titles         CharacterTitle[]
+  challengesSent Challenge[]    @relation("ChallengerCharacter")
+  challengesGot  Challenge[]    @relation("ChallengedCharacter")
 
   @@unique([fighterId, serial])
   @@index([tier, enabled])
@@ -341,6 +347,10 @@ enum PairKind {
   UPSET
   NEAREST
   CROSS_TIER
+  /// Exhibition: an owner-vs-owner challenge.
+  CHALLENGE
+  /// Exhibition: house characters from the top of the rankings.
+  SHOWCASE
 }
 
 model Fight {
@@ -386,6 +396,7 @@ model Fight {
   ledgerTxns        LedgerTxn[]
   tierChanges       TierHistory[]
   titles            CharacterTitle[]
+  challenge         Challenge?
 
   @@index([state])
   @@index([bookedAt])
@@ -575,4 +586,48 @@ model CharacterTitle {
   @@index([characterId, id])
   @@index([fightId])
   @@map("character_title")
+}
+
+// ---------------------------------------------------------------------------
+// Exhibitions (phase 2, step 5)
+
+enum ChallengeStatus {
+  /// Waiting for the challenged owner's answer.
+  PENDING
+  /// Accepted: waiting for the exhibition segment (oldest first).
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+  /// A fight was booked for it.
+  BOOKED
+}
+
+/// An owner-vs-owner exhibition challenge (DESIGN §5).
+model Challenge {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  challengerUserId      String          @map("challenger_user_id") @db.Uuid
+  challenger            User            @relation("ChallengeFrom", fields: [challengerUserId], references: [id])
+  challengerCharacterId String          @map("challenger_character_id") @db.Uuid
+  challengerCharacter   Character       @relation("ChallengerCharacter", fields: [challengerCharacterId], references: [id])
+  /// Owner of the challenged character when the challenge was sent.
+  challengedUserId      String          @map("challenged_user_id") @db.Uuid
+  challenged            User            @relation("ChallengeTo", fields: [challengedUserId], references: [id])
+  challengedCharacterId String          @map("challenged_character_id") @db.Uuid
+  challengedCharacter   Character       @relation("ChallengedCharacter", fields: [challengedCharacterId], references: [id])
+  status                ChallengeStatus @default(PENDING)
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// A PENDING challenge expires after this.
+  expiresAt             DateTime        @map("expires_at") @db.Timestamptz(3)
+  /// Queue order for accepted challenges.
+  acceptedAt            DateTime?       @map("accepted_at") @db.Timestamptz(3)
+  /// When it was declined, cancelled, expired or booked.
+  closedAt              DateTime?       @map("closed_at") @db.Timestamptz(3)
+  fightId               String?         @unique @map("fight_id") @db.Uuid
+  fight                 Fight?          @relation(fields: [fightId], references: [id])
+
+  @@index([status, acceptedAt])
+  @@index([challengerUserId, status])
+  @@index([challengedUserId, status])
+  @@map("challenge")
 }

@@ -1,3 +1,4 @@
+import { DEFAULT_EXHIBITIONS, type ExhibitionConfig } from "./exhibitions.ts";
 import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
 import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
@@ -20,6 +21,8 @@ export interface EconomyConfig {
   minBet: Salt;
   /** Open question: max payout per bet. Stakes above this are rejected. */
   maxPayout: Salt;
+  /** Open question (DESIGN §15): paid to the owner for each win on stream (not tournaments). 0 turns it off. */
+  ownerReward: Salt;
 }
 
 export interface Config {
@@ -29,6 +32,7 @@ export interface Config {
   odds: OddsConfig;
   shop: ShopConfig;
   upgrades: UpgradeConfig;
+  exhibitions: ExhibitionConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -37,6 +41,7 @@ export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
   bailoutFloor: 100n,
   minBet: 1n,
   maxPayout: 50_000n,
+  ownerReward: 25n,
 });
 
 export class ConfigError extends Error {
@@ -84,7 +89,16 @@ export function validateEconomy(e: EconomyConfig): EconomyConfig {
   if (e.bailoutFloor < 0n) throw new ConfigError("bailoutFloor must be >= 0");
   if (e.minBet < 1n) throw new ConfigError("minBet must be >= 1");
   if (e.maxPayout < e.minBet) throw new ConfigError("maxPayout must be >= minBet");
+  if (e.ownerReward < 0n) throw new ConfigError("ownerReward must be >= 0");
   return e;
+}
+
+export function validateExhibitions(x: ExhibitionConfig): ExhibitionConfig {
+  if (!(x.challengeTtlMs > 0)) throw new ConfigError("challenge expiry must be positive");
+  for (const [name, v] of [["maxOpenPerUser", x.maxOpenPerUser], ["showcasePool", x.showcasePool]] as const) {
+    if (!Number.isInteger(v) || v < 0) throw new ConfigError(`${name} must be a whole number >= 0`);
+  }
+  return x;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -96,6 +110,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       bailoutFloor: saltFromEnv(env, "GI_BAILOUT_FLOOR", d.bailoutFloor),
       minBet: saltFromEnv(env, "GI_MIN_BET", d.minBet),
       maxPayout: saltFromEnv(env, "GI_MAX_PAYOUT", d.maxPayout),
+      ownerReward: saltFromEnv(env, "GI_OWNER_REWARD", d.ownerReward),
     }),
     ratings: {
       ...DEFAULT_RATINGS,
@@ -132,6 +147,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       costGrowthBp: saltFromEnv(env, "GI_UPGRADE_COST_GROWTH_BP", DEFAULT_UPGRADES.costGrowthBp),
       sidegradeCost: saltFromEnv(env, "GI_SIDEGRADE_COST", DEFAULT_UPGRADES.sidegradeCost),
       deviationWiden: numberFromEnv(env, "GI_UPGRADE_RD_WIDEN", DEFAULT_UPGRADES.deviationWiden),
+    }),
+    exhibitions: validateExhibitions({
+      challengeTtlMs: numberFromEnv(env, "GI_CHALLENGE_TTL_HOURS", DEFAULT_EXHIBITIONS.challengeTtlMs / 3_600_000) * 3_600_000,
+      maxOpenPerUser: numberFromEnv(env, "GI_MAX_OPEN_CHALLENGES", DEFAULT_EXHIBITIONS.maxOpenPerUser),
+      showcasePool: numberFromEnv(env, "GI_SHOWCASE_POOL", DEFAULT_EXHIBITIONS.showcasePool),
     }),
   };
 }

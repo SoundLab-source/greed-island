@@ -4,7 +4,7 @@
  * Stats shown to bettors (DESIGN §7): rating, tier, record, win rate,
  * head-to-head, last-10 form, tier history.
  */
-import { characterCosmetics, getBalance, openStakes, toSalt, type Db } from "@greed-island/db";
+import { characterCosmetics, getBalance, openStakes, toSalt, type Db, type Prisma } from "@greed-island/db";
 import {
   describeCosmetics,
   describeUnlocked,
@@ -57,6 +57,9 @@ export async function headToHead(db: Db, a: string, b: string): Promise<{ fights
   return { fights: fights.length, wins };
 }
 
+const ownerOf = (c: { owner: { id: string; displayName: string | null } | null }) =>
+  c.owner ? { kind: "player" as const, name: playerName(c.owner) } : { kind: "house" as const, name: "House" };
+
 const winRate = (wins: number, losses: number) => (wins + losses === 0 ? null : round1((100 * wins) / (wins + losses)));
 
 export async function characterCard(db: Db, characterId: string) {
@@ -66,7 +69,7 @@ export async function characterCard(db: Db, characterId: string) {
     id: c.id,
     name: c.name,
     fighter: { id: c.fighterId, displayName: c.fighter.displayName, archetype: c.fighter.archetype, rarity: c.fighter.rarity },
-    owner: c.owner ? { kind: "player" as const, name: playerName(c.owner) } : { kind: "house" as const, name: "House" },
+    owner: ownerOf(c),
     serial: c.serial,
     firstEdition: c.firstEdition,
     tier: c.tier,
@@ -212,6 +215,11 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     };
   }
 
+  // Exhibition challenge and owner reward, if any.
+  const challenge = await db.challenge.findUnique({ where: { fightId }, include: { challenger: true, challenged: true } });
+  const reward = f.state === "SETTLED" ? await db.ledgerTxn.findUnique({ where: { idempotencyKey: `owner-reward:${fightId}` }, include: { entries: true } }) : null;
+  const rewardAmount = reward ? reward.entries.reduce((n, e) => (e.amount.isPositive() ? n + toSalt(e.amount) : n), 0n) : null;
+
   let myBet: unknown = null;
   if (viewerId) {
     const b = await db.bet.findUnique({ where: { userId_fightId: { userId: viewerId, fightId } } });
@@ -239,9 +247,10 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     headToHead: { fights: h2h.fights, wins: { 1: h2h.wins[f.side1CharacterId] ?? 0, 2: h2h.wins[f.side2CharacterId] ?? 0 } },
     odds,
     rounds: f.rounds.map((r) => ({ round: r.round, winnerSide: r.winnerSide, reason: r.reason })),
+    challenge: challenge ? { challenger: playerName(challenge.challenger), challenged: playerName(challenge.challenged), acceptedAt: challenge.acceptedAt } : null,
     result:
       f.state === "SETTLED"
-        ? { kind: "settled", winnerSide: f.winnerSide }
+        ? { kind: "settled", winnerSide: f.winnerSide, ownerReward: rewardAmount?.toString() ?? null }
         : f.state === "VOIDED"
           ? { kind: "voided", reason: f.voidReason, detail: f.voidDetail }
           : null,
@@ -301,7 +310,7 @@ export async function leaderboard(db: Db, take = 20) {
 }
 
 export async function characterRanking(db: Db) {
-  const chars = await db.character.findMany({ where: { enabled: true }, orderBy: { rating: "desc" }, include: { fighter: true } });
+  const chars = await db.character.findMany({ where: { enabled: true }, orderBy: { rating: "desc" }, include: { fighter: true, owner: true } });
   const earned = new Map<string, TitleCode[]>();
   for (const t of await db.characterTitle.findMany({ where: { characterId: { in: chars.map((c) => c.id) } }, select: { characterId: true, code: true } })) {
     earned.set(t.characterId, [...(earned.get(t.characterId) ?? []), t.code]);
@@ -311,6 +320,7 @@ export async function characterRanking(db: Db) {
     id: c.id,
     name: c.name,
     title: describeCosmetics(resolveCosmetics(unlockedCosmetics(earned.get(c.id) ?? [], c), parseCosmeticChoice(c.cosmetics))).title,
+    owner: ownerOf(c),
     tier: c.tier,
     rating: Math.round(c.rating),
     deviation: Math.round(c.deviation),
@@ -340,7 +350,90 @@ export async function myCharacters(db: Db, config: Config, userId: string) {
   return Promise.all(
     owned.map(async (c) => {
       const card = await characterCard(db, c.id);
-      return { ...card, prices: upgradePrices(card.levels, config.upgrades), titles: await characterTitles(db, c.id), ...(await cosmeticOptions(db, c.id)) };
+      return {
+        ...card,
+        prices: upgradePrices(card.levels, config.upgrades),
+        earnings: (await ownerEarnings(db, c.id)).toString(),
+        titles: await characterTitles(db, c.id),
+        ...(await cosmeticOptions(db, c.id)),
+      };
     }),
   );
+}
+
+/** Owner rewards paid for this character's wins (to whoever owned it then). */
+export async function ownerEarnings(db: Db, characterId: string): Promise<bigint> {
+  const rows = await db.$queryRaw<{ total: Prisma.Decimal | null }[]>`
+    SELECT SUM(e."amount") AS total
+    FROM "ledger_txn" t
+    JOIN "ledger_entry" e ON e."txn_id" = t."id"
+    JOIN "account" a ON a."id" = e."account_id" AND a."kind" = 'USER'
+    JOIN "fight" f ON f."id" = t."fight_id"
+    WHERE t."kind" = 'OWNER_REWARD' AND f."winner_character_id" = ${characterId}::uuid`;
+  return rows[0]?.total ? toSalt(rows[0].total) : 0n;
+}
+
+type ChallengeWithSides = Prisma.ChallengeGetPayload<{
+  include: { challenger: true; challenged: true; challengerCharacter: true; challengedCharacter: true; fight: { select: { number: true; state: true; winnerCharacterId: true } } };
+}>;
+
+function challengeView(c: ChallengeWithSides) {
+  const who = (character: ChallengeWithSides["challengerCharacter"], owner: ChallengeWithSides["challenger"]) => ({
+    characterId: character.id,
+    name: character.name,
+    tier: character.tier,
+    rating: Math.round(character.rating),
+    owner: playerName(owner),
+  });
+  return {
+    id: c.id,
+    status: c.status,
+    challenger: who(c.challengerCharacter, c.challenger),
+    challenged: who(c.challengedCharacter, c.challenged),
+    createdAt: c.createdAt,
+    expiresAt: c.expiresAt,
+    acceptedAt: c.acceptedAt,
+    closedAt: c.closedAt,
+    fight: c.fight ? { id: c.fightId, number: c.fight.number, state: c.fight.state, winnerCharacterId: c.fight.winnerCharacterId } : null,
+  };
+}
+
+const CHALLENGE_INCLUDE = {
+  challenger: true,
+  challenged: true,
+  challengerCharacter: true,
+  challengedCharacter: true,
+  fight: { select: { number: true, state: true, winnerCharacterId: true } },
+} as const;
+
+/** A player's challenges: open ones first, then the 10 most recent closed ones each way. */
+export async function myChallenges(db: Db, userId: string) {
+  const list = async (where: Prisma.ChallengeWhereInput) => {
+    const open = await db.challenge.findMany({ where: { ...where, status: { in: ["PENDING", "ACCEPTED"] } }, orderBy: { createdAt: "asc" }, include: CHALLENGE_INCLUDE });
+    const closed = await db.challenge.findMany({ where: { ...where, status: { notIn: ["PENDING", "ACCEPTED"] } }, orderBy: { closedAt: "desc" }, take: 10, include: CHALLENGE_INCLUDE });
+    return [...open, ...closed].map(challengeView);
+  };
+  const queue = await db.challenge.findMany({ where: { status: "ACCEPTED" }, orderBy: [{ acceptedAt: "asc" }, { id: "asc" }], select: { id: true } });
+  const position = new Map(queue.map((q, i) => [q.id, i + 1]));
+  const withQueue = (v: ReturnType<typeof challengeView>) => ({ ...v, queuePosition: position.get(v.id) ?? null });
+  return {
+    incoming: (await list({ challengedUserId: userId })).map(withQueue),
+    outgoing: (await list({ challengerUserId: userId })).map(withQueue),
+  };
+}
+
+/** What a player can challenge with, and whom: other players' active characters, strongest first. */
+export async function challengeOptions(db: Db, userId: string) {
+  const active = { enabled: true, fighter: { enabled: true } } as const;
+  const brief = (c: { id: string; name: string; tier: string; rating: number; fighterId: string; owner: { id: string; displayName: string | null } | null }) => ({
+    id: c.id,
+    name: c.name,
+    tier: c.tier,
+    rating: Math.round(c.rating),
+    fighterId: c.fighterId,
+    owner: c.owner ? playerName(c.owner) : "House",
+  });
+  const mine = await db.character.findMany({ where: { ...active, ownerUserId: userId }, orderBy: { rating: "desc" }, include: { owner: true } });
+  const others = await db.character.findMany({ where: { ...active, ownerKind: "USER", NOT: { ownerUserId: userId } }, orderBy: { rating: "desc" }, include: { owner: true } });
+  return { mine: mine.map(brief), opponents: others.map(brief) };
 }

@@ -236,6 +236,40 @@ describe("shop", () => {
   });
 });
 
+describe("exhibition challenges", () => {
+  it("lists options, sends, answers and shows challenges", async () => {
+    const [a, b] = [await session("Alice"), await session("Bob")];
+    for (const [s, id] of [[a, "f1"], [b, "f2"]] as const) {
+      await db.character.create({
+        data: { fighterId: id, name: `${s.me.name}'s ${id}`, rating: 1400, deviation: 100, volatility: 0.06, tier: "P", ownerKind: "USER", ownerUserId: s.me.id, serial: 2, acquiredAt: new Date() },
+      });
+    }
+    const options = (await app.inject({ method: "GET", url: "/api/challenges/options", headers: a.auth })).json();
+    expect(options.mine).toHaveLength(1);
+    expect(options.opponents).toMatchObject([{ owner: "Bob", name: "Bob's f2" }]);
+    const payload = { challengerCharacterId: options.mine[0].id, challengedCharacterId: options.opponents[0].id };
+    const sent = await app.inject({ method: "POST", url: "/api/challenges", headers: a.auth, payload });
+    expect(sent.statusCode).toBe(201);
+    expect(sent.json().challenges.outgoing[0]).toMatchObject({ status: "PENDING", challenger: { owner: "Alice" }, challenged: { owner: "Bob" } });
+    expect((await app.inject({ method: "POST", url: "/api/challenges", headers: a.auth, payload })).json()).toMatchObject({ replayed: true });
+
+    const incoming = (await app.inject({ method: "GET", url: "/api/me/challenges", headers: b.auth })).json().incoming;
+    expect(incoming).toHaveLength(1);
+    const id = incoming[0].id;
+    const accepted = await app.inject({ method: "POST", url: `/api/challenges/${id}/accept`, headers: b.auth });
+    expect(accepted.json()).toMatchObject({ status: "ACCEPTED", challenges: { incoming: [{ id, queuePosition: 1 }] } });
+    expect((await app.inject({ method: "POST", url: `/api/challenges/${id}/decline`, headers: b.auth })).statusCode).toBe(409);
+    const stranger = await session("Carol");
+    expect((await app.inject({ method: "POST", url: `/api/challenges/${id}/cancel`, headers: stranger.auth })).statusCode).toBe(404);
+    expect((await app.inject({ method: "POST", url: `/api/challenges/${id}/cancel` })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: `/api/challenges/${id}/cancel`, headers: a.auth })).json().status).toBe("CANCELLED");
+    // House characters can't be challenged.
+    const house = await db.character.findFirstOrThrow({ where: { ownerKind: "HOUSE" } });
+    const bad = await app.inject({ method: "POST", url: "/api/challenges", headers: a.auth, payload: { ...payload, challengedCharacterId: house.id } });
+    expect(bad.json()).toMatchObject({ error: "NOT_ELIGIBLE" });
+  });
+});
+
 describe("stats after fights", () => {
   it("reports results, rankings, form, head-to-head and profiles", async () => {
     const o = new Orchestrator({ ...deps, source: createFakeSource({ seed: "stats" }), rng: rng("stats"), orch: { ...orch, matchmaking: { ...orch.matchmaking, rematchCooldown: 0 } } });

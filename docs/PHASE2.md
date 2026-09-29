@@ -12,7 +12,7 @@ Each step is committed with tests green, like phase 1.
 2. ✅ **Shop and owned characters.** A Salt sink account (spent Salt leaves circulation, as DESIGN §9 intends). The shop rotates every 5 hours with 6 slots drawn from enabled fighters. Buying one creates a character owned by the player, starting in tier P. Owned characters join matchmaking; house characters fill the gaps.
 3. ✅ **Upgrades and sidegrades.** Levelled stats with diminishing returns and a cap. Every change widens rating deviation. Stats reach the engine only through verified mechanisms.
 4. ✅ **Titles and effects.** Achievement titles with provenance ("earned by", "when"), plus overlay cosmetics (badges, name plates) stored as data for the stream overlay.
-5. **Owner rewards and exhibitions.** Salt for owners when their character wins. Owner-vs-owner challenges fill the exhibition segment of the cycle.
+5. ✅ **Owner rewards and exhibitions.** Salt for owners when their character wins. Owner-vs-owner challenges fill the exhibition segment of the cycle.
 6. **Tournaments.** A 16-character single-elimination bracket per tier, rotating tiers, bet on with a separate tournament balance.
 
 ## Defaults
@@ -46,7 +46,7 @@ Each step is committed with tests green, like phase 1.
 - Engine mechanisms: life and starting power use the `-p<n>.lifeMax` / `-p<n>.power` flags (confirmed). Attack and defense use a per-loadout copy of the character with patched `[Data] attack/defence`, the same mechanism `roster:variants` uses, cached by stats. Confirmed with a real run (see docs/ikemen-notes.md §5).
 
 **Owner rewards**
-- 25 Salt to the owner for each win of their character on stream (from issuance, a faucet). Not paid for tournament fights, which have their own prizes.
+- 25 Salt to the owner for each win of their character on stream (from issuance, a faucet). Not paid for tournament fights, which have their own prizes. Until tournaments are built, fights in the tournament part of the cycle don't pay it either.
 
 **Titles** (DESIGN §8)
 - "First Blood" (first win), "10 Wins", "100 Wins", "Giant Slayer" (beat a character 3+ tiers up; P→S counts), tier firsts ("B-Tier" … "S-Tier"), "Tournament Champion". Each records the character, the owner at the time, the fight and the date.
@@ -65,6 +65,10 @@ Each step is committed with tests green, like phase 1.
 
 **Exhibitions**
 - Owners can challenge another owner's character. Accepted challenges are booked in the exhibition segment, oldest first; house showcase fights fill any gaps.
+- A challenge waits 24 hours for an answer, then expires. A player can have 5 challenges open at once (waiting for an answer or to be played). Two characters can have only one open challenge between them.
+- Challenges are free and only between players' characters: not house characters, not your own, not two copies of the same fighter (the matchmaking rule).
+- The queue goes by when a challenge was accepted. A challenge whose character is disabled waits in the queue; the challenger can cancel until it's booked. If the fight is voided (a draw or crash), the challenge is used up.
+- House showcases pair two of the 6 strongest house characters (X tier first, then by rating), across tiers.
 
 ## Not in phase 2
 

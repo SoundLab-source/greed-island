@@ -11,7 +11,7 @@ Scope: house characters, match cycle, Salt ledger, betting, fixed model odds, Gl
   (dev page)             │       ▲                               │                                                                      │
                          │       │ SSE bus                       ▼                                                                      │
                          │  Match cycle scheduler ──▶ Fight state machine: transition(state, event) ──▶ Settlement / Void ──▶ Ratings │
-                         │       │  (matchmaking | tournament stub | exhibition stub)        │                                          │
+                         │       │  (matchmaking | tournament stub | exhibitions)            │                                          │
                          │       ▼                                                            │ one DB txn per transition                │
                          │  Engine runner  ──spawn(argv)──▶ IKEMEN GO ──▶ runs/<fightId>/{events.ndjson, stdout, stderr, match.log}  │
                          │   (event source: live | sim | fake)                                                                           │
@@ -60,13 +60,13 @@ stateDiagram-v2
 
 ## 3. One fight end to end
 
-1. **Book.** Scheduler asks the current mode (matchmaking) for a pairing: two enabled characters in the same tier, not a mirror match (same fighter design), not a rematch within the last `rematchCooldown` fights (default 3), model chance in 40–60% (or a deliberate upset, the most lopsided same-tier pair, at the configured rate, default 10%). If no tier has a valid pair (a small roster spread across tiers), the closest-rated cross-tier pair is used (`crossTierFallback`, default on) rather than stalling the stream. Corners are randomized. Stage from `crypto.randomInt`. The fight records its cycle position (`cycle`, `segment`, `segment_index`) and `pair_kind`. Insert `fight` in `BOOKED`.
+1. **Book.** Scheduler asks the current mode (matchmaking) for a pairing: two enabled characters in the same tier, not a mirror match (same fighter design), not a rematch within the last `rematchCooldown` fights (default 3), model chance in 40–60% (or a deliberate upset, the most lopsided same-tier pair, at the configured rate, default 10%). If no tier has a valid pair (a small roster spread across tiers), the closest-rated cross-tier pair is used (`crossTierFallback`, default on) rather than stalling the stream. Corners are randomized. Stage from `crypto.randomInt`. The fight records its cycle position (`cycle`, `segment`, `segment_index`) and `pair_kind`. Insert `fight` in `BOOKED`. In the exhibition segment the oldest accepted challenge is booked instead (`CHALLENGE`), else a house showcase (`SHOWCASE`), see §10. The tournament segment still books like matchmaking until tournaments are built.
 2. **Open betting.** `OPEN_BETTING`: snapshot both loadouts (stats, rating, RD, volatility, tier) into `fight_loadout`. These are immutable from here. Betting window starts (default 60 s). SSE `state` and live estimated odds.
 3. **Bets.** `POST /fights/:id/bet {side, amount, idempotencyKey}`. In one transaction: take the per-fight ledger lock (shared) and `SELECT … FOR SHARE` the fight row and require `BETTING_OPEN` (the `LOCK` transition takes `FOR UPDATE` on the same row, so no bet can commit after pools are snapshotted), `SELECT … FOR UPDATE` the user's available account, reverse their previous bet on this fight (escrow → user) if any, check funds, post the new stake (user → escrow[side]), and upsert `bet` (latest counts). Enforce the owner cap (0 owners now), min bet 1 and max stake. SSE odds update (model odds only; crowd split hidden).
 4. **Lock.** `LOCK`: compute the model chance from Glicko-2 expected score (both deviations), round it to basis points, clamp to [5%, 95%] (side 2 = 100% − side 1), then per side `multiplierBp = ⌊10000 × (10000 − marginBp) / chanceBp⌋`, floored at `minMultiplierBp` (1.00×). This is exactly `(1/p)(1 − margin)` in integers, e.g. 50% → 19000 (1.90×). From here on, money math is bigint only. The crowd blend (`w = maxWeight × pool/(pool + K)` over per-account-capped stakes) is computed and recorded, but `crowdMaxWeightBp = 0`, so locked odds equal model odds. Live odds shown during betting are model-only. Record `model_chance`, `crowd_chance` (per-account capped share), pools per side, and locked multipliers. Blend weight `w = pool/(pool+K)` is computed and stored but **config weight 0**, so locked = model.
 5. **Fight.** Runner builds argv from the loadouts and stage and spawns the engine. `ENGINE_STARTED` → `IN_PROGRESS`. Events are tailed from `runs/<fightId>/events.ndjson` and broadcast as SSE. The watchdog kills at `engine_timeout` → `ENGINE_TIMEOUT` → void. Exit without `match_end` → `ENGINE_CRASH` → void.
 6. **Result.** `match_end {winnerSide: 1|2}` → `SETTLING`. `winnerSide: 0` (draw) → `VOIDING`. Winner is a **side**, mapped to the character id the runner launched on that side.
-7. **Settle (one transaction).** Pay winners, sweep losers to house (§4), update both characters' records, run a Glicko-2 update (one-game rating period per fight, each side rated against the other's pre-fight rating), re-evaluate tiers (promotion at the band threshold; demotion only below threshold − hysteresis, default 25; append `tier_history` on change; X is manual only), award titles (§9), write `fight_result`, → `SETTLED`.
+7. **Settle (one transaction).** Pay winners, sweep losers to house (§4), pay the winner's owner (§10), update both characters' records, run a Glicko-2 update (one-game rating period per fight, each side rated against the other's pre-fight rating), re-evaluate tiers (promotion at the band threshold; demotion only below threshold − hysteresis, default 25; append `tier_history` on change; X is manual only), award titles (§9), write `fight_result`, → `SETTLED`.
 8. **Void (one transaction).** Refund every bet in full (escrow → user, no margin), no rating change, → `VOIDED`.
 9. Scheduler books the next fight only after the current one is terminal (`SETTLED` or `VOIDED`), so matchmaking and loadout snapshots always use settled ratings. As on Salty Bet, the betting window is the gap between fights.
 
@@ -137,7 +137,9 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `POST /api/characters/:id/upgrade`, `POST /api/characters/:id/sidegrade` | Owner only: `{stat, idempotencyKey}` raises one level; `{sidegrade or null, idempotencyKey}` picks, switches or removes a sidegrade |
 | `GET /api/cosmetics`, `PUT /api/characters/:id/cosmetics` | Catalogue of titles, name plates and badges (labels, colours); owner only: `{title?, nameplate?, badges?}` picks what the overlay shows (a missing field = automatic, free) |
 | `GET /api/shop`, `POST /api/shop/buy`, `GET /api/me/characters` | Current rotation (price, rarity, First Editions left, when it changes), buy `{fighterId, idempotencyKey}`, your characters |
-| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking, character profile (titles with provenance, tier history, upgrades, recent fights, license) |
+| `GET /api/challenges/options`, `GET /api/me/challenges`, `POST /api/challenges` | Your characters and other players' you can challenge; your incoming and outgoing challenges (queue position, fight once booked); send `{challengerCharacterId, challengedCharacterId}` (sending an open one again returns it) |
+| `POST /api/challenges/:id/accept`, `/decline`, `/cancel` | The challenged owner accepts or declines; the challenger cancels until it's booked |
+| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, license) |
 | `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, keep-alive comments |
 
 `apps/web` is a plain page (no build step) served at `/` that uses these routes.
@@ -152,7 +154,7 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 - `FightLoadout` (fightId, side, characterId, stats, rating, rd, volatility, tier), immutable
 - `FightOdds` (fightId, modelChance[2], crowdChance[2], pool[2], blendWeight, lockedMultiplierBp[2] as integers; chances as floats for analysis only)
 - `FightTransition` (audit), `Bet` (fightId, userId, side, stake, status, payout?), `Account`, `LedgerTxn`, `LedgerEntry`, `IdempotencyKey`
-- Phase 2: `Session`, `LoginToken` (sign-in links), `Character` ownership (serial, First Edition, purchase txn), upgrade levels, sidegrade and `cosmetics` (the owner's pick), `CharacterChange` (upgrade history), `CharacterTitle` (earned titles with the fight and the owner at the time, append-only), `FightLoadout.cosmetics` (frozen with the loadout). The schema in `packages/db/prisma/schema.prisma` is the source of truth.
+- Phase 2: `Session`, `LoginToken` (sign-in links), `Character` ownership (serial, First Edition, purchase txn), upgrade levels, sidegrade and `cosmetics` (the owner's pick), `CharacterChange` (upgrade history), `CharacterTitle` (earned titles with the fight and the owner at the time, append-only), `FightLoadout.cosmetics` (frozen with the loadout), `Challenge` (exhibition challenges; status only moves forward), `OWNER_REWARD` ledger transactions. The schema in `packages/db/prisma/schema.prisma` is the source of truth.
 
 ## 8. How stat upgrades reach the engine
 
@@ -175,3 +177,16 @@ titles + First Edition ──▶ unlocked cosmetics ──(owner's pick or autom
 - `character_title` is append-only; each row keeps the fight and the owner at the time, and one-time titles are unique per character. `pnpm titles:backfill` replays settled fights' loadouts to award titles for fights from before titles existed (same rules; a test checks it matches live awarding).
 - Each title unlocks a badge, and some a name plate; First Edition copies also get a badge. The owner can pick one title, one name plate and up to 3 badges; anything not picked is automatic (best unlocked). Cosmetics never change stats. Like upgrades, a pick applies from the next fight whose betting opens.
 - The catalogue (labels, ranks, colours) is data in code, served by `GET /api/cosmetics` for the future overlay; fight views return each side's frozen cosmetics with labels and colours.
+
+## 10. Exhibitions and owner rewards
+
+```
+send (challenger) ──▶ PENDING ──accept──▶ ACCEPTED ──(exhibition segment, oldest accepted first)──▶ BOOKED ──▶ fight
+                        │ decline / cancel / expire (24 h)        │ cancel
+                        ▼                                         ▼
+               DECLINED | CANCELLED | EXPIRED                 CANCELLED
+```
+
+- **Challenges** are owner vs owner: your character against another player's (never a house character, never your own, never two copies of the same fighter). One open challenge per pair of characters, at most 5 open per player. Free: no Salt changes hands, and everyone bets as usual (owners of either side are capped as in any fight). Rules: `packages/shared/src/exhibitions.ts`; the `challenge_guard` trigger keeps rows and only lets status move forward.
+- **Booking.** Each exhibition slot takes the oldest accepted challenge whose characters are both active (it stays queued otherwise), booked with random corners and `pair_kind = CHALLENGE`. With no challenge waiting, a **house showcase** pairs two of the strongest house characters (X tier first, then rating; pool of 6) across tiers, with the usual no-mirror and no-immediate-rematch rules. If a challenge's fight is voided, the challenge is used up; the owners can send a new one.
+- **Owner rewards.** When a player's character wins on stream, settlement pays its owner 25 Salt from issuance (`OWNER_REWARD`, key `owner-reward:<fightId>`), in the same transaction and before the rating update (user accounts are locked before character rows, as upgrades do). Tournament-segment fights don't pay it. The ledger audit checks each reward belongs to a settled, non-tournament fight and went to the winner's owner. Fight views show the reward; "My characters" shows each character's total.

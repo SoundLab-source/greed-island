@@ -1,8 +1,8 @@
 /**
  * The stream's repeating cycle (DESIGN §5): matchmaking fights, then a
- * tournament, then exhibitions. Phase 1 only implements matchmaking; the
- * tournament and exhibition segments fall back to matchmaking bookings but
- * keep their place in the cycle, so the real modes can slot in later.
+ * tournament, then exhibitions. The tournament segment still falls back to
+ * matchmaking bookings (tournaments are phase 2 step 6) but keeps its place
+ * in the cycle.
  */
 export const SEGMENTS = ["MATCHMAKING", "TOURNAMENT", "EXHIBITION"] as const;
 export type Segment = (typeof SEGMENTS)[number];
@@ -49,7 +49,9 @@ export function nextPosition(last: CyclePosition | null, cfg: CycleConfig): Cycl
   return pos;
 }
 
-/** Which booking mode actually runs a segment. Tournament and exhibition are phase-2 stubs. */
-export function bookingModeFor(_segment: Segment): "MATCHMAKING" {
-  return "MATCHMAKING";
+export type BookingMode = "MATCHMAKING" | "EXHIBITION";
+
+/** Which booking mode actually runs a segment. The tournament is still a stub. */
+export function bookingModeFor(segment: Segment): BookingMode {
+  return segment === "EXHIBITION" ? "EXHIBITION" : "MATCHMAKING";
 }
