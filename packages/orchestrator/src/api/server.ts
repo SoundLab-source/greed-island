@@ -21,12 +21,26 @@ import {
   REPO_ROOT,
   type Db,
 } from "@greed-island/db";
-import { LedgerRuleError, MoneyError, parseSalt, SIDEGRADES, UPGRADE_STATS, type Config } from "@greed-island/shared";
+import {
+  BADGE_IDS,
+  cosmeticsCatalog,
+  describeCosmetics,
+  LedgerRuleError,
+  MAX_BADGES,
+  MoneyError,
+  NAMEPLATE_IDS,
+  parseSalt,
+  SIDEGRADES,
+  TITLE_CODES,
+  UPGRADE_STATS,
+  type Config,
+} from "@greed-island/shared";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import path from "node:path";
 import { z } from "zod";
 import { placeFightBet } from "../betting.ts";
 import type { BusEvent, FightBus } from "../bus.ts";
+import { setCosmetics } from "../cosmetics.ts";
 import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { buyCharacter, currentShop } from "../shop.ts";
 import { setSidegrade, upgradeStat } from "../upgrades.ts";
@@ -65,6 +79,14 @@ const VerifyBody = z.object({ token: z.string().min(20).max(200) });
 const BuyBody = z.object({ fighterId: z.string().min(1).max(64), idempotencyKey: z.string().min(8).max(100) });
 const UpgradeBody = z.object({ stat: z.enum(UPGRADE_STATS), idempotencyKey: z.string().min(8).max(100) });
 const SidegradeBody = z.object({ sidegrade: z.enum(SIDEGRADES).nullable(), idempotencyKey: z.string().min(8).max(100) });
+/** Replaces the whole pick; leave a field out for automatic. */
+const CosmeticsBody = z
+  .object({
+    title: z.enum(TITLE_CODES).nullable().optional(),
+    nameplate: z.enum(NAMEPLATE_IDS).optional(),
+    badges: z.array(z.enum(BADGE_IDS)).max(MAX_BADGES).optional(),
+  })
+  .strict();
 
 class HttpError extends Error {
   constructor(
@@ -201,6 +223,16 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const body = SidegradeBody.parse(req.body);
     const r = await setSidegrade(db, config, { userId, characterId, sidegrade: body.sidegrade, idempotencyKey: body.idempotencyKey });
     return send(reply, { character: await characterProfile(db, characterId), balance: r.balance, replayed: r.replayed });
+  });
+
+  // Titles and overlay cosmetics.
+  app.get("/api/cosmetics", async (_req, reply) => send(reply, cosmeticsCatalog()));
+  app.put<{ Params: { id: string } }>("/api/characters/:id/cosmetics", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const characterId = uuid.parse(req.params.id);
+    const body = CosmeticsBody.parse(req.body ?? {});
+    const equipped = await setCosmetics(db, { userId, characterId, choice: body });
+    return send(reply, { equipped: describeCosmetics(equipped), character: await characterProfile(db, characterId) });
   });
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));

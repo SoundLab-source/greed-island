@@ -69,6 +69,7 @@ model User {
   sessions         Session[]
   loginTokens      LoginToken[]
   characterChanges CharacterChange[]
+  titlesEarned     CharacterTitle[]
 
   @@map("user")
 }
@@ -258,6 +259,8 @@ model Character {
   defenseLevel   Int           @default(0) @map("defense_level") @db.SmallInt
   powerLevel     Int           @default(0) @map("power_level") @db.SmallInt
   sidegrade      Sidegrade?
+  /// Equipped overlay cosmetics picked by the owner (see CosmeticChoice); null = automatic (best earned).
+  cosmetics      Json?
   /// Effective stats (see CharacterStats), recomputed on every upgrade.
   lifePct        Int           @default(100) @map("life_pct") @db.SmallInt
   startPower     Int           @default(0) @map("start_power")
@@ -280,6 +283,7 @@ model Character {
   fightsWon      Fight[]       @relation("FightWinner")
   loadouts       FightLoadout[]
   changes        CharacterChange[]
+  titles         CharacterTitle[]
 
   @@unique([fighterId, serial])
   @@index([tier, enabled])
@@ -381,6 +385,7 @@ model Fight {
   accounts          Account[]
   ledgerTxns        LedgerTxn[]
   tierChanges       TierHistory[]
+  titles            CharacterTitle[]
 
   @@index([state])
   @@index([bookedAt])
@@ -406,6 +411,8 @@ model FightLoadout {
   volatility     Float
   wins           Int
   losses         Int
+  /// Overlay cosmetics shown for this fight (see Cosmetics).
+  cosmetics      Json      @default("{\"title\":null,\"nameplate\":\"standard\",\"badges\":[]}")
   ratingAfter    Float?    @map("rating_after")
   deviationAfter Float?    @map("deviation_after")
   tierAfter      Tier?     @map("tier_after")
@@ -533,4 +540,39 @@ model CharacterChange {
 
   @@index([characterId, id])
   @@map("character_change")
+}
+
+// ---------------------------------------------------------------------------
+// Titles (phase 2, step 4)
+
+enum TitleCode {
+  FIRST_BLOOD
+  WINS_10
+  WINS_100
+  GIANT_SLAYER
+  TIER_B
+  TIER_A
+  TIER_S
+  TOURNAMENT_CHAMPION
+}
+
+/// A title a character earned (DESIGN §8). Permanent: it stays with the character
+/// when it changes hands, and records who owned it when it was earned.
+model CharacterTitle {
+  id          BigInt    @id @default(autoincrement())
+  characterId String    @map("character_id") @db.Uuid
+  character   Character @relation(fields: [characterId], references: [id])
+  code        TitleCode
+  /// The fight that earned it.
+  fightId     String?   @map("fight_id") @db.Uuid
+  fight       Fight?    @relation(fields: [fightId], references: [id])
+  /// Owner at the time it was earned.
+  ownerKind   OwnerKind @map("owner_kind")
+  ownerUserId String?   @map("owner_user_id") @db.Uuid
+  owner       User?     @relation(fields: [ownerUserId], references: [id])
+  earnedAt    DateTime  @default(now()) @map("earned_at") @db.Timestamptz(3)
+
+  @@index([characterId, id])
+  @@index([fightId])
+  @@map("character_title")
 }

@@ -4,8 +4,25 @@
  * Stats shown to bettors (DESIGN §7): rating, tier, record, win rate,
  * head-to-head, last-10 form, tier history.
  */
-import { getBalance, openStakes, toSalt, type Db } from "@greed-island/db";
-import { formatMultiplier, liveOdds, maxLevel, UPGRADE_STATS, upgradeCost, type Config, type Side, type UpgradeConfig } from "@greed-island/shared";
+import { characterCosmetics, getBalance, openStakes, toSalt, type Db } from "@greed-island/db";
+import {
+  describeCosmetics,
+  describeUnlocked,
+  formatMultiplier,
+  liveOdds,
+  maxLevel,
+  parseCosmeticChoice,
+  parseCosmetics,
+  resolveCosmetics,
+  TITLES,
+  unlockedCosmetics,
+  UPGRADE_STATS,
+  upgradeCost,
+  type Config,
+  type Side,
+  type TitleCode,
+  type UpgradeConfig,
+} from "@greed-island/shared";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -44,6 +61,7 @@ const winRate = (wins: number, losses: number) => (wins + losses === 0 ? null : 
 
 export async function characterCard(db: Db, characterId: string) {
   const c = await db.character.findUniqueOrThrow({ where: { id: characterId }, include: { fighter: true, owner: true } });
+  const cosmetics = await characterCosmetics(db, c);
   return {
     id: c.id,
     name: c.name,
@@ -60,8 +78,35 @@ export async function characterCard(db: Db, characterId: string) {
     stats: { lifePct: c.lifePct, startPower: c.startPower, attackPct: c.attackPct, defensePct: c.defensePct },
     levels: { life: c.lifeLevel, attack: c.attackLevel, defense: c.defenseLevel, power: c.powerLevel },
     sidegrade: c.sidegrade,
+    /** What the overlay shows now (a fight shows its frozen copy instead). */
+    cosmetics: describeCosmetics(cosmetics.equipped),
     enabled: c.enabled && c.fighter.enabled,
   };
+}
+
+/** Titles with provenance: who owned the character when it earned each one. */
+export async function characterTitles(db: Db, characterId: string) {
+  const titles = await db.characterTitle.findMany({
+    where: { characterId },
+    orderBy: { id: "asc" },
+    include: { owner: true, fight: { select: { number: true } } },
+  });
+  return titles.map((t) => ({
+    code: t.code,
+    label: TITLES[t.code].label,
+    description: TITLES[t.code].description,
+    earnedBy: t.owner ? { kind: "player" as const, name: playerName(t.owner) } : { kind: "house" as const, name: "House" },
+    fightId: t.fightId,
+    fightNumber: t.fight?.number ?? null,
+    at: t.earnedAt,
+  }));
+}
+
+/** What the owner can equip, and what they picked (null = automatic). */
+async function cosmeticOptions(db: Db, characterId: string) {
+  const c = await db.character.findUniqueOrThrow({ where: { id: characterId }, select: { id: true, firstEdition: true, cosmetics: true } });
+  const { unlocked, choice } = await characterCosmetics(db, c);
+  return { unlocked: describeUnlocked(unlocked), cosmeticChoice: choice };
 }
 
 /** What the next level of each stat costs (null at max), for the owner's upgrade buttons. */
@@ -85,6 +130,8 @@ export async function characterProfile(db: Db, characterId: string) {
   return {
     ...card,
     license: (await db.fighter.findUniqueOrThrow({ where: { id: card.fighter.id } })).licenseNote,
+    titles: await characterTitles(db, characterId),
+    ...(await cosmeticOptions(db, characterId)),
     upgrades: changes.map((ch) => ({
       kind: ch.kind,
       stat: ch.stat,
@@ -131,6 +178,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
           stats: { lifePct: l.lifePct, startPower: l.startPower, attackPct: l.attackPct, defensePct: l.defensePct },
           ratingAfter: l.ratingAfter === null ? null : Math.round(l.ratingAfter),
           tierAfter: l.tierAfter,
+          cosmetics: describeCosmetics(parseCosmetics(l.cosmetics)),
         }
       : {};
     return { ...card, ...frozen, frozen: Boolean(l) };
@@ -254,10 +302,15 @@ export async function leaderboard(db: Db, take = 20) {
 
 export async function characterRanking(db: Db) {
   const chars = await db.character.findMany({ where: { enabled: true }, orderBy: { rating: "desc" }, include: { fighter: true } });
+  const earned = new Map<string, TitleCode[]>();
+  for (const t of await db.characterTitle.findMany({ where: { characterId: { in: chars.map((c) => c.id) } }, select: { characterId: true, code: true } })) {
+    earned.set(t.characterId, [...(earned.get(t.characterId) ?? []), t.code]);
+  }
   return chars.map((c, i) => ({
     rank: i + 1,
     id: c.id,
     name: c.name,
+    title: describeCosmetics(resolveCosmetics(unlockedCosmetics(earned.get(c.id) ?? [], c), parseCosmeticChoice(c.cosmetics))).title,
     tier: c.tier,
     rating: Math.round(c.rating),
     deviation: Math.round(c.deviation),
@@ -287,7 +340,7 @@ export async function myCharacters(db: Db, config: Config, userId: string) {
   return Promise.all(
     owned.map(async (c) => {
       const card = await characterCard(db, c.id);
-      return { ...card, prices: upgradePrices(card.levels, config.upgrades) };
+      return { ...card, prices: upgradePrices(card.levels, config.upgrades), titles: await characterTitles(db, c.id), ...(await cosmeticOptions(db, c.id)) };
     }),
   );
 }

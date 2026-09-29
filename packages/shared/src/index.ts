@@ -8,3 +8,4 @@ export * from "./odds.ts";
 export * from "./engine-events.ts";
 export * from "./shop.ts";
 export * from "./upgrades.ts";
+export * from "./titles.ts";

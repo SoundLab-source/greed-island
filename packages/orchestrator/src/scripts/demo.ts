@@ -4,7 +4,7 @@
 // ledger audit passes.
 import { auditLedger, claimBailout, claimDailyGrant, createDb, createUser, getBalance, loadRepoEnv, openStakes, type Db } from "@greed-island/db";
 import { createFakeSource, loadEngineConfig } from "@greed-island/engine";
-import { formatMultiplier, loadConfig, type Side } from "@greed-island/shared";
+import { formatMultiplier, loadConfig, TITLES, type Side } from "@greed-island/shared";
 import { randomInt, randomUUID } from "node:crypto";
 import { placeFightBet } from "../betting.ts";
 import { FightBus } from "../bus.ts";
@@ -106,12 +106,15 @@ try {
   const tierChanges = await db.tierHistory.findMany({ where: { createdAt: { gte: startedAt }, reason: "RATING" }, include: { character: true }, orderBy: { id: "asc" } });
   out(`\nTier changes this run: ${tierChanges.length}`);
   for (const t of tierChanges) out(`  ${t.character.name}: ${t.fromTier} → ${t.toTier} (rating ${Math.round(t.rating)})`);
+  const titles = await db.characterTitle.findMany({ where: { earnedAt: { gte: startedAt } }, include: { character: true, fight: true }, orderBy: { id: "asc" } });
+  out(`\nTitles earned this run: ${titles.length}`);
+  for (const t of titles) out(`  ${t.character.name}: ${TITLES[t.code].label} (fight #${t.fight?.number ?? "?"})`);
 
   const audit = await auditLedger(db);
   const settled = summaries.filter((s) => s.result === "SETTLED").length;
   const voided = summaries.length - settled;
   out(`\nFights: ${settled} settled, ${voided} voided.`);
-  out(`Ledger audit: ${audit.ok ? "OK" : "FAILED"} (issued ${audit.stats.issued} = players ${audit.stats.userBalances} + escrow ${audit.stats.escrow} + house ${audit.stats.house})`);
+  out(`Ledger audit: ${audit.ok ? "OK" : "FAILED"} (issued ${audit.stats.issued} = players ${audit.stats.userBalances} + escrow ${audit.stats.escrow} + house ${audit.stats.house} + spent ${audit.stats.sink})`);
   for (const p of audit.problems) out(`  FAIL [${p.check}] ${p.detail}`);
   if (!audit.ok || settled < 10 || voided < 1) process.exitCode = 1;
 } finally {

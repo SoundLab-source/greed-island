@@ -210,6 +210,17 @@ describe("shop", () => {
       expect(side.json().character.upgrades).toHaveLength(2);
       const bad = await rich.inject({ method: "POST", url: `/api/characters/${id}/upgrade`, headers: auth, payload: { stat: "speed", idempotencyKey: "upg-key-0002" } });
       expect(bad.statusCode).toBe(400);
+      // Cosmetics: a First Edition copy starts with its badge and can pick what to show.
+      expect(mine[0].cosmetics).toMatchObject({ title: null, nameplate: { id: "standard" }, badges: [{ id: "first-edition", label: "First Edition" }] });
+      expect(mine[0].unlocked).toEqual({ titles: [], nameplates: [{ id: "standard", label: "Standard" }], badges: [{ id: "first-edition", label: "First Edition" }] });
+      const put = (payload: unknown, headers: Record<string, string> = auth) => rich.inject({ method: "PUT", url: `/api/characters/${id}/cosmetics`, headers, payload: payload as object });
+      const hide = await put({ badges: [] });
+      expect(hide.statusCode).toBe(200);
+      expect(hide.json()).toMatchObject({ equipped: { badges: [] }, character: { cosmeticChoice: { badges: [] }, titles: [] } });
+      expect((await put({ nameplate: "gold" })).json()).toMatchObject({ error: "NOT_ELIGIBLE" });
+      expect((await put({ glow: true })).statusCode).toBe(400);
+      expect((await put({}, {})).statusCode).toBe(401);
+      expect((await put({})).json().character.cosmeticChoice).toBeNull();
     } finally {
       await rich.close();
     }
@@ -239,8 +250,16 @@ describe("stats after fights", () => {
     expect(profile.last10.length).toBeGreaterThan(0);
     expect(profile.tierHistory.at(-1)).toMatchObject({ reason: "INITIAL" });
     expect(profile.license).toBe("test");
+    // The top-rated character has won at least once: First Blood, earned under the house.
+    expect(profile.titles[0]).toMatchObject({ code: "FIRST_BLOOD", label: "First Blood", earnedBy: { kind: "house", name: "House" } });
+    expect(profile.titles[0].fightNumber).toBeGreaterThan(0);
+    expect(chars[0].title).toMatchObject({ code: expect.any(String) });
+    const catalog = (await app.inject({ method: "GET", url: "/api/cosmetics" })).json();
+    expect(catalog).toMatchObject({ maxBadges: 3 });
+    expect(catalog.titles.map((t: { code: string }) => t.code)).toContain("GIANT_SLAYER");
     const current = (await app.inject({ method: "GET", url: "/api/fights/current" })).json();
     expect(current.headToHead.fights).toBe(3);
+    expect(current.sides[1].cosmetics).toMatchObject({ nameplate: { id: expect.any(String) } });
     expect(current.result).not.toBeNull();
     const board = (await app.inject({ method: "GET", url: "/api/leaderboard" })).json();
     expect(Array.isArray(board)).toBe(true);

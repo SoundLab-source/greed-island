@@ -14,6 +14,7 @@
     "db:migrate": "pnpm --filter @greed-island/db run db:migrate",
     "db:migrate:dev": "pnpm --filter @greed-island/db run db:migrate:dev",
     "ledger:audit": "pnpm --filter @greed-island/db run ledger:audit",
+    "titles:backfill": "pnpm --filter @greed-island/db run titles:backfill",
     "roster:scan": "pnpm --filter @greed-island/engine run roster:scan",
     "roster:sync": "pnpm --filter @greed-island/engine run roster:sync",
     "ikemen:install-mod": "pnpm --filter @greed-island/engine run ikemen:install-mod",

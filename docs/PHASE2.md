@@ -11,7 +11,7 @@ Each step is committed with tests green, like phase 1.
 1. ✅ **Accounts.** Email sign-in with a one-time link (magic link). An anonymous player can attach an email and keep their Salt and bets. In development the link is printed to the console; production needs a mail provider (SMTP settings in `.env`). Sessions expire (default 30 days) and can be signed out.
 2. ✅ **Shop and owned characters.** A Salt sink account (spent Salt leaves circulation, as DESIGN §9 intends). The shop rotates every 5 hours with 6 slots drawn from enabled fighters. Buying one creates a character owned by the player, starting in tier P. Owned characters join matchmaking; house characters fill the gaps.
 3. ✅ **Upgrades and sidegrades.** Levelled stats with diminishing returns and a cap. Every change widens rating deviation. Stats reach the engine only through verified mechanisms.
-4. **Titles and effects.** Achievement titles with provenance ("earned by", "when"), plus overlay cosmetics (badges, name plates) stored as data for the stream overlay.
+4. ✅ **Titles and effects.** Achievement titles with provenance ("earned by", "when"), plus overlay cosmetics (badges, name plates) stored as data for the stream overlay.
 5. **Owner rewards and exhibitions.** Salt for owners when their character wins. Owner-vs-owner challenges fill the exhibition segment of the cycle.
 6. **Tournaments.** A 16-character single-elimination bracket per tier, rotating tiers, bet on with a separate tournament balance.
 
@@ -50,6 +50,13 @@ Each step is committed with tests green, like phase 1.
 
 **Titles** (DESIGN §8)
 - "First Blood" (first win), "10 Wins", "100 Wins", "Giant Slayer" (beat a character 3+ tiers up; P→S counts), tier firsts ("B-Tier" … "S-Tier"), "Tournament Champion". Each records the character, the owner at the time, the fight and the date.
+- Tier firsts count each band a character reaches for the first time on a rating promotion (a jump from P to A earns both B-Tier and A-Tier). The tier it started in doesn't count, and neither does climbing back after a drop. X is set by hand and never earns a title.
+- One-time titles are earned once per character; "Tournament Champion" can be earned again in each tournament.
+
+**Overlay cosmetics** (DESIGN §8, first effect tier)
+- Every title unlocks a matching badge. Name plates: Bronze (B-Tier), Silver (A-Tier), Veteran (100 Wins), Crimson (Giant Slayer), Gold (S-Tier), Champion (Tournament Champion); everyone has Standard. First Edition copies get a First Edition badge.
+- The owner picks one title, one name plate and up to 3 badges, free of charge. Anything not picked is automatic: the best one unlocked. House characters are always automatic.
+- What's shown is frozen with the loadout when betting opens, so a change applies from the next fight.
 
 **Tournaments** (DESIGN §5)
 - 16 characters from one tier, top-rated first; house characters fill empty seats. The tier rotates each cycle (S, A, B, P).

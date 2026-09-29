@@ -115,9 +115,11 @@ describe("owned characters on stream", () => {
       source: createFakeSource({ seed: "stream" }),
       rng,
     });
-    await o.run(6);
-    const fights = await db.fight.count({ where: { OR: [{ side1CharacterId: characterId }, { side2CharacterId: characterId }] } });
-    expect(fights).toBeGreaterThanOrEqual(2);
+    // Pairings depend on random character ids, so play until it has fought twice
+    // (it's in about half of all fights; 30 fights without that would be a bug).
+    const booked = () => db.fight.count({ where: { OR: [{ side1CharacterId: characterId }, { side2CharacterId: characterId }] } });
+    for (let played = 0; played < 30 && (await booked()) < 2; played += 3) await o.run(3);
+    expect(await booked()).toBeGreaterThanOrEqual(2);
     expect((await auditLedger(db)).ok).toBe(true);
   });
 });

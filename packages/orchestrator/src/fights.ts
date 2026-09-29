@@ -7,6 +7,8 @@
  */
 import {
   applyFightRating,
+  awardFightTitles,
+  characterCosmetics,
   lockFight,
   NotFoundError,
   settleFightLedgerTx,
@@ -17,7 +19,7 @@ import {
   type Prisma,
   type Tx,
 } from "@greed-island/db";
-import { liveOdds, lockOdds, type Config, type RoundEndEvent, type Side, type Stake } from "@greed-island/shared";
+import { liveOdds, lockOdds, TITLES, type Config, type RoundEndEvent, type Side, type Stake } from "@greed-island/shared";
 import type { BusEvent, FightBus } from "./bus.ts";
 import { bookingModeFor, nextPosition, type CyclePosition } from "./cycle.ts";
 import type { OrchestratorConfig } from "./config.ts";
@@ -122,6 +124,7 @@ async function runEffect(
     case "FREEZE_LOADOUTS": {
       for (const [side, characterId] of [[1, fight.side1CharacterId], [2, fight.side2CharacterId]] as const) {
         const c = await tx.character.findUniqueOrThrow({ where: { id: characterId } });
+        const { equipped } = await characterCosmetics(tx, c);
         await tx.fightLoadout.create({
           data: {
             fightId: fight.id,
@@ -139,6 +142,7 @@ async function runEffect(
             volatility: c.volatility,
             wins: c.wins,
             losses: c.losses,
+            cosmetics: { title: equipped.title, nameplate: equipped.nameplate, badges: equipped.badges },
           },
         });
       }
@@ -207,8 +211,13 @@ async function runEffect(
           data: { ratingAfter: change.after.rating, deviationAfter: change.after.deviation, tierAfter: change.after.tier },
         });
       }
+      const titles = await awardFightTitles(tx, { fightId: fight.id, winnerSide, loadoutTiers: { 1: l[1].tier, 2: l[2].tier }, changes, earnedAt: now });
       data.closedAt = now;
       notices.push({ type: "fight_result", fightId: fight.id, number: fight.number, result: "SETTLED", winnerSide, winnerCharacterId: l[winnerSide].characterId });
+      for (const t of titles) {
+        const name = l[1].characterId === t.characterId ? l[1].name : l[2].name;
+        notices.push({ type: "title_earned", fightId: fight.id, number: fight.number, characterId: t.characterId, name, code: t.code, label: TITLES[t.code].label });
+      }
       return;
     }
     case "RECORD_VOID":

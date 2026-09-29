@@ -66,7 +66,7 @@ stateDiagram-v2
 4. **Lock.** `LOCK`: compute the model chance from Glicko-2 expected score (both deviations), round it to basis points, clamp to [5%, 95%] (side 2 = 100% − side 1), then per side `multiplierBp = ⌊10000 × (10000 − marginBp) / chanceBp⌋`, floored at `minMultiplierBp` (1.00×). This is exactly `(1/p)(1 − margin)` in integers, e.g. 50% → 19000 (1.90×). From here on, money math is bigint only. The crowd blend (`w = maxWeight × pool/(pool + K)` over per-account-capped stakes) is computed and recorded, but `crowdMaxWeightBp = 0`, so locked odds equal model odds. Live odds shown during betting are model-only. Record `model_chance`, `crowd_chance` (per-account capped share), pools per side, and locked multipliers. Blend weight `w = pool/(pool+K)` is computed and stored but **config weight 0**, so locked = model.
 5. **Fight.** Runner builds argv from the loadouts and stage and spawns the engine. `ENGINE_STARTED` → `IN_PROGRESS`. Events are tailed from `runs/<fightId>/events.ndjson` and broadcast as SSE. The watchdog kills at `engine_timeout` → `ENGINE_TIMEOUT` → void. Exit without `match_end` → `ENGINE_CRASH` → void.
 6. **Result.** `match_end {winnerSide: 1|2}` → `SETTLING`. `winnerSide: 0` (draw) → `VOIDING`. Winner is a **side**, mapped to the character id the runner launched on that side.
-7. **Settle (one transaction).** Pay winners, sweep losers to house (§4), update both characters' records, run a Glicko-2 update (one-game rating period per fight, each side rated against the other's pre-fight rating), re-evaluate tiers (promotion at the band threshold; demotion only below threshold − hysteresis, default 25; append `tier_history` on change; X is manual only), write `fight_result`, → `SETTLED`.
+7. **Settle (one transaction).** Pay winners, sweep losers to house (§4), update both characters' records, run a Glicko-2 update (one-game rating period per fight, each side rated against the other's pre-fight rating), re-evaluate tiers (promotion at the band threshold; demotion only below threshold − hysteresis, default 25; append `tier_history` on change; X is manual only), award titles (§9), write `fight_result`, → `SETTLED`.
 8. **Void (one transaction).** Refund every bet in full (escrow → user, no margin), no rating change, → `VOIDED`.
 9. Scheduler books the next fight only after the current one is terminal (`SETTLED` or `VOIDED`), so matchmaking and loadout snapshots always use settled ratings. As on Salty Bet, the betting window is the gap between fights.
 
@@ -135,9 +135,10 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `GET /api/fights/current`, `GET /api/fights/:id` | Fighters (frozen loadout once betting opens), tier, rating, record, win rate, last-10 form, head-to-head, odds (live model estimate before lock; locked odds, pools and crowd chance after), rounds, result, the viewer's bet |
 | `POST /api/fights/:id/bets` | `{side, stake, idempotencyKey}`; latest bet counts until lock |
 | `POST /api/characters/:id/upgrade`, `POST /api/characters/:id/sidegrade` | Owner only: `{stat, idempotencyKey}` raises one level; `{sidegrade or null, idempotencyKey}` picks, switches or removes a sidegrade |
+| `GET /api/cosmetics`, `PUT /api/characters/:id/cosmetics` | Catalogue of titles, name plates and badges (labels, colours); owner only: `{title?, nameplate?, badges?}` picks what the overlay shows (a missing field = automatic, free) |
 | `GET /api/shop`, `POST /api/shop/buy`, `GET /api/me/characters` | Current rotation (price, rarity, First Editions left, when it changes), buy `{fighterId, idempotencyKey}`, your characters |
-| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking, character profile (tier history, recent fights, license) |
-| `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, keep-alive comments |
+| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking, character profile (titles with provenance, tier history, upgrades, recent fights, license) |
+| `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, keep-alive comments |
 
 `apps/web` is a plain page (no build step) served at `/` that uses these routes.
 
@@ -151,7 +152,7 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 - `FightLoadout` (fightId, side, characterId, stats, rating, rd, volatility, tier), immutable
 - `FightOdds` (fightId, modelChance[2], crowdChance[2], pool[2], blendWeight, lockedMultiplierBp[2] as integers; chances as floats for analysis only)
 - `FightTransition` (audit), `Bet` (fightId, userId, side, stake, status, payout?), `Account`, `LedgerTxn`, `LedgerEntry`, `IdempotencyKey`
-- Phase-2 placeholders only as fields: `Character.ownerUserId`, `stats`, `titles` (empty JSON). No shop, upgrade or title tables yet.
+- Phase 2: `Session`, `LoginToken` (sign-in links), `Character` ownership (serial, First Edition, purchase txn), upgrade levels, sidegrade and `cosmetics` (the owner's pick), `CharacterChange` (upgrade history), `CharacterTitle` (earned titles with the fight and the owner at the time, append-only), `FightLoadout.cosmetics` (frozen with the loadout). The schema in `packages/db/prisma/schema.prisma` is the source of truth.
 
 ## 8. How stat upgrades reach the engine
 
@@ -162,3 +163,15 @@ upgrade/sidegrade → Character levels + effective stats ──(frozen at OPEN_B
 - Owners raise four stats (life, attack, defense, starting power) over five levels with shrinking gains, or pick one sidegrade; Salt goes to the sink; each change widens the rating deviation by 30 (max 350) and is kept in `character_change` (it travels with the character). Rules and costs: `packages/shared/src/upgrades.ts`, defaults in docs/PHASE2.md.
 - Changes apply from the next fight whose betting opens; a loadout already frozen is untouched.
 - The runner passes life and starting power as `-p<n>.lifeMax/.life/.power` flags. For attack/defense it launches a copy of the character (`chars/gi-loadout-<hash>/`) whose own `[Data] attack/defence` are scaled, reused while unchanged, newest 64 kept. `argv.json` records which copy each side used.
+
+## 9. Titles and overlay cosmetics
+
+```
+SETTLE ──▶ applyFightRating ──▶ awardFightTitles ──▶ character_title (+ SSE title_earned after commit)
+titles + First Edition ──▶ unlocked cosmetics ──(owner's pick or automatic)──▶ frozen at OPEN_BETTING ──▶ FightLoadout.cosmetics ──▶ overlay
+```
+
+- Titles are awarded in the settlement transaction from the frozen loadout tiers and the rating update: First Blood, 10 Wins, 100 Wins, Giant Slayer (beat a character 3+ tiers higher, P < B < A < S < X), and tier firsts for each band reached for the first time on a promotion (not the starting tier, not a climb back). Tournament Champion is catalogued for the tournaments step. Rules: `packages/shared/src/titles.ts`.
+- `character_title` is append-only; each row keeps the fight and the owner at the time, and one-time titles are unique per character. `pnpm titles:backfill` replays settled fights' loadouts to award titles for fights from before titles existed (same rules; a test checks it matches live awarding).
+- Each title unlocks a badge, and some a name plate; First Edition copies also get a badge. The owner can pick one title, one name plate and up to 3 badges; anything not picked is automatic (best unlocked). Cosmetics never change stats. Like upgrades, a pick applies from the next fight whose betting opens.
+- The catalogue (labels, ranks, colours) is data in code, served by `GET /api/cosmetics` for the future overlay; fight views return each side's frozen cosmetics with labels and colours.

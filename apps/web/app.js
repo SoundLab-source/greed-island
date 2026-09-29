@@ -33,13 +33,20 @@ async function ensureSession() {
 function text(el, s) { el.textContent = s; }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
 
+// A preview of the stream overlay's name plate: colours come from the API (GET /api/cosmetics).
+function nameplate(name, cos) {
+  const p = cos.nameplate;
+  const badges = cos.badges.map((b) => `<span class="badge" style="background:${b.color}" title="${esc(b.label)}">${esc(b.glyph)}</span>`).join("");
+  return `<span class="plate" style="background:${p.background};border-color:${p.border};color:${p.text}">${esc(name)}${cos.title ? ` <small>· ${esc(cos.title.label)}</small>` : ""}${badges}</span>`;
+}
+
 function sideCard(n, s, odds) {
   const color = n === 1 ? "Red" : "Blue";
   if (!s) return `<h3>${color}</h3>`;
   const o = odds ? `<div>Odds: <strong>${odds.multiplier[n]}</strong> (${odds.chancePct[n]}% win chance${odds.locked ? ", locked" : ", estimate"})</div>` : "";
   const after = s.ratingAfter != null ? ` → ${s.ratingAfter} (${s.tierAfter})` : "";
   return `
-    <h3>${color}: ${esc(s.name)}</h3>
+    <h3>${color}: ${nameplate(s.name, s.cosmetics)}</h3>
     <div class="muted">${s.owner.kind === "house" ? "House character" : `Owned by ${esc(s.owner.name)}`}${s.firstEdition ? " · First Edition" : ""}</div>
     <div>Tier <strong>${s.tier}</strong>, rating ${s.rating} ±${s.deviation}${after}</div>
     <div>Record ${s.record.wins}-${s.record.losses}${s.winRate == null ? "" : ` (${s.winRate}% wins)`}</div>
@@ -118,7 +125,7 @@ async function refreshTables() {
   const [results, players, chars] = await Promise.all([api("GET", "/api/results"), api("GET", "/api/leaderboard"), api("GET", "/api/characters")]);
   $("results").innerHTML = results.map((r) => `<tr><td>#${r.number}</td><td>${esc(r.sides[1])} vs ${esc(r.sides[2])}</td><td>${r.result.kind === "settled" ? esc(r.sides[r.result.winnerSide]) + " won" : "void"}</td></tr>`).join("");
   $("leaderboard").innerHTML = players.map((p) => `<tr><td>${p.rank}</td><td>${esc(p.name)}</td><td>${p.balance}</td></tr>`).join("");
-  $("characters").innerHTML = chars.map((c) => `<tr><td>${c.tier}</td><td>${esc(c.name)}</td><td>${c.rating}</td><td>${c.record.wins}-${c.record.losses}</td></tr>`).join("");
+  $("characters").innerHTML = chars.map((c) => `<tr><td>${c.tier}</td><td>${esc(c.name)}${c.title ? ` <span class="muted">${esc(c.title.label)}</span>` : ""}</td><td>${c.rating}</td><td>${c.record.wins}-${c.record.losses}</td></tr>`).join("");
 }
 
 let shopTimer = null;
@@ -155,14 +162,49 @@ async function refreshMine() {
         ? `<button disabled>${STAT_LABELS[k]} max</button>`
         : `<button data-upgrade="${c.id}" data-stat="${k}">+${STAT_LABELS[k]} (${c.prices.next[k]})</button>`).join(" ");
     const options = [`<option value="">no sidegrade</option>`].concat(Object.entries(SIDEGRADE_LABELS).map(([k, label]) => `<option value="${k}" ${c.sidegrade === k ? "selected" : ""}>${label}</option>`)).join("");
-    return `<tr><td><strong>${esc(c.name)}</strong>${c.firstEdition ? " ★" : ""}<br><span class="muted">tier ${c.tier}, rating ${c.rating} ±${c.deviation}, ${c.record.wins}-${c.record.losses}, last 10: ${c.last10.join(" ") || "-"}</span>
+    return `<tr><td>${nameplate(c.name, c.cosmetics)}${c.firstEdition ? " ★" : ""}<br><span class="muted">tier ${c.tier}, rating ${c.rating} ±${c.deviation}, ${c.record.wins}-${c.record.losses}, last 10: ${c.last10.join(" ") || "-"}</span>
       <br><span class="muted">life ${st.lifePct}%, attack ${st.attackPct}%, defense ${st.defensePct}%, start power ${st.startPower}</span>
       <br>${buttons}
-      <br><select data-sidegrade="${c.id}">${options}</select> <button data-set-sidegrade="${c.id}">Set sidegrade (${c.prices.sidegrade}, removing is free)</button></td></tr>`;
+      <br><select data-sidegrade="${c.id}">${options}</select> <button data-set-sidegrade="${c.id}">Set sidegrade (${c.prices.sidegrade}, removing is free)</button>
+      <br><span class="muted">Titles: ${c.titles.length ? c.titles.map((t) => `${esc(t.label)} (fight #${t.fightNumber}, ${esc(t.earnedBy.name)})`).join(", ") : "none yet: win fights to earn them"}</span>
+      <br>${lookPicker(c)}</td></tr>`;
   }).join("");
+  for (const b of document.querySelectorAll("[data-save-look]")) b.onclick = () => saveLook(b.dataset.saveLook);
   for (const b of document.querySelectorAll("[data-upgrade]")) b.onclick = () => upgrade(b.dataset.upgrade, b.dataset.stat);
   for (const b of document.querySelectorAll("[data-set-sidegrade]")) {
     b.onclick = () => sidegrade(b.dataset.setSidegrade, document.querySelector(`[data-sidegrade="${b.dataset.setSidegrade}"]`).value || null);
+  }
+}
+
+// Pick the title, name plate and badges shown on stream. "Automatic" shows the best earned.
+function lookPicker(c) {
+  const pick = c.cosmeticChoice ?? {};
+  const sel = (v) => (v ? "selected" : "");
+  const titles = [`<option value="auto" ${sel(pick.title === undefined)}>title: automatic</option>`, `<option value="none" ${sel(pick.title === null)}>no title</option>`]
+    .concat(c.unlocked.titles.map((t) => `<option value="${t.code}" ${sel(pick.title === t.code)}>${esc(t.label)}</option>`)).join("");
+  const plates = [`<option value="auto" ${sel(pick.nameplate === undefined)}>name plate: automatic</option>`]
+    .concat(c.unlocked.nameplates.map((p) => `<option value="${p.id}" ${sel(pick.nameplate === p.id)}>${esc(p.label)}</option>`)).join("");
+  const badges = c.unlocked.badges.map((b) => `<label><input type="checkbox" data-badge="${c.id}" value="${b.id}" ${pick.badges?.includes(b.id) ? "checked" : ""}> ${esc(b.label)}</label>`).join(" ");
+  return `<select data-look-title="${c.id}">${titles}</select> <select data-look-plate="${c.id}">${plates}</select>
+    <label><input type="checkbox" data-badges-auto="${c.id}" ${pick.badges === undefined ? "checked" : ""}> badges: automatic</label> ${badges}
+    <button data-save-look="${c.id}">Save look (free)</button>`;
+}
+
+async function saveLook(id) {
+  const choice = {};
+  const title = document.querySelector(`[data-look-title="${id}"]`).value;
+  if (title !== "auto") choice.title = title === "none" ? null : title;
+  const plate = document.querySelector(`[data-look-plate="${id}"]`).value;
+  if (plate !== "auto") choice.nameplate = plate;
+  if (!document.querySelector(`[data-badges-auto="${id}"]`).checked) {
+    choice.badges = [...document.querySelectorAll(`[data-badge="${id}"]:checked`)].map((el) => el.value);
+  }
+  try {
+    await api("PUT", `/api/characters/${id}/cosmetics`, choice);
+    text($("shop-msg"), "Look saved. It shows from the character's next fight.");
+    await refreshMine();
+  } catch (e) {
+    text($("shop-msg"), e.message);
   }
 }
 
@@ -228,6 +270,10 @@ function connectStream() {
   es.addEventListener("fight_result", (e) => {
     const d = JSON.parse(e.data);
     log(d.result === "SETTLED" ? `fight #${d.number}: ${d.winnerSide === 1 ? "Red" : "Blue"} wins` : `fight #${d.number}: void (${d.voidReason})`);
+  });
+  es.addEventListener("title_earned", (e) => {
+    const d = JSON.parse(e.data);
+    log(`${d.name} earned the title "${d.label}" (fight #${d.number})`);
   });
   es.onerror = () => log("stream disconnected, retrying…");
 }
