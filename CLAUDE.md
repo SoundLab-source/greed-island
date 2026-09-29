@@ -3,7 +3,7 @@
 Always-on AI-vs-AI fighting-game stream (IKEMEN GO engine) with free play-money betting (Salt), owned characters, and a community-voted roster. The full game design is in @docs/DESIGN.md. Read it before making any design decision; if code and the design disagree, ask rather than guess.
 
 ## Current phase
-Phase 2: Ownership (see DESIGN.md §13). Phase 1 (Stream MVP) is complete. Build order and default values for DESIGN.md §15 open questions are in `docs/PHASE2.md`. Nothing on-chain, no trading, no payments.
+Phase 2: Ownership (see DESIGN.md §13). Phase 1 (Stream MVP) is complete. Build order and default values for DESIGN.md §15 open questions are in `docs/PHASE2.md`. Nothing on-chain, no trading, no payments. `ROADMAP.md` is the project overview: status, history, what's next and how to pick up the work.
 
 ## Stack
 - TypeScript on Node (current LTS), pnpm workspaces, Postgres via Prisma, Fastify, Vitest.
@@ -53,5 +53,5 @@ Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `
 
 ## Conventions
 - Tests next to code (`*.test.ts`). Property tests for the ledger and odds math.
-- Commit at the end of each working step with tests green.
+- Commit at the end of each working step with tests green, and update `ROADMAP.md` (status table, "What's been done", "What's next") in the same commit.
 - Ask before changing anything in DESIGN.md's decisions; open questions (DESIGN.md §15) should use a config value with a sensible default, flagged in the PR/commit message.
