@@ -97,6 +97,7 @@ model User {
   votes            Vote[]
   wallets          Wallet[]
   walletChallenges WalletChallenge[]
+  looksApplied     NftLook[]
   seasonStandings  SeasonStanding[]
 
   @@map("user")
@@ -326,6 +327,7 @@ model Character {
   matchesWon     TournamentMatch[] @relation("MatchWinner")
   reviewItems    ReviewItem[]
   staffActions   StaffAction[]
+  nftLooks       NftLook[]
   seasonsWon     Season[]
   seasonStandings SeasonStanding[]
 
@@ -1137,7 +1139,40 @@ model NftCollection {
   createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   submissions        Submission[]
+  looks              NftLook[]
 
   @@unique([chain, address])
   @@map("nft_collection")
+}
+
+/// An NFT's look on a character (portrait and name plate colours). It stays
+/// with the character for good (removed only by its owner, or replaced), even
+/// after the NFT is sold. Each NFT's look is on one character at a time.
+model NftLook {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  characterId     String        @map("character_id") @db.Uuid
+  character       Character     @relation(fields: [characterId], references: [id])
+  chain           Chain
+  assetId         String        @map("asset_id")
+  collectionId    String        @map("collection_id") @db.Uuid
+  collection      NftCollection @relation(fields: [collectionId], references: [id])
+  /// The NFT's name.
+  name            String
+  /// The image, stored as <GI_LOOKS_DIR>/<sha256>.<type>.
+  imageSha256     String        @map("image_sha256")
+  imageType       String        @map("image_type")
+  /// Name plate colours from the image (PlateColors), when they could be read.
+  colors          Json?
+  /// The NFT's traits [{trait, value}], for trait kits later.
+  traits          Json
+  appliedByUserId String        @map("applied_by_user_id") @db.Uuid
+  appliedBy       User          @relation(fields: [appliedByUserId], references: [id])
+  /// The wallet that held the NFT when the look was applied.
+  walletAddress   String        @map("wallet_address")
+  appliedAt       DateTime      @default(now()) @map("applied_at") @db.Timestamptz(3)
+  removedAt       DateTime?     @map("removed_at") @db.Timestamptz(3)
+
+  @@index([characterId, appliedAt])
+  @@index([chain, assetId])
+  @@map("nft_look")
 }

@@ -42,3 +42,5 @@ packages/engine/roster.draft.json
 
 # Submitted fighter images (GI_SUBMISSIONS_DIR); never committed
 submissions/
+# NFT look images (GI_LOOKS_DIR); never committed
+looks/

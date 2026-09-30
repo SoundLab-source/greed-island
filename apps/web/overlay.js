@@ -21,7 +21,8 @@
   function plate(s) {
     const p = s.cosmetics.nameplate;
     const title = s.cosmetics.title ? `<span class="title">${esc(s.cosmetics.title.label)}</span>` : "";
-    return `<div class="plate" style="background:${esc(p.background)};border-color:${esc(p.border)};color:${esc(p.text)}"><span class="name">${esc(s.name)}</span>${title}</div>`;
+    const look = s.cosmetics.look ? `<img class="look" src="${esc(s.cosmetics.look.image)}" alt="">` : "";
+    return `<div class="plate" style="background:${esc(p.background)};border-color:${esc(p.border)};color:${esc(p.text)}">${look}<span class="name">${esc(s.name)}</span>${title}</div>`;
   }
   const badge = (b) => `<span class="badge" style="background:${esc(b.color)}" title="${esc(b.label)}">${esc(b.glyph)}</span>`;
   const badges = (s) => `<div class="badges">${s.cosmetics.badges.map(badge).join("")}</div>`;

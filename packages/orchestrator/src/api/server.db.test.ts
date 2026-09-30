@@ -18,6 +18,7 @@ import { addSubmissionFile, createSubmission, sendForReview } from "../submissio
 import { SubmissionStore } from "../submission-store.ts";
 import { png } from "../testing/png.ts";
 import { MemoryNftSource } from "../nft-source.ts";
+import { LookStore } from "../look-images.ts";
 import { encodeBase58 } from "@greed-island/shared";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -560,7 +561,7 @@ describe("holders", () => {
     const collectionAddress = encodeBase58(new Uint8Array(32).fill(9));
     const assetId = encodeBase58(new Uint8Array(32).fill(1));
     const source = new MemoryNftSource([{ assetId, name: "Pixel Monk #42", image: "https://img.example/42.png", collection: collectionAddress, attributes: [], owner: address }]);
-    const srv = await buildServer({ db, config: { ...config, submissions: { ...config.submissions, open: true } }, bus, mailer, submissionStore: new SubmissionStore(submissionsDir), nftSource: source, images: async () => png(32, 32, 1) });
+    const srv = await buildServer({ db, config: { ...config, submissions: { ...config.submissions, open: true } }, bus, mailer, submissionStore: new SubmissionStore(submissionsDir), nftSource: source, images: async () => png(32, 32, 1), lookStore: new LookStore(nodePath.join(submissionsDir, "looks")) });
     try {
       const signIn = async (email: string) => {
         await srv.inject({ method: "POST", url: "/api/auth/email", payload: { email } });
@@ -590,6 +591,22 @@ describe("holders", () => {
       const started = await srv.inject({ method: "POST", url: "/api/submissions/from-nft", headers: sam, payload: { assetId, archetype: "HEAVY" } });
       expect(started.statusCode).toBe(201);
       expect(started.json()).toMatchObject({ portrait: "added", submission: { status: "DRAFT", community: "Pixel Monks", fighterName: "Pixel Monk 42", archetype: "HEAVY", files: [{ role: "PORTRAIT" }] } });
+      // Looks: the collection's community fighter is f1; sam dresses their copy of it.
+      await srv.inject({ method: "PUT", url: "/api/staff/collections", headers: adminAuth, payload: { ...collection, looksAllowed: true, fighterId: "f1" } });
+      const samId = (await srv.inject({ method: "GET", url: "/api/me", headers: sam })).json().id;
+      const copy = await db.character.create({
+        data: { fighterId: "f1", name: "f1 #1", rating: 1400, deviation: 100, volatility: 0.06, tier: "P", ownerKind: "USER", ownerUserId: samId, serial: 1, acquiredAt: new Date() },
+      });
+      const worn = await srv.inject({ method: "POST", url: `/api/characters/${copy.id}/look`, headers: sam, payload: { assetId } });
+      expect(worn.statusCode).toBe(201);
+      const look = worn.json().character.cosmetics.look;
+      expect(look).toMatchObject({ name: "Pixel Monk #42", image: expect.stringMatching(/^\/api\/looks\//) });
+      const img = await srv.inject({ method: "GET", url: look.image });
+      expect(img.headers["content-type"]).toBe("image/png");
+      expect(img.rawPayload).toEqual(png(32, 32, 1));
+      expect((await srv.inject({ method: "GET", url: "/api/me/nfts", headers: sam })).json().nfts[0]).toMatchObject({ wornBy: copy.id, collection: { fighterId: "f1" } });
+      expect((await srv.inject({ method: "DELETE", url: `/api/characters/${copy.id}/look`, headers: sam })).json().character.cosmetics.look).toBeNull();
+      expect((await srv.inject({ method: "GET", url: `/api/looks/${randomUUID()}/image` })).statusCode).toBe(404);
       const walletId = linked.json().wallet.id;
       expect((await srv.inject({ method: "DELETE", url: `/api/me/wallets/${walletId}`, headers: sam })).statusCode).toBe(204);
       expect((await srv.inject({ method: "POST", url: "/api/me/wallets/challenge", headers: sam, payload: { address: "0xnope" } })).json()).toMatchObject({ error: "NOT_ELIGIBLE" });

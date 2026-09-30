@@ -11,6 +11,8 @@ import {
   fighterNameFromNft,
   isSolanaAddress,
   LedgerRuleError,
+  lookProblem,
+  plateColorsFromPixels,
   pngInfo,
   walletChallengeMessage,
   type Archetype,
@@ -19,6 +21,7 @@ import {
 } from "@greed-island/shared";
 import { createPublicKey, randomBytes, randomInt, verify } from "node:crypto";
 import type { ImageFetcher } from "./image-fetch.ts";
+import { decodePng, sniffImage, type LookImageType, type LookStore } from "./look-images.ts";
 import type { NftSource } from "./nft-source.ts";
 import { requireStaff } from "./staff.ts";
 import type { SubmissionStore } from "./submission-store.ts";
@@ -122,6 +125,12 @@ export async function myNfts(db: Db, source: NftSource | null, userId: string) {
   const held: NftSummary[] = [];
   for (const w of wallets) held.push(...(await source.assetsByOwner(w.address)));
   const usable = held.filter((n) => n.collection && collections.has(n.collection));
+  const worn = new Map(
+    (await db.nftLook.findMany({ where: { chain: "SOLANA", assetId: { in: usable.map((n) => n.assetId) }, removedAt: null }, select: { assetId: true, characterId: true } })).map((l) => [
+      l.assetId,
+      l.characterId,
+    ]),
+  );
   const openFrom = new Set(
     (await db.submission.findMany({ where: { nftAssetId: { in: usable.map((n) => n.assetId) }, status: { notIn: ["WITHDRAWN", "REJECTED", "NOT_ELECTED"] } }, select: { nftAssetId: true } })).map(
       (s) => s.nftAssetId,
@@ -132,7 +141,13 @@ export async function myNfts(db: Db, source: NftSource | null, userId: string) {
     wallets,
     nfts: usable.map((n) => {
       const c = collections.get(n.collection!)!;
-      return { ...n, collection: { id: c.id, name: c.name, address: c.address, submissionsAllowed: c.submissionsAllowed, looksAllowed: c.looksAllowed }, submitted: openFrom.has(n.assetId) };
+      return {
+        ...n,
+        collection: { id: c.id, name: c.name, address: c.address, submissionsAllowed: c.submissionsAllowed, looksAllowed: c.looksAllowed, fighterId: c.fighterId },
+        submitted: openFrom.has(n.assetId),
+        /** The character wearing this NFT's look, if any. */
+        wornBy: worn.get(n.assetId) ?? null,
+      };
     }),
     /** NFTs from collections that aren't approved (not listed). */
     otherNfts: held.length - usable.length,
@@ -199,6 +214,90 @@ export async function submitFromNft(
     }
   }
   return { submission: sub, portrait };
+}
+
+// ---------------------------------------------------------------------------
+// NFT looks
+
+type LookRow = Awaited<ReturnType<Tx["nftLook"]["findUniqueOrThrow"]>>;
+
+/**
+ * Give a character the look of an NFT its owner holds: the NFT's image as the
+ * portrait and its colours on the name plate. It replaces the character's
+ * current look (whose NFT is free again). Applying the look it already wears
+ * returns it (replayed). The look then stays with the character for good,
+ * whatever happens to the NFT.
+ */
+export async function applyLook(
+  db: Db,
+  deps: { source: NftSource | null; images: ImageFetcher; looks: LookStore },
+  input: { userId: string; characterId: string; assetId: string },
+  now = new Date(),
+): Promise<{ look: LookRow; replayed: boolean }> {
+  const { nft, collection } = await heldApproved(db, deps.source, input.userId, input.assetId, "looks");
+  const character = await db.character.findUnique({ where: { id: input.characterId }, select: { id: true, ownerUserId: true, fighterId: true } });
+  if (!character) throw new NotFoundError("no such character");
+  const current = await db.nftLook.findFirst({ where: { characterId: character.id, removedAt: null } });
+  if (current?.assetId === nft.assetId) return { look: current, replayed: true };
+  const worn = await db.nftLook.findFirst({ where: { chain: "SOLANA", assetId: nft.assetId, removedAt: null }, select: { id: true } });
+  refuse(lookProblem({ userId: input.userId, ownerUserId: character.ownerUserId, characterFighterId: character.fighterId, collection, usedElsewhere: worn !== null }));
+  if (!nft.image) refuse("that NFT has no image to use");
+  let bytes: Buffer;
+  try {
+    bytes = await deps.images(nft.image!);
+  } catch (err) {
+    throw new LedgerRuleError("NOT_ELIGIBLE", `couldn't download the NFT's image (${(err as Error).message})`);
+  }
+  const type: LookImageType | null = sniffImage(bytes);
+  if (!type) refuse("the NFT's image isn't a PNG, JPEG, GIF or WebP image");
+  const sha256 = await deps.looks.save(bytes, type!);
+  const decoded = type === "png" ? decodePng(bytes) : null;
+  const colors = decoded ? plateColorsFromPixels(decoded.rgba) : null;
+  const look = await withRetry(db, async (tx) => {
+    const rows = await tx.$queryRaw<{ owner_user_id: string | null }[]>`SELECT "owner_user_id" FROM "character" WHERE "id" = ${character.id}::uuid FOR UPDATE`;
+    if (rows[0]?.owner_user_id !== input.userId) refuse("you can only change the look of a character you own");
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(7111, hashtext(${nft.assetId}))`;
+    if (await tx.nftLook.findFirst({ where: { chain: "SOLANA", assetId: nft.assetId, removedAt: null }, select: { id: true } })) {
+      refuse("this NFT's look is already on another character (each NFT's look goes on one character)");
+    }
+    await tx.nftLook.updateMany({ where: { characterId: character.id, removedAt: null }, data: { removedAt: now } });
+    return tx.nftLook.create({
+      data: {
+        characterId: character.id,
+        chain: "SOLANA",
+        assetId: nft.assetId,
+        collectionId: collection.id,
+        name: nft.name,
+        imageSha256: sha256,
+        imageType: type!,
+        colors: colors ? { ...colors } : undefined,
+        traits: nft.attributes,
+        appliedByUserId: input.userId,
+        walletAddress: nft.owner,
+        appliedAt: now,
+      },
+    });
+  });
+  return { look, replayed: false };
+}
+
+/** The owner takes the look off (its NFT's look can then go on another character). */
+export async function removeLook(db: Db, input: { userId: string; characterId: string }, now = new Date()): Promise<void> {
+  await withRetry(db, async (tx) => {
+    const rows = await tx.$queryRaw<{ owner_user_id: string | null }[]>`SELECT "owner_user_id" FROM "character" WHERE "id" = ${input.characterId}::uuid FOR UPDATE`;
+    if (!rows[0]) throw new NotFoundError("no such character");
+    if (rows[0].owner_user_id !== input.userId) refuse("you can only change the look of a character you own");
+    const { count } = await tx.nftLook.updateMany({ where: { characterId: input.characterId, removedAt: null }, data: { removedAt: now } });
+    if (count === 0) refuse("this character has no NFT look");
+  });
+}
+
+/** A look's image, for anyone (characters and their looks are public on stream). */
+export async function readLookImage(db: Db, looks: LookStore, lookId: string): Promise<{ bytes: Buffer; type: LookImageType }> {
+  const look = await db.nftLook.findUnique({ where: { id: lookId }, select: { imageSha256: true, imageType: true } });
+  if (!look) throw new NotFoundError("no such look");
+  const type = look.imageType as LookImageType;
+  return { bytes: await looks.read(look.imageSha256, type), type };
 }
 
 // ---------------------------------------------------------------------------

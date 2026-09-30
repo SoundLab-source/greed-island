@@ -5,6 +5,7 @@
  * it later. Each title unlocks a badge, and some also unlock a name plate, for
  * the stream overlay. Cosmetics never change how a character fights.
  */
+import { parseLookCosmetic, type LookCosmetic } from "./looks.ts";
 import { BAND_TIERS, type BandTier, type Tier } from "./tiers.ts";
 
 export const TITLE_CODES = ["FIRST_BLOOD", "WINS_10", "WINS_100", "GIANT_SLAYER", "TIER_B", "TIER_A", "TIER_S", "TOURNAMENT_CHAMPION", "SEASON_CHAMPION"] as const;
@@ -162,6 +163,8 @@ export interface Cosmetics {
   title: TitleCode | null;
   nameplate: NameplateId;
   badges: BadgeId[];
+  /** An NFT look (docs/PHASE3.md "NFTs as fighters"); absent when the character has none. */
+  look?: LookCosmetic;
 }
 
 export const NO_COSMETICS: Readonly<Cosmetics> = Object.freeze({ title: null, nameplate: "standard", badges: [] as BadgeId[] });
@@ -229,7 +232,8 @@ export function parseCosmeticChoice(value: unknown): CosmeticChoice | null {
 /** Read frozen loadout cosmetics (JSON column), falling back to nothing shown. */
 export function parseCosmetics(value: unknown): Cosmetics {
   const c = parseCosmeticChoice(value);
-  return { title: c?.title ?? null, nameplate: c?.nameplate ?? "standard", badges: c?.badges ?? [] };
+  const look = value !== null && typeof value === "object" ? parseLookCosmetic((value as Record<string, unknown>)["look"]) : undefined;
+  return { title: c?.title ?? null, nameplate: c?.nameplate ?? "standard", badges: c?.badges ?? [], ...(look ? { look } : {}) };
 }
 
 /** The whole catalogue, for the overlay and the dev page. */
@@ -244,10 +248,13 @@ export function cosmeticsCatalog() {
 
 /** Cosmetics with their catalogue labels and colours, for the API and overlay. */
 export function describeCosmetics(c: Cosmetics) {
+  // An NFT look's colours replace the name plate's (a look is worn over whatever plate is picked).
+  const lookColors = c.look?.colors;
   return {
     title: c.title ? { code: c.title, label: TITLES[c.title].label } : null,
-    nameplate: { id: c.nameplate, ...NAMEPLATES[c.nameplate] },
+    nameplate: lookColors ? { id: c.nameplate, ...NAMEPLATES[c.nameplate], ...lookColors, label: "NFT look" } : { id: c.nameplate, ...NAMEPLATES[c.nameplate] },
     badges: c.badges.map((id) => ({ id, ...BADGES[id] })),
+    look: c.look ? { id: c.look.id, name: c.look.name, image: `/api/looks/${c.look.id}/image` } : null,
   };
 }
 

@@ -8,6 +8,7 @@ import {
   BAND_TIERS,
   higherBand,
   parseCosmeticChoice,
+  parsePlateColors,
   resolveCosmetics,
   titlesEarned,
   unlockedCosmetics,
@@ -145,5 +146,8 @@ export async function characterCosmetics(db: Db | Tx, c: { id: string; firstEdit
     { firstEdition: c.firstEdition },
   );
   const choice = parseCosmeticChoice(c.cosmetics);
-  return { unlocked, choice, equipped: resolveCosmetics(unlocked, choice) };
+  // An NFT look the character wears (docs/PHASE3.md "NFTs as fighters").
+  const look = await db.nftLook.findFirst({ where: { characterId: c.id, removedAt: null }, select: { id: true, name: true, colors: true } });
+  const equipped = resolveCosmetics(unlocked, choice);
+  return { unlocked, choice, equipped: look ? { ...equipped, look: { id: look.id, name: look.name, colors: parsePlateColors(look.colors) } } : equipped };
 }

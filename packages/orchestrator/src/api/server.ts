@@ -72,7 +72,20 @@ import { leaderboard, recentSeasons, seasonView } from "./season-views.ts";
 import { mySubmissions, submissionDetail, submissionRules } from "./submission-views.ts";
 import { ballotView } from "./ballot-views.ts";
 import { castVote, retractVote } from "../voting.ts";
-import { createWalletChallenge, listCollections, listWallets, myNfts, setCollection, submitFromNft, unlinkWallet, verifyWallet } from "../holders.ts";
+import {
+  applyLook,
+  createWalletChallenge,
+  listCollections,
+  listWallets,
+  myNfts,
+  readLookImage,
+  removeLook,
+  setCollection,
+  submitFromNft,
+  unlinkWallet,
+  verifyWallet,
+} from "../holders.ts";
+import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.ts";
 import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
 import { loadNftSource, NftSourceError, type NftSource } from "../nft-source.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
@@ -99,6 +112,8 @@ export interface ApiDeps {
   nftSource?: NftSource | null;
   /** Downloads NFT images. Defaults to a guarded https fetch. */
   images?: ImageFetcher;
+  /** Where NFT look images are kept. Defaults to GI_LOOKS_DIR or `looks/`. */
+  lookStore?: LookStore;
 }
 
 /** GI_TWITCH_CHANNEL: a Twitch login name (4-25 letters, digits or underscores). */
@@ -185,6 +200,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   const store = deps.submissionStore ?? loadSubmissionStore();
   const nftSource = deps.nftSource === undefined ? loadNftSource() : deps.nftSource;
   const images = deps.images ?? imageFetcher(config.submissions.maxFileBytes);
+  const looks = deps.lookStore ?? loadLookStore();
   const app = Fastify({ logger: deps.logger ?? false });
   // Submission images arrive as the raw PNG body (checked in pngInfo; the content type isn't trusted).
   app.addContentTypeParser(["image/png", "application/octet-stream"], { parseAs: "buffer", bodyLimit: config.submissions.maxFileBytes + 1024 }, (_req, body, done) => done(null, body));
@@ -488,6 +504,29 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const body = FromNftBody.parse(req.body);
     const r = await submitFromNft(db, config, { source: nftSource, store, images }, { userId, assetId: body.assetId, ...(body.archetype ? { archetype: body.archetype } : {}) });
     return send(reply.status(201), { portrait: r.portrait, submission: await submissionDetail(db, r.submission.id, { id: userId, staff: false }) });
+  });
+  // NFT looks: an owner dresses their copy of their community's fighter in an NFT they hold.
+  app.post<{ Params: { id: string } }>("/api/characters/:id/look", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const characterId = uuid.parse(req.params.id);
+    const { assetId } = z.object({ assetId: z.string().min(1).max(64) }).parse(req.body);
+    const r = await applyLook(db, { source: nftSource, images, looks }, { userId, characterId, assetId });
+    return send(reply.status(r.replayed ? 200 : 201), { replayed: r.replayed, character: await characterProfile(db, characterId) });
+  });
+  app.delete<{ Params: { id: string } }>("/api/characters/:id/look", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const characterId = uuid.parse(req.params.id);
+    await removeLook(db, { userId, characterId });
+    return send(reply, { character: await characterProfile(db, characterId) });
+  });
+  app.get<{ Params: { id: string } }>("/api/looks/:id/image", async (req, reply) => {
+    const { bytes, type } = await readLookImage(db, looks, uuid.parse(req.params.id));
+    return reply
+      .header("content-type", LOOK_IMAGE_TYPES[type])
+      .header("x-content-type-options", "nosniff")
+      .header("content-security-policy", "default-src 'none'")
+      .header("cache-control", "public, max-age=86400")
+      .send(bytes);
   });
   app.get("/api/staff/collections", async (req, reply) => {
     await requireStaffViewer(req, "view_log");

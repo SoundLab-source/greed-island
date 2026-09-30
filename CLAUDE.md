@@ -52,7 +52,7 @@ Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `
 - **Loadouts are frozen** when betting opens; every fight stores a snapshot of both loadouts, ratings and tiers.
 - **IKEMEN, OBS and NFT/wallet facts must be verified** in source, the official docs or by a real run (`docs/ikemen-notes.md`, `docs/obs-notes.md`, `docs/nft-notes.md`). Anything unverified is marked UNVERIFIED in those notes and kept behind an adapter. Never invent flags, config keys or Lua functions.
 - Spawn the engine with an argument array, never a shell string.
-- Never commit IKEMEN binaries, characters, stages, submitted images (`submissions/`) or secrets. Submitted images are untrusted: check them as PNG from their bytes, never build paths from what a submitter typed, and serve them only to their submitter and staff.
+- Never commit IKEMEN binaries, characters, stages, submitted images (`submissions/`), NFT look images (`looks/`) or secrets. Submitted images are untrusted: check them as PNG from their bytes, never build paths from what a submitter typed, and serve them only to their submitter and staff.
 
 ## Conventions
 - Tests next to code (`*.test.ts`). Property tests for the ledger and odds math.

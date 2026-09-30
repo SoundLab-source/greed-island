@@ -142,3 +142,6 @@ button:disabled { cursor: not-allowed; }
   .plate .name { font-size: 16px; }
   .top { padding: 10px 12px; }
 }
+
+/* An NFT look's portrait before the name (docs/PHASE3.md "NFTs as fighters"). */
+.plate .look { height: 1.6em; width: 1.6em; object-fit: cover; border-radius: 0.2em; vertical-align: middle; margin-right: 0.4em; }

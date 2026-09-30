@@ -37,7 +37,8 @@ function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 function nameplate(name, cos) {
   const p = cos.nameplate;
   const badges = cos.badges.map((b) => `<span class="badge" style="background:${b.color}" title="${esc(b.label)}">${esc(b.glyph)}</span>`).join("");
-  return `<span class="plate" style="background:${p.background};border-color:${p.border};color:${p.text}">${esc(name)}${cos.title ? ` <small>· ${esc(cos.title.label)}</small>` : ""}${badges}</span>`;
+  const look = cos.look ? `<img src="${esc(cos.look.image)}" alt="" title="${esc(cos.look.name)}" style="height:1.4em;vertical-align:middle;margin-right:4px">` : "";
+  return `<span class="plate" style="background:${esc(p.background)};border-color:${esc(p.border)};color:${esc(p.text)}">${look}${esc(name)}${cos.title ? ` <small>· ${esc(cos.title.label)}</small>` : ""}${badges}</span>`;
 }
 
 function sideCard(n, s, odds) {
@@ -163,8 +164,12 @@ async function refreshShop() {
 const STAT_LABELS = { life: "Life", attack: "Attack", defense: "Defense", power: "Power" };
 const SIDEGRADE_LABELS = { BRUISER: "Bruiser (+10% life, −300 power)", GLASS_CANNON: "Glass Cannon (+8% attack, −8% life)", IRON_WALL: "Iron Wall (+8% defense, −5% attack)" };
 
+// NFTs the player could put on characters (from /api/me/nfts), kept for the look pickers.
+let lookNfts = [];
+
 async function refreshMine() {
-  const mine = await api("GET", "/api/me/characters");
+  const [mine, held] = await Promise.all([api("GET", "/api/me/characters"), api("GET", "/api/me/nfts").catch(() => null)]);
+  lookNfts = held?.configured ? held.nfts.filter((n) => n.collection.looksAllowed && n.collection.fighterId) : [];
   if (!mine.length) {
     $("mine").innerHTML = `<tr><td class="muted">None yet. Buy one in the shop: it starts in tier P and climbs by winning.</td></tr>`;
     return;
@@ -182,15 +187,38 @@ async function refreshMine() {
       <br><select data-sidegrade="${c.id}">${options}</select> <button data-set-sidegrade="${c.id}">Set sidegrade (${c.prices.sidegrade}, removing is free)</button>
       <br><span class="muted">Titles: ${c.titles.length ? c.titles.map((t) => `${esc(t.label)} (fight #${t.fightNumber}, ${esc(t.earnedBy.name)})`).join(", ") : "none yet: win fights to earn them"}</span>
       <br>${lookPicker(c)}
-      <br>${namePicker(c)}</td></tr>`;
+      <br>${namePicker(c)}
+      ${lookPicker2(c)}</td></tr>`;
   }).join("");
   for (const b of document.querySelectorAll("[data-ask-name]")) b.onclick = () => askName(b.dataset.askName);
+  for (const b of document.querySelectorAll("[data-wear]")) b.onclick = () => lookAction("POST", b.dataset.wear, { assetId: document.querySelector(`[data-wear-nft="${b.dataset.wear}"]`).value });
+  for (const b of document.querySelectorAll("[data-unwear]")) b.onclick = () => lookAction("DELETE", b.dataset.unwear);
   for (const b of document.querySelectorAll("[data-withdraw-name]")) b.onclick = () => withdrawName(b.dataset.withdrawName);
   for (const b of document.querySelectorAll("[data-save-look]")) b.onclick = () => saveLook(b.dataset.saveLook);
   for (const b of document.querySelectorAll("[data-upgrade]")) b.onclick = () => upgrade(b.dataset.upgrade, b.dataset.stat);
   for (const b of document.querySelectorAll("[data-set-sidegrade]")) {
     b.onclick = () => sidegrade(b.dataset.setSidegrade, document.querySelector(`[data-sidegrade="${b.dataset.setSidegrade}"]`).value || null);
   }
+}
+
+// NFT looks: wear an NFT you hold on your copy of its community's fighter. The look stays with the character.
+function lookPicker2(c) {
+  const look = c.cosmetics.look;
+  const usable = lookNfts.filter((n) => n.collection.fighterId === c.fighter.id && (!n.wornBy || n.wornBy === c.id) && n.assetId);
+  const current = look ? `<br><span class="muted">Wearing the NFT look "${esc(look.name)}".</span> <button data-unwear="${c.id}">Take it off</button>` : "";
+  if (!usable.length) return current;
+  const options = usable.map((n) => `<option value="${esc(n.assetId)}">${esc(n.name)} (${esc(n.collection.name)})</option>`).join("");
+  return `${current}<br><select data-wear-nft="${c.id}">${options}</select> <button data-wear="${c.id}">Wear this NFT look (stays with the character)</button>`;
+}
+
+async function lookAction(method, characterId, body) {
+  try {
+    await api(method, `/api/characters/${characterId}/look`, body);
+    text($("shop-msg"), method === "POST" ? "Look on. It shows from the character's next fight." : "Look taken off.");
+  } catch (e) {
+    text($("shop-msg"), e.message);
+  }
+  await refreshMine();
 }
 
 // Custom names: a moderator reviews each one before it's used.
