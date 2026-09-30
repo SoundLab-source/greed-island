@@ -22,6 +22,19 @@ function roster(overrides: Partial<Roster> = {}): Roster {
 }
 
 describe("syncRoster", () => {
+  it("leaves community fighters (released from the vote) and their house characters alone", async () => {
+    await syncRoster(db, roster(), ratingSettings);
+    await db.fighter.create({ data: { id: "community-heron", source: "COMMUNITY", displayName: "Iron Heron", archetype: "ZONER", defPath: "chars/b/b.def", licenseNote: "community" } });
+    await db.character.create({ data: { fighterId: "community-heron", name: "Iron Heron", rating: 1500, deviation: 350, volatility: 0.06, tier: "B" } });
+    const report = await syncRoster(db, roster(), ratingSettings);
+    expect(report.fighters.disabled).toBe(0);
+    expect(report.characters.disabled).toBe(0);
+    expect((await db.fighter.findUniqueOrThrow({ where: { id: "community-heron" } })).enabled).toBe(true);
+    expect(await db.character.count({ where: { fighterId: "community-heron", enabled: true } })).toBe(1);
+    // A roster fighter can't pose as a community one, or the other way round.
+    await expect(db.fighter.create({ data: { id: "community-fake", displayName: "x", archetype: "ZONER", defPath: "x", licenseNote: "x" } })).rejects.toThrow(/fighter_source_id/);
+  });
+
   it("creates fighters, stages and characters, then is idempotent", async () => {
     const first = await syncRoster(db, roster(), ratingSettings);
     expect(first.characters).toEqual({ created: 2, updated: 0, disabled: 0 });

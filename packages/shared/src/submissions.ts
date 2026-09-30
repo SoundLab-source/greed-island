@@ -28,8 +28,8 @@ export const DEFAULT_SUBMISSIONS: Readonly<SubmissionConfig> = Object.freeze({
   maxImageSide: 4096,
 });
 
-/** ELECTED and NOT_ELECTED come from the season vote (voting.ts), not from these actions. */
-export const SUBMISSION_STATUSES = ["DRAFT", "SUBMITTED", "CHANGES_REQUESTED", "APPROVED", "REJECTED", "WITHDRAWN", "ELECTED", "NOT_ELECTED"] as const;
+/** ELECTED and NOT_ELECTED come from the season vote (voting.ts), RELEASED from the seasonal release (releases.ts), not from these actions. */
+export const SUBMISSION_STATUSES = ["DRAFT", "SUBMITTED", "CHANGES_REQUESTED", "APPROVED", "REJECTED", "WITHDRAWN", "ELECTED", "NOT_ELECTED", "RELEASED"] as const;
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
 /** Still being worked on or waiting for review: one per community (and per account) at a time. */

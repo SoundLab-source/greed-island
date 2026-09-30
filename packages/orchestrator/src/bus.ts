@@ -35,6 +35,7 @@ export type BusEvent =
       champion: { characterId: string; name: string } | null;
       topBettor: { name: string; saltWon: Salt } | null;
     }
+  | { type: "release"; seasonNumber: number; fighters: { name: string; community: string; fighterId: string }[] }
   | { type: "ballot"; status: "OPENED"; seasonNumber: number; closesAt: string; fighters: { name: string; community: string }[] }
   | { type: "ballot"; status: "CLOSED"; seasonNumber: number; results: { name: string; community: string; votes: number; elected: boolean }[] };
 

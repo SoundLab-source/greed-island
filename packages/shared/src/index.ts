@@ -18,3 +18,4 @@ export * from "./submissions.ts";
 export * from "./voting.ts";
 export * from "./nft.ts";
 export * from "./looks.ts";
+export * from "./releases.ts";

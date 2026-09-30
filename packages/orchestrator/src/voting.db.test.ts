@@ -162,7 +162,8 @@ describe("a season's vote", () => {
       ],
     });
     const statuses = await db.submission.findMany({ orderBy: { number: "asc" }, select: { fighterName: true, status: true } });
-    expect(statuses.map((s) => [s.fighterName, s.status])).toEqual([["Iron Heron", "ELECTED"], ["Moss Golem", "NOT_ELECTED"], ["Red Crane", "ELECTED"], ["Jade Monk", "APPROVED"]]);
+    // Elected fighters join the roster as the next season starts, in the same step (step 6).
+    expect(statuses.map((s) => [s.fighterName, s.status])).toEqual([["Iron Heron", "RELEASED"], ["Moss Golem", "NOT_ELECTED"], ["Red Crane", "RELEASED"], ["Jade Monk", "APPROVED"]]);
     const results = (await ballotView(db, config, 1))!;
     expect(results).toMatchObject({ status: "CLOSED", votingOpen: false, me: null });
     expect(results.entries.map((e) => [e.fighterName, e.result])).toEqual([
@@ -213,6 +214,6 @@ describe("voting guards", () => {
     await expect(db.vote.delete({ where: { id: vote.id } })).rejects.toThrow(/voting has closed/);
     await expect(db.ballotEntry.update({ where: { ballotId_submissionId: { ballotId: ballot.id, submissionId: heron.id } }, data: { votes: 99 } })).rejects.toThrow(/closed/);
     await expect(db.ballot.update({ where: { id: ballot.id }, data: { closedAt: T0 } })).rejects.toThrow(/closed ballot can't change/);
-    await expect(db.submission.update({ where: { id: heron.id }, data: { status: "NOT_ELECTED" } })).rejects.toThrow(/elected submission can't change/);
+    await expect(db.submission.update({ where: { id: heron.id }, data: { status: "NOT_ELECTED" } })).rejects.toThrow(/released submission can't change/);
   });
 });

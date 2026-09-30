@@ -34,7 +34,9 @@ export interface ShopView {
 async function offersFor(db: Db | Tx, config: Config, now: Date): Promise<ShopView> {
   const window = rotationWindow(now, config.shop);
   const fighters = await db.fighter.findMany({ where: { enabled: true }, orderBy: { id: "asc" } });
-  const picked = pickRotation(fighters, window.index, config.shop);
+  // Community fighters released this season are always offered (docs/PHASE3.md step 6).
+  const featured = new Set((await db.release.findMany({ where: { season: { status: "RUNNING" }, fighter: { enabled: true } }, select: { fighterId: true } })).map((r) => r.fighterId));
+  const picked = pickRotation(fighters, window.index, config.shop, featured);
   const sold = await db.character.groupBy({
     by: ["fighterId"],
     where: { ownerKind: "USER", fighterId: { in: picked.map((f) => f.id) } },

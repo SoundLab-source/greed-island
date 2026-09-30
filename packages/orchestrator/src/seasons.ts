@@ -19,6 +19,7 @@ import {
   type PlayerSeasonStat,
 } from "@greed-island/shared";
 import type { BusEvent } from "./bus.ts";
+import { releaseElected } from "./releases.ts";
 import { closeBallot, openBallotIfDue } from "./voting.ts";
 
 type SeasonRow = Prisma.SeasonGetPayload<object>;
@@ -81,6 +82,8 @@ export async function advanceSeason(tx: Tx, config: Config, now: Date): Promise<
   }
   const next = await tx.season.create({ data: { ...nextSeasonWindow(previousEndsAt, now, config.seasons), createdAt: now } });
   notices.push({ type: "season", seasonId: next.id, number: next.number, status: "STARTED", startsAt: next.startsAt.toISOString(), endsAt: next.endsAt.toISOString() });
+  // Last season's elected fighters join the roster now.
+  notices.push(...(await releaseElected(tx, config, next, now)));
   // A season shorter than the voting window votes from its first day.
   notices.push(...(await openBallotIfDue(tx, config, next, now)));
   return notices;

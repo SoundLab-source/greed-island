@@ -232,9 +232,16 @@ enum TierChangeReason {
 }
 
 /// A design in the fighter pool (art, moves, AI). Synced from roster.json.
+/// Where a fighter comes from: roster.json (roster:sync manages it) or a community release.
+enum FighterSource {
+  ROSTER
+  COMMUNITY
+}
+
 model Fighter {
-  /// Slug from roster.json, e.g. "kfm".
+  /// Slug from roster.json, e.g. "kfm"; "community-..." for released community fighters.
   id             String      @id
+  source         FighterSource @default(ROSTER)
   displayName    String      @map("display_name")
   archetype      Archetype
   /// Shop price multiplier (DESIGN §8).
@@ -248,6 +255,8 @@ model Fighter {
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   characters     Character[]
   nftCollections NftCollection[]
+  release        Release?    @relation("ReleasedFighter")
+  standInFor     Release[]   @relation("StandIn")
 
   @@map("fighter")
 }
@@ -328,6 +337,7 @@ model Character {
   reviewItems    ReviewItem[]
   staffActions   StaffAction[]
   nftLooks       NftLook[]
+  release        Release?
   seasonsWon     Season[]
   seasonStandings SeasonStanding[]
 
@@ -715,6 +725,8 @@ model Tournament {
   size                Int              @db.SmallInt
   status              TournamentStatus @default(RUNNING)
   cancelReason        String?          @map("cancel_reason")
+  /// Seats newly released community fighters first (phase 3, step 6).
+  debut               Boolean          @default(false)
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   finishedAt          DateTime?        @map("finished_at") @db.Timestamptz(3)
   championCharacterId String?          @map("champion_character_id") @db.Uuid
@@ -724,6 +736,7 @@ model Tournament {
   accounts            Account[]
   titles              CharacterTitle[]
   playerTitles        PlayerTitle[]
+  debuts              Release[]
 
   @@map("tournament")
 }
@@ -905,6 +918,7 @@ model Season {
   titles              CharacterTitle[]
   playerTitles        PlayerTitle[]
   ballot              Ballot?
+  releases            Release[]
 
   @@map("season")
 }
@@ -950,6 +964,8 @@ enum SubmissionStatus {
   ELECTED
   /// On a ballot but not elected; the community can submit again.
   NOT_ELECTED
+  /// Joined the roster at the start of the next season (phase 3, step 6).
+  RELEASED
 }
 
 enum RightsBasis {
@@ -998,6 +1014,7 @@ model Submission {
   files             SubmissionFile[]
   reviewItems       ReviewItem[]
   ballotEntry       BallotEntry?
+  release           Release?
 
   @@index([status, submittedAt])
   @@index([submittedByUserId])
@@ -1175,4 +1192,31 @@ model NftLook {
   @@index([characterId, appliedAt])
   @@index([chain, assetId])
   @@map("nft_look")
+}
+
+// ---------------------------------------------------------------------------
+// Seasonal release (phase 3, step 6)
+
+/// An elected submission joining the roster: its fighter, its house character,
+/// and the engine character it plays with until its template exists.
+model Release {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The season it joined (the one after its vote).
+  seasonId          String      @map("season_id") @db.Uuid
+  season            Season      @relation(fields: [seasonId], references: [id])
+  submissionId      String      @unique @map("submission_id") @db.Uuid
+  submission        Submission  @relation(fields: [submissionId], references: [id])
+  fighterId         String      @unique @map("fighter_id")
+  fighter           Fighter     @relation("ReleasedFighter", fields: [fighterId], references: [id])
+  characterId       String      @unique @map("character_id") @db.Uuid
+  character         Character   @relation(fields: [characterId], references: [id])
+  standInFighterId  String      @map("stand_in_fighter_id")
+  standIn           Fighter     @relation("StandIn", fields: [standInFighterId], references: [id])
+  /// The tournament it debuted in, once it has.
+  debutTournamentId String?     @map("debut_tournament_id") @db.Uuid
+  debutTournament   Tournament? @relation(fields: [debutTournamentId], references: [id])
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([seasonId])
+  @@map("release")
 }

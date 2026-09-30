@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-30, after Phase 3 step 7 (holders and NFT looks). Update this file at the end of every build step.*
+*Last updated 2026-09-30, after Phase 3 step 6 (seasonal release). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) is under way: steps 1, 2, 3 and 5 of 7 are built. |
-| **Next step** | Step 6: seasonal release (elected fighters join the roster, with stand-in art until the templates exist). To try holders for real: a Solana NFT lookup address in `.env` and a wallet like Phantom. Also waiting on you: OK to download the free art base, and style references. |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
-| **Not built yet** | Automatic checks on submissions and recolouring fighters from NFT looks (need the templates), seasonal releases; anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 526 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps are built; step 4 (automatic checks) waits for the fighter templates. |
+| **Next step** | The fighter templates (the art route in [PHASE3.md](docs/PHASE3.md)): they unlock step 4 (automatic checks), real art for community fighters, and recoloured NFT looks. Waiting on you: OK to download the free art base, style references, and whether to set up the 3D-to-sprite pipeline (Blender). To try holders for real: a Solana NFT lookup address in `.env` and a wallet like Phantom. |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
+| **Not built yet** | The fighter templates, and what needs them: automatic checks on submissions, real art for community fighters, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
+| **Health** | 529 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -33,7 +33,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
 | **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | ✅ Done |
-| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | In progress (5 of 7 steps) |
+| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | 6 of 7 steps (step 4 waits for templates) |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
 ## What's been done
@@ -68,6 +68,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 3. ✅ **Fighter submissions** (`209b294`): a page (`/submit.html`) where a community sends a fighter for the ballot: name, archetype, sprite sheets, portrait, intro and win pose (PNG images), and a statement of its rights to the art. Images are checked, stored outside git in `submissions/`, and only the submitter and staff can see them. Staff review it on the staff page: approve, ask for changes (the submitter fixes it and sends it again), or reject. **Staff-only for now**: it opens to the public (`GI_SUBMISSIONS_OPEN=true`) once a lawyer has looked at the terms.
 5. ✅ **Voting** (`96b4b87`, built before step 4, which needs the fighter templates): in the last 2 weeks of each season, approved fighters go on a ballot. Accounts with a verified email, 14+ days old and 20+ bets get 3 votes (one per fighter) and can take them back until the end; counts stay hidden until then. At the season's end the counts are published and the top 2 are elected; the rest can be submitted again. A "Season ballot" box on the dev page, and announcements on the overlay and watch page.
 7. ✅ **Holders** (`5a1e26d`, `a0ad4dc`): players link a Solana wallet by signing a free message (nothing is sent on-chain); admins approve NFT collections on the staff page; a holder can start a fighter submission from one of their NFTs (its image becomes the portrait, its collection the community). **NFT looks**: an owner dresses their copy of a collection's community fighter in an NFT they hold: its image becomes the portrait next to the name on the stream, and its colours the name plate. The look stays with the character for good, even after the NFT is sold, and each NFT's look goes on one character. Needs a Solana NFT lookup address (`GI_SOLANA_RPC_URL`); not yet tried with a real wallet or provider.
+6. ✅ **Seasonal release**: when a season starts, last season's elected fighters join the roster as community fighters: a house character that debuts in the next tournament ("Debut Tournament"), and First Edition copies that are always in the shop during their first season. Until their templates exist they play with a stand-in engine character of the same fighter type. A fighter submitted from an NFT becomes its collection's community fighter, so holders can give their copies NFT looks.
 - ✅ **Fighter art search** (`28c3e06`, research only): no complete, openly licensed fighting-game characters exist. The best base is a free (CC0) set of 3,150+ side-view frames whose character types match our archetypes (strikers, wrestlers, brawlers, boxers); it's made from 3D renders, so a lawyer should confirm the licence covers selling characters. Details and the other candidates: [PHASE3.md](docs/PHASE3.md) "Fighter art search".
 
 **Streaming**

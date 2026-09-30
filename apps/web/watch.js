@@ -221,6 +221,10 @@
       if (d.status === "STARTED") feed(`<b>Season ${d.number}</b> begins: the leaderboard starts over`);
       if (d.status === "ENDED") feed(`Season ${d.number} is over${d.champion ? `: champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? `, top bettor <b>${esc(d.topBettor.name)}</b>` : ""}`);
     });
+    es.addEventListener("release", (e) => {
+      const d = JSON.parse(e.data);
+      feed(`New fighters join the roster: ${d.fighters.map((f) => `<b>${esc(f.name)}</b> from ${esc(f.community)}`).join(", ")}. First Editions are in the shop.`);
+    });
     es.addEventListener("ballot", (e) => {
       const d = JSON.parse(e.data);
       if (d.status === "OPENED") feed(`Voting is open for Season ${d.seasonNumber}: ${d.fighters.map((f) => `<b>${esc(f.name)}</b>`).join(", ")}`);

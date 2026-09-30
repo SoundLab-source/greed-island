@@ -54,14 +54,16 @@ export function bracketSize(n: number): number {
  * never play. The bracket is the largest power of two that fills, up to
  * `maxSize`; fewer than 2 seats means no tournament.
  */
-export function pickSeats(candidates: readonly SeatCandidate[], tier: BandTier, maxSize: number, cfg: TierConfig): SeatCandidate[] {
+export function pickSeats(candidates: readonly SeatCandidate[], tier: BandTier, maxSize: number, cfg: TierConfig, mustSeat: ReadonlySet<string> = new Set()): SeatCandidate[] {
   const byRating = (a: SeatCandidate, b: SeatCandidate) => b.rating - a.rating || (a.characterId < b.characterId ? -1 : 1);
-  const eligible = candidates.filter((c) => c.tier !== "X");
+  // Debuting fighters (docs/PHASE3.md step 6) take the first seats, whatever their tier.
+  const debut = candidates.filter((c) => mustSeat.has(c.characterId)).sort(byRating);
+  const eligible = candidates.filter((c) => c.tier !== "X" && !mustSeat.has(c.characterId));
   const inTier = eligible.filter((c) => c.tier === tier);
   const fillers = eligible
     .filter((c) => c.tier !== tier && !c.owned)
     .sort((a, b) => distanceToBand(a.rating, tier, cfg) - distanceToBand(b.rating, tier, cfg) || byRating(a, b));
-  const ordered = [...inTier.filter((c) => c.owned).sort(byRating), ...inTier.filter((c) => !c.owned).sort(byRating), ...fillers];
+  const ordered = [...debut, ...inTier.filter((c) => c.owned).sort(byRating), ...inTier.filter((c) => !c.owned).sort(byRating), ...fillers];
   const size = Math.min(bracketSize(maxSize), bracketSize(ordered.length));
   return size < 2 ? [] : ordered.slice(0, size).sort(byRating);
 }

@@ -29,7 +29,7 @@
   const roundWins = (f, side) => f.rounds.filter((r) => r.winnerSide === side).length;
 
   function segment(f) {
-    if (f.tournament) return `Tournament #${f.tournament.number} · ${esc(f.tournament.tier)} tier<small>${esc(f.tournament.roundName)}</small>`;
+    if (f.tournament) return `${f.tournament.debut ? "Debut Tournament" : "Tournament"} #${f.tournament.number} · ${esc(f.tournament.tier)} tier<small>${esc(f.tournament.roundName)}</small>`;
     if (f.challenge) return `Exhibition challenge<small>${esc(f.challenge.challenger)} vs ${esc(f.challenge.challenged)}</small>`;
     if (f.pairKind === "SHOWCASE") return `Exhibition<small>House showcase</small>`;
     if (f.pairKind === "UPSET") return `Matchmaking<small>Upset bout</small>`;
@@ -239,6 +239,10 @@
       const d = JSON.parse(e.data);
       if (d.status === "STARTED") toast(`<span><b>Season ${d.number}</b> begins · the leaderboard starts over</span>`);
       if (d.status === "ENDED") toast(`<span>Season ${d.number} is over${d.champion ? ` · champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? ` · top bettor <b>${esc(d.topBettor.name)}</b>` : ""}</span>`);
+    });
+    es.addEventListener("release", (e) => {
+      const d = JSON.parse(e.data);
+      toast(`<span>New fighters join the roster: ${d.fighters.map((f) => `<b>${esc(f.name)}</b> (${esc(f.community)})`).join(", ")}</span>`);
     });
     es.addEventListener("ballot", (e) => {
       const d = JSON.parse(e.data);

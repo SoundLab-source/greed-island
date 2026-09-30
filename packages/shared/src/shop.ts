@@ -50,13 +50,16 @@ export function rotationWindow(now: Date, cfg: Pick<ShopConfig, "rotationMs">): 
  * The fighters on offer in a window: a stable pseudo-random pick, the same
  * for everyone and every server, that changes each window.
  */
-export function pickRotation<T extends { id: string }>(fighters: readonly T[], windowIndex: number, cfg: Pick<ShopConfig, "slots">): T[] {
+/** `featured` fighters (new community fighters in their debut season) are always offered, first. */
+export function pickRotation<T extends { id: string }>(fighters: readonly T[], windowIndex: number, cfg: Pick<ShopConfig, "slots">, featured: ReadonlySet<string> = new Set()): T[] {
   const key = (f: T) => createHash("sha256").update(`shop:${windowIndex}:${f.id}`).digest("hex");
-  return [...fighters]
+  const first = fighters.filter((f) => featured.has(f.id)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const rest = fighters
+    .filter((f) => !featured.has(f.id))
     .map((f) => ({ f, k: key(f) }))
     .sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : 0))
-    .slice(0, cfg.slots)
     .map((x) => x.f);
+  return [...first, ...rest].slice(0, cfg.slots);
 }
 
 export function priceFor(rarity: Rarity, cfg: Pick<ShopConfig, "basePrice" | "rarityMultiplier">): Salt {

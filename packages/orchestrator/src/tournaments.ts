@@ -5,6 +5,7 @@
  * settlement transaction.
  */
 import { tournamentBalances, type Tx } from "@greed-island/db";
+import { pendingDebuts } from "./releases.ts";
 import {
   bettorPodium,
   firstRound,
@@ -44,18 +45,24 @@ export async function ensureTournament(tx: Tx, cycle: number, maxSize: number, c
   if (existing) return { tournament: existing, created: false };
   const tier = tournamentTier(cycle);
   const characters = await tx.character.findMany({ where: { enabled: true, fighter: { enabled: true } } });
+  // Newly released community fighters debut here, seated first.
+  const debuts = await pendingDebuts(tx);
   const seats = pickSeats(
     characters.map((c) => ({ characterId: c.id, tier: c.tier, rating: c.rating, owned: c.ownerKind === "USER" })),
     tier,
     maxSize,
     config.tiers,
+    new Set(debuts.map((d) => d.characterId)),
   );
   if (seats.length < 2) {
     const tournament = await tx.tournament.create({ data: { cycle, tier, size: 0, status: "CANCELLED", cancelReason: "fewer than 2 characters could play" } });
     return { tournament, created: true };
   }
   const size = seats.length;
-  const tournament = await tx.tournament.create({ data: { cycle, tier, size } });
+  const seated = new Set(seats.map((s) => s.characterId));
+  const debuting = debuts.filter((d) => seated.has(d.characterId));
+  const tournament = await tx.tournament.create({ data: { cycle, tier, size, debut: debuting.length > 0 } });
+  for (const d of debuting) await tx.release.update({ where: { id: d.releaseId }, data: { debutTournamentId: tournament.id } });
   const byId = new Map(characters.map((c) => [c.id, c]));
   await tx.tournamentEntry.createMany({
     data: seats.map((s, i) => ({ tournamentId: tournament.id, seed: i + 1, characterId: s.characterId, rating: s.rating, tier: byId.get(s.characterId)!.tier })),

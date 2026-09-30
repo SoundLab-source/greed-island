@@ -91,6 +91,14 @@ export async function characterCard(db: Db, characterId: string) {
   };
 }
 
+async function communityOrigin(db: Db, fighterId: string) {
+  const r = await db.release.findUnique({
+    where: { fighterId },
+    include: { submission: { select: { number: true, community: true } }, standIn: { select: { displayName: true } }, season: { select: { number: true } } },
+  });
+  return r ? { community: r.submission.community, submissionNumber: r.submission.number, releasedInSeason: r.season.number, standIn: r.standIn.displayName } : null;
+}
+
 /** Titles with provenance: who owned the character when it earned each one. */
 export async function characterTitles(db: Db, characterId: string) {
   const titles = await db.characterTitle.findMany({
@@ -144,6 +152,8 @@ export async function characterProfile(db: Db, characterId: string) {
     ...card,
     license: (await db.fighter.findUniqueOrThrow({ where: { id: card.fighter.id } })).licenseNote,
     formerNames: await formerNames(db, characterId),
+    /** Community fighters: where it came from, and the engine character it plays with until its template exists. */
+    community: await communityOrigin(db, card.fighter.id),
     titles: await characterTitles(db, characterId),
     ...(await cosmeticOptions(db, characterId)),
     upgrades: changes.map((ch) => ({
@@ -271,7 +281,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     /** Which currency bets on this fight use: tournament fights use that tournament's T-Salt. */
     currency: tm ? ("T-Salt" as const) : ("Salt" as const),
     tournament: tm
-      ? { id: tm.tournamentId, number: tm.tournament.number, tier: tm.tournament.tier, round: tm.round, roundName: roundName(tm.round, tm.tournament.size), slot: tm.slot }
+      ? { id: tm.tournamentId, number: tm.tournament.number, tier: tm.tournament.tier, debut: tm.tournament.debut, round: tm.round, roundName: roundName(tm.round, tm.tournament.size), slot: tm.slot }
       : null,
     result:
       f.state === "SETTLED"
@@ -527,6 +537,8 @@ export async function tournamentView(db: Db, tournamentId: string, viewerId?: st
     number: t.number,
     cycle: t.cycle,
     tier: t.tier,
+    /** Newly released community fighters debut here. */
+    debut: t.debut,
     size: t.size,
     status: t.status,
     cancelReason: t.cancelReason,

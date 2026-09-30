@@ -294,7 +294,7 @@ async function refreshTournament() {
     return;
   }
   const status = t.status === "FINISHED" ? `finished, champion ${t.champion.name}` : t.status === "CANCELLED" ? `cancelled (${t.cancelReason})` : "running";
-  text($("tournament-status"), `#${t.number}, ${t.tier} tier, ${t.size} characters, ${status}`);
+  text($("tournament-status"), `${t.debut ? "Debut tournament " : ""}#${t.number}, ${t.tier} tier, ${t.size} characters, ${status}`);
   const who = (s) => (s ? `${esc(s.name)} <span class="muted">(${s.seed})</span>` : `<span class="muted">tbd</span>`);
   const winner = (m, s) => (s && m.winnerCharacterId === s.characterId ? `<strong>${who(s)}</strong>` : who(s));
   $("tournament-bracket").innerHTML = t.rounds.map((r) => `<div><strong>${esc(r.name)}</strong>: ${r.matches.map((m) =>
@@ -517,6 +517,11 @@ function connectStream() {
     log(d.status === "STARTED" ? `season ${d.number} starts (until ${new Date(d.endsAt).toLocaleDateString()})`
       : `season ${d.number} is over: champion ${d.champion?.name ?? "none"}, top bettor ${d.topBettor?.name ?? "none"}`);
     Promise.all([refreshTables(), refreshMe()]).catch(() => {});
+  });
+  es.addEventListener("release", (e) => {
+    const d = JSON.parse(e.data);
+    log(`season ${d.seasonNumber} release: ${d.fighters.map((f) => `${f.name} (${f.community})`).join(", ")} join the roster`);
+    Promise.all([refreshShop(), refreshTables()]).catch(() => {});
   });
   es.addEventListener("ballot", (e) => {
     const d = JSON.parse(e.data);

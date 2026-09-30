@@ -46,7 +46,8 @@ export async function syncRoster(db: Db, roster: Roster, cfg: RatingSettings): P
       report.fighters[existingFighters.has(f.id) ? "updated" : "created"]++;
     }
     const removedFighters = await tx.fighter.updateMany({
-      where: { id: { notIn: roster.fighters.map((f) => f.id) }, enabled: true },
+      // Community fighters (released from the season vote) aren't in roster.json: leave them alone.
+      where: { id: { notIn: roster.fighters.map((f) => f.id) }, enabled: true, source: "ROSTER" },
       data: { enabled: false, disabledReason: REMOVED },
     });
     report.fighters.disabled = removedFighters.count;
@@ -90,7 +91,7 @@ export async function syncRoster(db: Db, roster: Roster, cfg: RatingSettings): P
       report.characters.updated++;
     }
     const removedCharacters = await tx.character.updateMany({
-      where: { ownerKind: "HOUSE", rosterKey: { notIn: roster.characters.map((c) => c.key) }, enabled: true },
+      where: { ownerKind: "HOUSE", rosterKey: { notIn: roster.characters.map((c) => c.key) }, enabled: true, fighter: { source: "ROSTER" } },
       data: { enabled: false, disabledReason: REMOVED },
     });
     report.characters.disabled = removedCharacters.count;
