@@ -113,7 +113,23 @@ Note: `winSide` is 0-based, unlike `getWinnerTeam()`, which is 1-based. The adap
 - Screenpack / lifebars: CC-BY 3.0, fonts CC-BY-NC 3.0 (install `LICENSES.txt`).
 - Stages bundled with the release: license not stated per stage. Check before streaming.
 
-## 7. Open items
+## 7. Characters we generate (fighter templates)
+
+`pnpm templates:build` writes whole characters (docs/PHASE3.md "Fighter templates"). What they rely on:
+
+| Item | Status | Finding |
+|---|---|---|
+| SFF v2 layout | SOURCE, RUN | 512-byte header: signature, version bytes `0,0,0,2` at 12-15, sprite node offset/count at 36/40, palette node offset/count at 44/48, literal data offset/length at 52/56, translated data offset at 60 (`SffHeader.Read`, `src/image.go:1482`). 28-byte sprite nodes: group, number, width, height, axis x/y (int16), link, format, colour depth, data offset, length, palette index, flags (`readHeaderV2`, `:1112`). 16-byte palette nodes: group, number, colour count, link, offset, length (`loadPalettes`, `:2069`); 4 bytes per colour, and in version 2.0.0.0 index 0 is forced transparent and the rest opaque (`ReadPalette`, `:2145`). A generated file loaded and drew correctly in real fights (2026-09-30). |
+| PNG sprites | SOURCE, RUN | Format 10 (PNG8): 4 bytes (the unpacked size), then a palette PNG whose pixel indices are drawn with the SFF palette (`readV2`, `:1358`). Pixel count must equal width x height or the sprite stays blank (`SetPxl`, `:867`). |
+| Palettes and colours | SOURCE | SFF palettes `1,1`, `1,2`… are the character's colours; picking colour n remaps `1,1` to `1,n` (`loadPalettes` in `src/char.go:4386-4556`). |
+| `.air` boxes | SOURCE | `Clsn1:`/`Clsn2:` before a frame apply to that frame only; `Clsn2Default:` to every frame without its own (`src/anim.go:290-408`). |
+| localcoord | SOURCE, RUN | `[Info] localcoord` sets how big a character's units are: sprites and speeds are drawn at 320 / localcoord (`src/char.go:3855-3858`, `:2228`). Templates use 544, so the 2x sprite sheet stands about as tall as Kung Fu Man (confirmed on screen). Speeds in the spec are written in 320 units and scaled by the builder. |
+| No sound file | SOURCE, RUN | `[Files] sound` may be empty (`src/char.go:4346-4357`); hit sounds use the shared fight sounds with the `F` prefix (`hitsound = F5,0`, `getDataPrefix`, `src/compiler.go:6071`). |
+| AI in full control | SOURCE, RUN | `AssertSpecial` flags `NoAIButtonJam` and `NoAICheat` stop the engine's random button presses and its command "cheating" for computer players (`src/input.go:2673`, `src/char.go:5360`, `src/compiler_functions.go:195`). `AssertInput` (flags `F`, `B`, `U`, `D`, buttons) holds inputs for the next tick (`src/bytecode.go:11941`), and the engine's built-in movement turns held directions into walking, crouching, jumping and guarding (`actionPrepare`, `src/char.go:11717`). Real fights: the template AI walked in, jumped, crouched, attacked in range, comboed into specials and waited to taunt (screenshots, 2026-09-30). |
+| Opponents' throws | RUN | A throw puts its victim in the thrower's states and animations, which name the victim's sprites by MUGEN's standard get-hit numbers (e.g. `5010,10`, `5030,10`); missing ones log "Animation missing sprite". Templates include those numbers (`standardSprites`); the warnings stopped. |
+| Built-in AI | SOURCE | Without those flags a computer player just presses random buttons (`AiInput.Update`, `src/input.go:1877`), which is how Kung Fu Man fights. |
+
+## 8. Open items
 
 Confirmed by the first real runs (2026-09-29): single-match exit with `-rounds 2`, mod loading via `Lua1`, per-line event output, `-log` format, stdout/stderr contents, and `live` mode end to end (`pnpm match:once`: a real-time 2-0 match in 153 s including start-up, exit code 0). The full cycle also ran with the real engine (`ENGINE_MODE=live pnpm dev`): fight #28 was booked, bet on through the API, played in IKEMEN (side 2 won 2-1), settled and rated; Ctrl+C then voided the next fight and the ledger audit passed.
 

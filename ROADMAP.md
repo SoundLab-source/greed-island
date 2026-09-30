@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-30, after Phase 3 step 6 (seasonal release). Update this file at the end of every build step.*
+*Last updated 2026-09-30, after the first fighter template (the Brawler). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps are built; step 4 (automatic checks) waits for the fighter templates. |
-| **Next step** | The fighter templates (the art route in [PHASE3.md](docs/PHASE3.md)): they unlock step 4 (automatic checks), real art for community fighters, and recoloured NFT looks. Waiting on you: OK to download the free art base, style references, and whether to set up the 3D-to-sprite pipeline (Blender). To try holders for real: a Solana NFT lookup address in `.env` and a wallet like Phantom. |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
-| **Not built yet** | The fighter templates, and what needs them: automatic checks on submissions, real art for community fighters, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 529 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps are built; the fighter templates are underway (1 of 5 archetypes: the Brawler), then step 4 (automatic checks). |
+| **Next step** | The other four templates (rushdown, heavy, grappler with throws, zoner with a projectile) on the same pipeline, then step 4 (automatic checks: smoke test, template check, balance simulation). To try holders for real: a Solana NFT lookup address in `.env` and a wallet like Phantom. |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, a first fighter template (the Brawler) built from free CC0 art with its own AI and on the house roster, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
+| **Not built yet** | Four of the five fighter templates, and what needs them: automatic checks on submissions, community fighters' own art on a template, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
+| **Health** | 552 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -33,7 +33,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
 | **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | ✅ Done |
-| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | 6 of 7 steps (step 4 waits for templates) |
+| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks, fighter templates | 6 of 7 steps; templates 1 of 5 |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
 ## What's been done
@@ -70,6 +70,8 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 7. ✅ **Holders** (`5a1e26d`, `a0ad4dc`): players link a Solana wallet by signing a free message (nothing is sent on-chain); admins approve NFT collections on the staff page; a holder can start a fighter submission from one of their NFTs (its image becomes the portrait, its collection the community). **NFT looks**: an owner dresses their copy of a collection's community fighter in an NFT they hold: its image becomes the portrait next to the name on the stream, and its colours the name plate. The look stays with the character for good, even after the NFT is sold, and each NFT's look goes on one character. Needs a Solana NFT lookup address (`GI_SOLANA_RPC_URL`); not yet tried with a real wallet or provider.
 6. ✅ **Seasonal release** (`33d9a18`): when a season starts, last season's elected fighters join the roster as community fighters: a house character that debuts in the next tournament ("Debut Tournament"), and First Edition copies that are always in the shop during their first season. Until their templates exist they play with a stand-in engine character of the same fighter type. A fighter submitted from an NFT becomes its collection's community fighter, so holders can give their copies NFT looks.
 - ✅ **Fighter art search** (`28c3e06`, research only): no complete, openly licensed fighting-game characters exist. The best base is a free (CC0) set of 3,150+ side-view frames whose character types match our archetypes (strikers, wrestlers, brawlers, boxers); it's made from 3D renders, so a lawyer should confirm the licence covers selling characters. Details and the other candidates: [PHASE3.md](docs/PHASE3.md) "Fighter art search".
+- ✅ **Art downloaded** (`813f0bc`, `d08efb3`): the CC0 Universal Prototype (3,194 frames of one fighter model) and Martial Hero 1-3 sheets, kept outside git with their sources and checksums in `art/SOURCES.md`.
+- ✅ **First fighter template: the Brawler** (all-rounder): `pnpm templates:build` turns a sprite sheet and a short spec into a whole IKEMEN character. Our own sprite and animation file writers; hurtboxes and hitboxes worked out from the pixels; the fighter's own AI (walks in, blocks most attacks, anti-airs, attacks with what reaches, combos into specials) instead of the engine's random button presses; four outfits. 13 moves including 3 specials. Real fights: beat Kung Fu Man 2-1 and 2-0, a mirror went 1-2, all by KO. It's on the house roster, and released community fighters of its archetype now play on it. Details: [PHASE3.md](docs/PHASE3.md) "Fighter templates".
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
@@ -79,9 +81,10 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**Recommended next: Phase 3 step 6, seasonal release**
-- Elected fighters join the roster when the next season starts, with a debut tournament and First Edition copies in the shop. Turning a submission's images into a playable IKEMEN character needs the archetype templates, so the release can be built and tested with stand-ins until they exist.
-- Then step 7 (holder verification), and step 4 (smoke test, template check, balance simulation) once templates exist.
+**Recommended next: the other four fighter templates** ([PHASE3.md](docs/PHASE3.md) "Fighter templates")
+- Rushdown and Heavy first (same pipeline, new frames and numbers), then the Grappler (throws) and the Zoner (a projectile).
+- Then step 4, the automatic checks on submissions (smoke test, template check, balance simulation), and turning a community fighter's submitted sprite sheets into its own art on a template.
+- Once all five exist, the house roster can move from the Kung Fu Man copies (non-commercial) to template fighters.
 
 **Streaming: where the stream runs, then a private recording**
 - The capture shows the whole screen. With `GI_GAME_TO_FRONT=true` this Mac can stream as long as it isn't used for anything else meanwhile (the game takes focus every fight). For a 24/7 stream, pick a machine where the game is the only thing showing: a home mini PC, a cloud server, or a second screen on this Mac.
@@ -102,7 +105,8 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - **Defaults to review.** Every number chosen for an open design question (prices, upgrade costs, title rules, name plate colours, etc.) is listed in [PHASE2.md](docs/PHASE2.md) and is a setting that can be changed.
 - **Phase 3, still open** ([PHASE3.md](docs/PHASE3.md)): terms for uploaded art (a lawyer's eye before submissions open to the public), and which partner NFT collections holder verification checks.
 - **Fighter art style:** you're gathering style references. The second art search found a better route: free 3D fighting animations (Mixamo, and CC0 libraries from Quaternius and KayKit) rendered into sprites, so every fighter gets a full move list and a new fighter or NFT look is a model swap ([PHASE3.md](docs/PHASE3.md) "Fighter art search").
-- **Fighter art:** OK to download the CC0 "Universal Prototype" sprite set (and the CC0 Boxer) from OpenGameArt to check frame counts and quality? Then the templates need a MUGEN/IKEMEN character coder (commissioned code, not art). Add to the lawyer's list: the set is made from Daz 3D renders, and Daz's licence limits selling derivatives separately.
+- **Fighter art:** decided: the templates use the CC0 Universal Prototype and Martial Hero sheets, and we write the character code ourselves (no commissioned coder needed). For the lawyer's list: the Universal Prototype is made from Daz 3D renders, and Daz's licence limits selling derivatives separately.
+- **House roster:** the Brawler joined the stream as a house fighter. Template fighters beat the Kung Fu Man copies (whose AI only mashes buttons); ratings price that in. When all five templates exist, OK to retire the Kung Fu Man copies from the stream?
 - **NFTs as fighters** (decided 2026-09-29, details in [PHASE3.md](docs/PHASE3.md) "NFTs as fighters"): one voted-in fighter per community; holders give their copies their NFT's look, which stays with the character even after the NFT is sold. What they create is minted as an NFT in a new collection Greed Island runs (the minting itself is phase 4). Still to settle: which collections (and their licences), and the default "one look per NFT" (the NFT's next owner can't reuse it).
 - **Make yourself admin:** sign in with your email on the main page once, then run `pnpm staff:role <your email> admin` in the project folder.
 - **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; the crowd-odds constants (set from real data in phase 4). Tournament entry is free for now, and seasons are 8 weeks with only the leaderboard resetting (defaults you can change).
@@ -129,6 +133,7 @@ From Terminal instead: `docker compose up -d`, then `ENGINE_MODE=live pnpm dev` 
 
 **Things specific to the current machine**
 - IKEMEN GO v1.0.0 is unzipped at `Ikemen_GO-v1.0.0-macos/` in the project folder (not in git); `.env` points `IKEMEN_DIR` at it. macOS needed a one-time "Open Anyway" in Privacy & Security.
+- The CC0 sprite sheets are in `art/sources/` (not in git), and the Brawler is built into `Ikemen_GO-v1.0.0-macos/chars/gi-tpl-all-rounder/`. After changing a template, run `pnpm templates:build` (add `--preview` for pictures of every animation).
 - The local database holds test data from development (test players such as Anon-409825, who owns Grey Monk #1, and Tester, who owns Old Oak #1; a test staff account staff-test@example.test, no longer staff). It never leaves the machine; `docker compose down -v` wipes it.
 
 ## Where everything is

@@ -12,7 +12,7 @@ Phase 3: Community roster (see DESIGN.md §13) is in progress. Its plan and the 
 ## Layout
 - `packages/shared`: types, event schemas, odds math, Glicko-2
 - `packages/db`: Prisma schema, migrations, ledger
-- `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`)
+- `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`), fighter templates and the art pipeline (PNG, SFF, AIR, collision boxes)
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
 - `apps/web`: minimal dev page (no styling work), the watch page for viewers (`watch.html`), the stream overlay (`overlay.html`) for OBS, the staff page (`staff.html`) and the fighter submission page (`submit.html`)
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
@@ -31,6 +31,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm roster:scan`: draft entries from `$IKEMEN_DIR/chars` and `stages` into `packages/engine/roster.draft.json` (gitignored) for review
 - `pnpm roster:sync`: load `packages/engine/roster.json` into the DB (creates/updates/disables; never resets ratings or records)
 - `pnpm roster:variants`: build the house characters in `packages/engine/variants.json` (Kung Fu Man with different stats, size and palette) into `$IKEMEN_DIR/chars/gi-*`; only the recipe is committed, and it never overwrites a folder it didn't create
+- `pnpm templates:build [--preview] [id...]`: build the fighter templates (`packages/engine/src/templates/`, one per archetype) from the CC0 sprite sheets in `art/sources/` (not in git; `art/SOURCES.md` says where to get them) into `$IKEMEN_DIR/chars/gi-tpl-*`; `--preview` also writes contact sheets of every animation with its boxes to `runs/templates/<id>/`
 - `pnpm ikemen:install-mod`: copy `ikemen/mods/salty_events.lua` into `$IKEMEN_DIR/external/mods/` (the runner refuses to launch if it's missing or outdated)
 - `pnpm match:once [--p1 key] [--p2 key] [--stage id] [--sim] [--p1-attack 115 --p2-life 120 ...]`: one real fight from roster.json (no DB), optionally with upgraded stats; artifacts in `runs/<fightId>/`
 - `pnpm roster:smoke [--dry-run]`: run each enabled fighter and stage once in `sim`; disables failures in roster.json
@@ -52,7 +53,7 @@ Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `
 - **Loadouts are frozen** when betting opens; every fight stores a snapshot of both loadouts, ratings and tiers.
 - **IKEMEN, OBS and NFT/wallet facts must be verified** in source, the official docs or by a real run (`docs/ikemen-notes.md`, `docs/obs-notes.md`, `docs/nft-notes.md`). Anything unverified is marked UNVERIFIED in those notes and kept behind an adapter. Never invent flags, config keys or Lua functions.
 - Spawn the engine with an argument array, never a shell string.
-- Never commit IKEMEN binaries, characters, stages, submitted images (`submissions/`), NFT look images (`looks/`) or secrets. Submitted images are untrusted: check them as PNG from their bytes, never build paths from what a submitter typed, and serve them only to their submitter and staff.
+- Never commit IKEMEN binaries, characters, stages, downloaded art (`art/sources/`), submitted images (`submissions/`), NFT look images (`looks/`) or secrets. Submitted images are untrusted: check them as PNG from their bytes, never build paths from what a submitter typed, and serve them only to their submitter and staff.
 
 ## Conventions
 - Tests next to code (`*.test.ts`). Property tests for the ledger and odds math.

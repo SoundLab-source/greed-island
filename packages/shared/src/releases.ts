@@ -20,12 +20,22 @@ export function communityFighterId(name: string, taken: ReadonlySet<string>): st
   return id;
 }
 
+/** Fighter templates (packages/engine/src/templates) have roster ids starting with this. */
+export const TEMPLATE_ID_PREFIX = "gi-tpl-";
+
 /**
- * The engine character a new fighter plays with until its template exists:
- * the first enabled roster fighter of the same archetype (by id), or any
- * enabled roster fighter (preferring Kung Fu Man), or null if there are none.
+ * The engine character a new fighter plays with until its own art is built
+ * in: its archetype's template if the roster has it, else the first enabled
+ * roster fighter of the same archetype (by id), else any enabled roster
+ * fighter (preferring Kung Fu Man), or null if there are none.
  */
 export function pickStandIn<T extends { id: string; archetype: Archetype }>(fighters: readonly T[], archetype: Archetype): T | null {
   const sorted = [...fighters].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return sorted.find((f) => f.archetype === archetype) ?? sorted.find((f) => f.id === "kfm") ?? sorted[0] ?? null;
+  return (
+    sorted.find((f) => f.archetype === archetype && f.id.startsWith(TEMPLATE_ID_PREFIX)) ??
+    sorted.find((f) => f.archetype === archetype) ??
+    sorted.find((f) => f.id === "kfm") ??
+    sorted[0] ??
+    null
+  );
 }

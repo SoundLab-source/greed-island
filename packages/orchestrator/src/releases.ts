@@ -9,7 +9,7 @@
  * that collection's fighter, so holders can give their copies NFT looks.
  */
 import { createCharacter, type Prisma, type Tx } from "@greed-island/db";
-import { COMMUNITY_RARITY, communityFighterId, pickStandIn, type Config } from "@greed-island/shared";
+import { COMMUNITY_RARITY, communityFighterId, pickStandIn, TEMPLATE_ID_PREFIX, type Config } from "@greed-island/shared";
 import type { BusEvent } from "./bus.ts";
 
 type SeasonRow = Prisma.SeasonGetPayload<object>;
@@ -33,7 +33,11 @@ export async function releaseElected(tx: Tx, config: Config, season: SeasonRow, 
         archetype: sub.archetype,
         rarity: COMMUNITY_RARITY,
         defPath: standIn.defPath,
-        licenseNote: `Community fighter from ${sub.community} (submission #${sub.number}, ${sub.rightsBasis.toLowerCase().replace("_", " ")}). Plays with ${standIn.displayName} as a stand-in until its template is built.`,
+        licenseNote: `Community fighter from ${sub.community} (submission #${sub.number}, ${sub.rightsBasis.toLowerCase().replace("_", " ")}). ${
+          standIn.id.startsWith(TEMPLATE_ID_PREFIX)
+            ? `Plays on the ${standIn.displayName} template, with the template's own art until its art is built in.`
+            : `Plays with ${standIn.displayName} as a stand-in until its template is built.`
+        }`,
         createdAt: now,
         updatedAt: now,
       },

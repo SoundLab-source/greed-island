@@ -12,7 +12,8 @@
     "ikemen:install-mod": "tsx src/scripts/install-mod.ts",
     "match:once": "tsx src/scripts/match-once.ts",
     "roster:smoke": "tsx src/scripts/roster-smoke.ts",
-    "roster:variants": "tsx src/scripts/roster-variants.ts"
+    "roster:variants": "tsx src/scripts/roster-variants.ts",
+    "templates:build": "tsx src/scripts/templates-build.ts"
   },
   "dependencies": {
     "@greed-island/db": "workspace:*",

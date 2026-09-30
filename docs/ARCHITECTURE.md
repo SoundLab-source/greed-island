@@ -315,3 +315,18 @@ shop: fighters released this season are always offered first (First Editions: th
 - **NFT collections.** A fighter submitted from an NFT becomes its collection's community fighter (if it has none), so holders can give their copies NFT looks (§17).
 - **Roster sync** leaves community fighters and their house characters alone (they aren't in roster.json).
 - **Guards.** A submission becomes RELEASED only with its release row; releases are kept and only get their debut tournament, once (`release_guard`).
+
+## 19. Fighter templates (phase 3)
+
+```
+art/sources/<sheet>.png (CC0, not in git; art/SOURCES.md)
+  + packages/engine/src/templates/<archetype>.ts (the spec: frames, timing, attacks, numbers, AI)
+  -> pnpm templates:build -> $IKEMEN_DIR/chars/gi-tpl-<archetype>/ (sff, air, cns, cmd, def; not in git)
+                          -> runs/templates/<id>/preview-*.png with --preview
+```
+
+- **Spec** (`templates/spec.ts`): the art source (sheet grid, the ground point every frame shares, stray colours to clean, the character's localcoord), animations as sheet cells plus ticks, attacks (frames, active frames, damage, stun, push, knockdown, command, AI range and weight), constants in 320-wide units, AI tendencies, colour palettes and the portrait box. `checkSpec` finds problems without the sheet: every animation the engine's shared states need (`REQUIRED_ACTIONS`), hit frames inside their animation, valid colours.
+- **Art** (`templates/art.ts`, `art/*.ts`): our own PNG reader/writer, SFF v2 writer (PNG8 sprites, see ikemen-notes §7) and `.air` writer. Each sheet cell used becomes one sprite, trimmed, with its axis on the shared ground point; the first animation to use a cell names its sprite (`action,frame`), which is the slot a community fighter's art later fills. Hurtboxes are the drawn pixels in three bands; hitboxes are the part of an active frame that reaches past the move's first pose (the fist or foot). Airborne frames can be re-grounded (`anchor: "feet"`), because the sheet renders jumps off the ground and the engine lifts the fighter itself. MUGEN's standard get-hit sprite numbers are added so other characters' throws can use them.
+- **Code** (`templates/cns.ts`): the constants file (the one per-fight upgrades patch), the states (intro, win poses, taunt, one state per attack with its HitDefs) and the commands with the AI in `[Statedef -1]`. People get the usual inputs (`!AILevel`); the computer gets its own triggers (`AILevel`): `NoAIButtonJam`/`NoAICheat` turn off the engine's random presses, and `AssertInput` holds directions to walk in, back off and block. The AI decides once per incoming attack whether to block (its `block` chance, crouching against a crouching opponent), anti-airs jumping opponents, attacks with whatever reaches (weighted), cancels a normal that hit into a special, runs or jumps in from far away, and taunts a fallen opponent now and then.
+- **Folder** (`templates/build.ts`): written to a temporary folder and swapped in; rewritten only when the output's hash changes; never touches a folder without our marker.
+- **Roster**: each template is a house fighter in `roster.json` (`gi-tpl-<archetype>`); `pickStandIn` prefers it for newly released community fighters of that archetype (§18).
