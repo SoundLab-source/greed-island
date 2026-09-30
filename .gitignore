@@ -44,3 +44,6 @@ packages/engine/roster.draft.json
 submissions/
 # NFT look images (GI_LOOKS_DIR); never committed
 looks/
+
+# Downloaded art (sources listed in art/SOURCES.md); never committed
+art/sources/
