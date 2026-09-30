@@ -92,14 +92,9 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 **If you're the project owner:** say "keep going" and Claude continues with the recommended next step above, or name a different one. Everything it needs is in the repo; your machine already has the tools installed.
 
-**To run it on your Mac** (from the project folder, with Docker Desktop running):
+**To run it on your Mac:** double-click **Start Greed Island.command** in the project folder. It starts Docker (the database) if needed, runs real IKEMEN fights one after another in a Terminal window, opens the watch page in your browser, and brings each fight's game window to the front. To stop, press Control-C in that window or double-click **Stop Greed Island.command**; the fight in progress is refunded. Closing a game window doesn't stop it: the next fight opens a new one. (Settings at the top of the Start file: practice fights without the game, or leaving the game window behind other apps.)
 
-```bash
-docker compose up -d
-pnpm dev
-```
-
-Then open http://127.0.0.1:3000. Add `ENGINE_MODE=live` in front of `pnpm dev` for real IKEMEN fights. Press Ctrl+C to stop; the fight in progress is refunded.
+From Terminal instead: `docker compose up -d`, then `ENGINE_MODE=live pnpm dev` (or `pnpm dev` for practice fights), and Control-C to stop.
 
 **For a new developer or AI agent:**
 1. Read, in order: this file, [CLAUDE.md](CLAUDE.md) (rules and commands), [DESIGN.md](docs/DESIGN.md), [PHASE2.md](docs/PHASE2.md) (current plan and defaults), [ARCHITECTURE.md](docs/ARCHITECTURE.md).

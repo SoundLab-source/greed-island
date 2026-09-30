@@ -73,3 +73,5 @@ const shutdown = async () => {
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+// Closing the Terminal window it runs in (e.g. "Start Greed Island.command").
+process.on("SIGHUP", shutdown);

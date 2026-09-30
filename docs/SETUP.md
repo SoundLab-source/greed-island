@@ -42,6 +42,8 @@ pnpm demo                     # 12 fights with the fake engine, 3 players bettin
 pnpm dev                      # open http://127.0.0.1:3000 and bet on fake fights
 ```
 
+Or, on a Mac, double-click **Start Greed Island.command** in the project folder: it starts Docker if needed, runs real fights (settings at the top of the file switch to practice fights), opens the watch page and brings each fight's window to the front. **Stop Greed Island.command** stops it (or Control-C in its window; closing that window also stops it cleanly).
+
 Then with the real engine:
 
 ```bash

@@ -11,6 +11,8 @@ An always-on stream of AI-vs-AI fights on the [IKEMEN GO](https://github.com/ike
 - Engine facts, with source references: [docs/ikemen-notes.md](docs/ikemen-notes.md); OBS facts: [docs/obs-notes.md](docs/obs-notes.md)
 - Streaming: the overlay page and OBS setup are in [docs/SETUP.md](docs/SETUP.md) §5
 
+On the project's Mac: double-click **Start Greed Island.command** (and **Stop Greed Island.command** to stop).
+
 Quick start (needs Node 24, pnpm 10 and Docker; no IKEMEN needed):
 
 ```bash
