@@ -56,7 +56,7 @@ describe("applyTransition", () => {
     const loadouts = await db.fightLoadout.findMany({ where: { fightId: fight.id } });
     expect(loadouts.map((l) => l.side).sort()).toEqual([1, 2]);
     expect(await db.fightTransition.count({ where: { fightId: fight.id } })).toBe(2);
-    expect(events.map((e) => e.type)).toEqual(["fight_state", "fight_state", "odds_live"]);
+    expect(events.map((e) => e.type)).toEqual(["season", "fight_state", "fight_state", "odds_live"]);
   });
 
   it("rejects illegal events and stale versions", async () => {

@@ -4,7 +4,8 @@ import { seededRandom } from "@greed-island/engine";
 import { loadConfig, type Config } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { leaderboard, meView, tournamentView } from "./api/views.ts";
+import { leaderboard } from "./api/season-views.ts";
+import { meView, tournamentView } from "./api/views.ts";
 import { placeFightBet } from "./betting.ts";
 import { FightBus, type BusEvent } from "./bus.ts";
 import { DEFAULT_ORCHESTRATOR, type OrchestratorConfig } from "./config.ts";
@@ -147,7 +148,7 @@ describe("a tournament", () => {
     await db.character.updateMany({ where: { id: { not: house[0] } }, data: { enabled: false } });
     expect(await bookFight(d, rng(), "fake")).toBeNull();
     expect(await db.tournament.findUniqueOrThrow({ where: { cycle: 1 } })).toMatchObject({ status: "CANCELLED", size: 0 });
-    expect(events).toMatchObject([{ type: "tournament", status: "CANCELLED" }]);
+    expect(events.filter((e) => e.type !== "season")).toMatchObject([{ type: "tournament", status: "CANCELLED" }]);
     await db.character.updateMany({ data: { enabled: true } });
     expect((await bookFight(d, rng(), "fake"))!.segment).toBe("EXHIBITION");
   });
@@ -163,7 +164,8 @@ describe("T-Salt", () => {
     expect(await getBalance(db, bob)).toBe(testEconomy.startingBalance);
     expect((await meView(db, config, bob)).tournament).toMatchObject({ balance: "700", joined: true });
     expect((await meView(db, config, carol)).tournament).toMatchObject({ balance: "1000", joined: false });
-    expect((await leaderboard(db)).map((r) => r.balance)).toEqual(["400", "400", "400"]);
+    // The season leaderboard counts Salt won, never T-Salt.
+    expect(await leaderboard(db, config)).toEqual([]);
     // More than the T-Salt balance is refused.
     await expect(placeFightBet(db, config, { userId: bob, fightId: f.id, side: 1, stake: 1_001n, idempotencyKey: randomUUID() })).rejects.toMatchObject({ code: "INSUFFICIENT_FUNDS" });
 

@@ -25,6 +25,7 @@ import type { BusEvent, FightBus } from "./bus.ts";
 import { bookingModeFor, nextPosition, type CyclePosition } from "./cycle.ts";
 import type { OrchestratorConfig } from "./config.ts";
 import { expireChallenges, nextAcceptedChallenge } from "./challenges.ts";
+import { advanceSeason } from "./seasons.ts";
 import { bookOf, decideMatch, ensureTournament, nextTournamentMatch, type TournamentFinished } from "./tournaments.ts";
 import { pairingFor, pickMatch, pickShowcase, pickStage, type Candidate, type Pairing, type Rng } from "./matchmaking.ts";
 import { transition, type Effect, type FightEvent, type FightState } from "./state-machine.ts";
@@ -53,6 +54,8 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
   const notices: BusEvent[] = [];
   const booked = await withRetry(db, async (tx) => {
     notices.length = 0;
+    // The season clock: start Season 1, or close a season that's over and start the next.
+    notices.push(...(await advanceSeason(tx, deps.config, deps.now())));
     const characters = await tx.character.findMany({
       where: { enabled: true, fighter: { enabled: true } },
       orderBy: { id: "asc" },

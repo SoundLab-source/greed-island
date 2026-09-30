@@ -13,3 +13,4 @@ export * from "./exhibitions.ts";
 export * from "./tournaments.ts";
 export * from "./players.ts";
 export * from "./staff.ts";
+export * from "./seasons.ts";

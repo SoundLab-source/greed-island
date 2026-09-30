@@ -7,20 +7,20 @@
  */
 import { BAND_TIERS, type BandTier, type Tier } from "./tiers.ts";
 
-export const TITLE_CODES = ["FIRST_BLOOD", "WINS_10", "WINS_100", "GIANT_SLAYER", "TIER_B", "TIER_A", "TIER_S", "TOURNAMENT_CHAMPION"] as const;
+export const TITLE_CODES = ["FIRST_BLOOD", "WINS_10", "WINS_100", "GIANT_SLAYER", "TIER_B", "TIER_A", "TIER_S", "TOURNAMENT_CHAMPION", "SEASON_CHAMPION"] as const;
 export type TitleCode = (typeof TITLE_CODES)[number];
 
-export const NAMEPLATE_IDS = ["standard", "bronze", "silver", "gold", "veteran", "crimson", "champion"] as const;
+export const NAMEPLATE_IDS = ["standard", "bronze", "silver", "gold", "veteran", "crimson", "champion", "legend"] as const;
 export type NameplateId = (typeof NAMEPLATE_IDS)[number];
 
-export const BADGE_IDS = ["first-edition", "first-blood", "wins-10", "wins-100", "giant-slayer", "tier-b", "tier-a", "tier-s", "tournament-champion"] as const;
+export const BADGE_IDS = ["first-edition", "first-blood", "wins-10", "wins-100", "giant-slayer", "tier-b", "tier-a", "tier-s", "tournament-champion", "season-champion"] as const;
 export type BadgeId = (typeof BADGE_IDS)[number];
 
 /** Badges shown next to a name at once. */
 export const MAX_BADGES = 3;
 
-/** Titles that can be earned more than once (one per tournament). The others are once per character. */
-export const REPEATABLE_TITLES: readonly TitleCode[] = ["TOURNAMENT_CHAMPION"];
+/** Titles that can be earned more than once (one per tournament or season). The others are once per character. */
+export const REPEATABLE_TITLES: readonly TitleCode[] = ["TOURNAMENT_CHAMPION", "SEASON_CHAMPION"];
 
 export interface TitleDef {
   label: string;
@@ -40,6 +40,7 @@ export const TITLES: Readonly<Record<TitleCode, TitleDef>> = Object.freeze({
   GIANT_SLAYER: { label: "Giant Slayer", description: "Beat a character three or more tiers higher.", rank: 60, badge: "giant-slayer", nameplate: "crimson" },
   TIER_S: { label: "S-Tier", description: "Climbed into S tier for the first time.", rank: 70, badge: "tier-s", nameplate: "gold" },
   TOURNAMENT_CHAMPION: { label: "Tournament Champion", description: "Won a tournament.", rank: 80, badge: "tournament-champion", nameplate: "champion" },
+  SEASON_CHAMPION: { label: "Season Champion", description: "The highest-rated character at the end of a season.", rank: 90, badge: "season-champion", nameplate: "legend" },
 });
 
 export interface NameplateDef {
@@ -59,6 +60,7 @@ export const NAMEPLATES: Readonly<Record<NameplateId, NameplateDef>> = Object.fr
   crimson: { label: "Crimson", rank: 60, background: "#3a0d12", border: "#dc2626", text: "#fde8e8" },
   gold: { label: "Gold", rank: 70, background: "#3a2e05", border: "#eab308", text: "#fef9c3" },
   champion: { label: "Champion", rank: 80, background: "#2e1065", border: "#a78bfa", text: "#f5f3ff" },
+  legend: { label: "Legend", rank: 90, background: "#082f49", border: "#38bdf8", text: "#f0f9ff" },
 });
 
 export interface BadgeDef {
@@ -79,6 +81,7 @@ export const BADGES: Readonly<Record<BadgeId, BadgeDef>> = Object.freeze({
   "giant-slayer": { label: "Giant Slayer", rank: 60, glyph: "GS", color: "#dc2626" },
   "tier-s": { label: "S-Tier", rank: 70, glyph: "S", color: "#eab308" },
   "tournament-champion": { label: "Tournament Champion", rank: 80, glyph: "TC", color: "#7c3aed" },
+  "season-champion": { label: "Season Champion", rank: 90, glyph: "SC", color: "#0284c7" },
 });
 
 /** The higher of two band tiers (null counts as lowest). */
@@ -88,14 +91,17 @@ export function higherBand(a: BandTier | null, b: BandTier | null): BandTier | n
   return tierRank(a) >= tierRank(b) ? a : b;
 }
 
-/** Player titles: the tournament T-Salt podium (docs/PHASE2.md step 6). */
-export const PLAYER_TITLE_CODES = ["BETTOR_1ST", "BETTOR_2ND", "BETTOR_3RD"] as const;
+/** Player titles: the tournament T-Salt podium (docs/PHASE2.md step 6) and each season's top bettor (docs/PHASE3.md step 2). */
+export const PLAYER_TITLE_CODES = ["BETTOR_1ST", "BETTOR_2ND", "BETTOR_3RD", "SEASON_TOP_BETTOR"] as const;
 export type PlayerTitleCode = (typeof PLAYER_TITLE_CODES)[number];
+/** A tournament's T-Salt podium, first to third. */
+export const PODIUM_TITLE_CODES = ["BETTOR_1ST", "BETTOR_2ND", "BETTOR_3RD"] as const satisfies readonly PlayerTitleCode[];
 
 export const PLAYER_TITLES: Readonly<Record<PlayerTitleCode, { label: string; description: string }>> = Object.freeze({
   BETTOR_1ST: { label: "Top Bettor", description: "Finished a tournament with the highest T-Salt balance." },
   BETTOR_2ND: { label: "Runner-up Bettor", description: "Finished a tournament with the second-highest T-Salt balance." },
   BETTOR_3RD: { label: "Third-place Bettor", description: "Finished a tournament with the third-highest T-Salt balance." },
+  SEASON_TOP_BETTOR: { label: "Season Top Bettor", description: "Won the most Salt betting in a season." },
 });
 
 /** Tier order for "tiers higher": P < B < A < S < X. */

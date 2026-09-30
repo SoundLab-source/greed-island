@@ -2,6 +2,7 @@ import { DEFAULT_EXHIBITIONS, type ExhibitionConfig } from "./exhibitions.ts";
 import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
 import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
+import { DEFAULT_SEASONS, type SeasonConfig } from "./seasons.ts";
 import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
 import { DEFAULT_STAFF, type StaffConfig } from "./staff.ts";
 import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
@@ -37,6 +38,7 @@ export interface Config {
   exhibitions: ExhibitionConfig;
   tournaments: TournamentConfig;
   staff: StaffConfig;
+  seasons: SeasonConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -116,6 +118,14 @@ export function validateStaff(s: StaffConfig): StaffConfig {
   return s;
 }
 
+export function validateSeasons(s: SeasonConfig): SeasonConfig {
+  if (!(s.lengthMs >= 3_600_000)) throw new ConfigError("a season must last at least an hour");
+  for (const [name, v] of [["minFights", s.minFights], ["minBets", s.minBets], ["standingsSize", s.standingsSize]] as const) {
+    if (!Number.isInteger(v) || v < 0) throw new ConfigError(`${name} must be a whole number >= 0`);
+  }
+  return s;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const d = DEFAULT_ECONOMY;
   return {
@@ -171,6 +181,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     tournaments: validateTournaments({
       startingBalance: saltFromEnv(env, "GI_TOURNAMENT_BALANCE", DEFAULT_TOURNAMENTS.startingBalance),
       podium: numberFromEnv(env, "GI_TOURNAMENT_PODIUM", DEFAULT_TOURNAMENTS.podium),
+    }),
+    seasons: validateSeasons({
+      ...DEFAULT_SEASONS,
+      lengthMs: numberFromEnv(env, "GI_SEASON_WEEKS", DEFAULT_SEASONS.lengthMs / (7 * 86_400_000)) * 7 * 86_400_000,
+      minFights: numberFromEnv(env, "GI_SEASON_MIN_FIGHTS", DEFAULT_SEASONS.minFights),
+      minBets: numberFromEnv(env, "GI_SEASON_MIN_BETS", DEFAULT_SEASONS.minBets),
     }),
     staff: validateStaff({
       renameCooldownMs: numberFromEnv(env, "GI_RENAME_COOLDOWN_DAYS", DEFAULT_STAFF.renameCooldownMs / 86_400_000) * 86_400_000,

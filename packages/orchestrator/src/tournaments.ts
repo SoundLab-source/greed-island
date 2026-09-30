@@ -11,7 +11,7 @@ import {
   MAIN_BOOK,
   nextSlot,
   pickSeats,
-  PLAYER_TITLE_CODES,
+  PODIUM_TITLE_CODES,
   PLAYER_TITLES,
   playerName,
   roundsFor,
@@ -31,7 +31,7 @@ export interface TournamentFinished {
   tier: Tier;
   championCharacterId: string;
   championName: string;
-  podium: { name: string; code: (typeof PLAYER_TITLE_CODES)[number]; label: string; balance: bigint }[];
+  podium: { name: string; code: (typeof PODIUM_TITLE_CODES)[number]; label: string; balance: bigint }[];
 }
 
 /**
@@ -127,7 +127,7 @@ async function finishTournament(tx: Tx, t: TournamentRow, championId: string, fi
   const podium = bettorPodium(await tournamentBalances(tx, t.id), config.tournaments);
   const result: TournamentFinished["podium"] = [];
   for (const [i, p] of podium.entries()) {
-    const code = PLAYER_TITLE_CODES[i]!;
+    const code = PODIUM_TITLE_CODES[i]!;
     await tx.playerTitle.create({ data: { userId: p.userId, code, tournamentId: t.id, balance: p.balance.toString(), earnedAt: now } });
     const user = await tx.user.findUniqueOrThrow({ where: { id: p.userId } });
     result.push({ name: playerName(user), code, label: PLAYER_TITLES[code].label, balance: p.balance });

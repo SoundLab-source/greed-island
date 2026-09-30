@@ -123,15 +123,22 @@ async function refreshMe() {
   text($("player-name"), `Leaderboard name: ${me.name}`);
   const t = me.tournament;
   text($("tsalt"), t ? `Tournament #${t.number} (${t.tier} tier): ${t.balance} T-Salt${t.joined ? "" : " when you place your first tournament bet"}. T-Salt is separate from Salt and never moves to it.` : "");
-  text($("player-titles"), me.titles.length ? `Your titles: ${me.titles.map((x) => `${x.label} (Tournament #${x.tournamentNumber}, ${x.balance} T-Salt)`).join(", ")}` : "");
+  const titleNote = (x) => (x.seasonNumber ? `Season ${x.seasonNumber}, ${x.balance} Salt won` : `Tournament #${x.tournamentNumber}, ${x.balance} T-Salt`);
+  text($("player-titles"), me.titles.length ? `Your titles: ${me.titles.map((x) => `${x.label} (${titleNote(x)})`).join(", ")}` : "");
+  const s = me.season;
+  text($("season-me"), s ? `Season ${s.number}: you've won ${s.saltWon} Salt in ${s.bets} bet${s.bets === 1 ? "" : "s"}${s.rank ? ` (rank ${s.rank})` : ""}. ${s.bets < s.minBets ? `${s.minBets} bets this season to qualify for Season Top Bettor.` : ""}` : "");
   $("grant").disabled = !me.dailyGrantAvailable;
   $("bailout").disabled = !me.bailoutAvailable;
 }
 
 async function refreshTables() {
-  const [results, players, chars] = await Promise.all([api("GET", "/api/results"), api("GET", "/api/leaderboard"), api("GET", "/api/characters")]);
+  const [results, season, chars] = await Promise.all([api("GET", "/api/results"), api("GET", "/api/seasons/current"), api("GET", "/api/characters")]);
+  const players = season?.players ?? [];
+  const days = season ? Math.max(0, Math.ceil((new Date(season.endsAt) - Date.now()) / 86_400_000)) : 0;
+  text($("season-status"), season ? `Season ${season.number}, Salt won this season, ends in ${days} day${days === 1 ? "" : "s"}${season.leaders?.champion ? `; champion if it ended now: ${season.leaders.champion.name}` : ""}` : "starts with the first fight");
   $("results").innerHTML = results.map((r) => `<tr><td>#${r.number}</td><td>${esc(r.sides[1])} vs ${esc(r.sides[2])}</td><td>${r.result.kind === "settled" ? esc(r.sides[r.result.winnerSide]) + " won" : "void"}</td></tr>`).join("");
-  $("leaderboard").innerHTML = players.map((p) => `<tr><td>${p.rank}</td><td>${esc(p.name)}</td><td>${p.balance}</td></tr>`).join("");
+  $("leaderboard").innerHTML = players.map((p) => `<tr><td>${p.rank}</td><td>${esc(p.name)}</td><td>${p.saltWon.startsWith("-") ? p.saltWon : `+${p.saltWon}`}</td><td class="muted">${p.bets} bet${p.bets === 1 ? "" : "s"}</td></tr>`).join("")
+    || `<tr><td class="muted">No bets settled this season yet.</td></tr>`;
   $("characters").innerHTML = chars.map((c) => `<tr><td>${c.tier}</td><td>${esc(c.name)}${c.title ? ` <span class="muted">${esc(c.title.label)}</span>` : ""}</td><td>${c.rating}</td><td>${c.record.wins}-${c.record.losses}</td></tr>`).join("");
 }
 
@@ -380,6 +387,12 @@ function connectStream() {
       : d.status === "CANCELLED" ? `tournament #${d.number} (${d.tier} tier) skipped: ${d.detail}`
       : `tournament #${d.number} won by ${d.champion.name}${d.podium.length ? `; top bettor ${d.podium[0].name}` : ""}`);
     Promise.all([refreshTournament(), refreshMe()]).catch(() => {});
+  });
+  es.addEventListener("season", (e) => {
+    const d = JSON.parse(e.data);
+    log(d.status === "STARTED" ? `season ${d.number} starts (until ${new Date(d.endsAt).toLocaleDateString()})`
+      : `season ${d.number} is over: champion ${d.champion?.name ?? "none"}, top bettor ${d.topBettor?.name ?? "none"}`);
+    Promise.all([refreshTables(), refreshMe()]).catch(() => {});
   });
   es.onerror = () => log("stream disconnected, retrying…");
 }

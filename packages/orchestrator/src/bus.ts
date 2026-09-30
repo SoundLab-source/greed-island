@@ -25,6 +25,15 @@ export type BusEvent =
       status: "FINISHED";
       champion: { characterId: string; name: string };
       podium: { name: string; label: string; balance: Salt }[];
+    }
+  | { type: "season"; seasonId: string; number: number; status: "STARTED"; startsAt: string; endsAt: string }
+  | {
+      type: "season";
+      seasonId: string;
+      number: number;
+      status: "ENDED";
+      champion: { characterId: string; name: string } | null;
+      topBettor: { name: string; saltWon: Salt } | null;
     };
 
 export class FightBus {

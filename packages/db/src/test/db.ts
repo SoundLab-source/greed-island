@@ -11,7 +11,7 @@ export const ratingSettings: RatingSettings = { ratings: DEFAULT_RATINGS, tiers:
 
 /** Wipe all tables. TRUNCATE bypasses the append-only row triggers. */
 export async function resetDb(db: Db): Promise<void> {
-  await db.$executeRawUnsafe(`TRUNCATE "staff_action", "review_item", "session", "login_token", "challenge", "player_title", "character_title", "tournament_entry", "tournament_match", "tournament", "character_change", "ledger_entry", "ledger_txn", "bet", "account", "tier_history", "fight_transition", "fight_round", "fight_odds", "fight_loadout", "fight", "character", "fighter", "stage", "user" RESTART IDENTITY CASCADE`);
+  await db.$executeRawUnsafe(`TRUNCATE "season_standing", "season", "staff_action", "review_item", "session", "login_token", "challenge", "player_title", "character_title", "tournament_entry", "tournament_match", "tournament", "character_change", "ledger_entry", "ledger_txn", "bet", "account", "tier_history", "fight_transition", "fight_round", "fight_odds", "fight_loadout", "fight", "character", "fighter", "stage", "user" RESTART IDENTITY CASCADE`);
 }
 
 /** One client per test file, with a clean database before every test. */

@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after Phase 3 step 1 (staff and custom names). Update this file at the end of every build step.*
+*Last updated 2026-09-29, after Phase 3 step 2 (seasons). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) is under way: step 1 of 7 is built. |
-| **Next step** | Phase 3 step 2: seasons (see "What's next"), alongside the search for openly licensed fighter art. |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, a staff page with admin and moderator roles, custom character names approved by staff, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
-| **Not built yet** | Seasons, fighter submissions, voting, holder verification; anything on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 451 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) is under way: steps 1 and 2 of 7 are built. |
+| **Next step** | The search for openly licensed fighter art, then Phase 3 step 3: fighter submissions (see "What's next"). |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
+| **Not built yet** | Fighter submissions, voting, seasonal releases, holder verification; anything on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
+| **Health** | 466 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -33,7 +33,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
 | **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | ✅ Done |
-| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | In progress (1 of 7 steps) |
+| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | In progress (2 of 7 steps) |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
 ## What's been done
@@ -63,7 +63,8 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 **Phase 3: Community roster** (plan, your decisions and defaults: [PHASE3.md](docs/PHASE3.md))
 - ✅ **Plan agreed** (`b294fcf`, decisions recorded 2026-09-29): openly licensed fighter art first (commissioning is the fallback); read-only holder verification as the last step of phase 3; you as admin plus moderators you appoint.
-1. ✅ **Staff and custom names**: admin and moderator roles, a staff page (`/staff.html`) with a review queue, search and name resets, and a staff log that can't be edited or deleted. Owners can now ask for a custom character name; a moderator approves it (it's used from the next fight) or rejects it with a note the owner sees. Admins are set with `pnpm staff:role`.
+1. ✅ **Staff and custom names** (`1fadb54`): admin and moderator roles, a staff page (`/staff.html`) with a review queue, search and name resets, and a staff log that can't be edited or deleted. Owners can now ask for a custom character name; a moderator approves it (it's used from the next fight) or rejects it with a note the owner sees. Admins are set with `pnpm staff:role`.
+2. ✅ **Seasons**: 8-week seasons. The player leaderboard now counts Salt won this season, so it starts over each season (there's no ranking by balance any more). At the end, "Season N Champion" goes to the highest-rated character with 10+ fights that season, and "Season Top Bettor" to the player who won the most Salt with 10+ bets. Balances, characters, ratings and titles never reset. Season 1 started on this Mac's database on 2026-09-30 (UTC).
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
@@ -73,10 +74,10 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**Recommended next: Phase 3 step 2, seasons**
-- 8-week seasons: at the end, "Season N Champion" for the highest-rated character and a title for the player who won the most Salt that season; the player leaderboard starts over each season. Balances, characters, ratings and titles never reset.
-- Alongside it: search for openly licensed fighting-game art and characters (commercial use allowed) for the archetype templates; findings go in [PHASE3.md](docs/PHASE3.md).
-- Then steps 3–7: submissions, automatic checks, voting, seasonal release, holder verification.
+**Recommended next: the fighter art search, then Phase 3 step 3, submissions**
+- Search for openly licensed fighting-game art and characters (commercial use allowed) for the archetype templates; findings go in [PHASE3.md](docs/PHASE3.md). Research only: nothing is downloaded without your OK.
+- Step 3: a form for communities to submit a fighter (template, sprite sheets, name, palettes, proof of rights), stored outside git and reviewed in the staff queue. Opening it to the public waits for the terms (see "Decisions waiting on you").
+- Then steps 4–7: automatic checks, voting, seasonal release, holder verification.
 
 **Streaming: where the stream runs, then a private recording**
 - The capture shows the whole screen. With `GI_GAME_TO_FRONT=true` this Mac can stream as long as it isn't used for anything else meanwhile (the game takes focus every fight). For a 24/7 stream, pick a machine where the game is the only thing showing: a home mini PC, a cloud server, or a second screen on this Mac.
@@ -97,7 +98,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - **Defaults to review.** Every number chosen for an open design question (prices, upgrade costs, title rules, name plate colours, etc.) is listed in [PHASE2.md](docs/PHASE2.md) and is a setting that can be changed.
 - **Phase 3, still open** ([PHASE3.md](docs/PHASE3.md)): terms for uploaded art (a lawyer's eye before submissions open to the public), and which partner NFT collections holder verification checks.
 - **Make yourself admin:** sign in with your email on the main page once, then run `pnpm staff:role <your email> admin` in the project folder.
-- **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; season length and what resets; the crowd-odds constants (set from real data in phase 4). Tournament entry is free for now (a default you can change).
+- **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; the crowd-odds constants (set from real data in phase 4). Tournament entry is free for now, and seasons are 8 weeks with only the leaderboard resetting (defaults you can change).
 
 ## How to pick up where we left off
 

@@ -26,7 +26,7 @@ So the templates are **content work, not code**: a pixel artist and someone who 
 Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 
 1. ✅ **Staff roles and a review queue.** Admin and moderator roles, a staff page (`/staff.html`), and a log of every staff action. Needed first, because submissions, names and art all need a human to approve them. The first thing through the queue: custom character names (automatic since phase 2). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §13.
-2. **Seasons.** A season table and a season clock. At each season's end: champion titles ("Season 1 Champion", DESIGN §8), a leaderboard snapshot, and a leaderboard reset. Balances never reset (DESIGN §9). Nothing here depends on the templates.
+2. ✅ **Seasons.** A season table and a season clock. At each season's end: champion titles ("Season 1 Champion", DESIGN §8), a leaderboard snapshot, and a leaderboard reset. Balances never reset (DESIGN §9). Nothing here depends on the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §14.
 3. **Submissions.** A form for a community to submit a fighter: the template it's built on, sprite sheets following that template, name, palettes, intro and win pose, and a proof-of-rights statement. Files are stored outside git (like IKEMEN content today) and reviewed in the admin queue.
 4. **Automatic checks.** For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
 5. **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts.
@@ -47,7 +47,9 @@ Same approach as phase 2: each number is a setting, flagged in the commit that a
 **Seasons**
 - 8 weeks per season.
 - What resets: the player leaderboard ranking and season stats. Salt balances, characters, ratings, titles and records never reset.
-- Season Champion titles: the highest-rated character at season end, and the player with the most Salt won during the season.
+- Season titles: Season Champion for the highest-rated character at season end (with at least 10 fights that season), and Season Top Bettor for the player with the most Salt won during the season (at least 10 bets, and ahead overall). T-Salt doesn't count.
+- The leaderboard is Salt won this season (so it starts over each season); there's no all-time balance ranking.
+- Each ended season keeps its top 20 players and characters.
 
 **Voting**
 - Who can vote: accounts with a verified email, at least 14 days old, with at least 20 bets placed.

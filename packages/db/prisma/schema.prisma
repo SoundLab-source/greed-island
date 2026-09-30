@@ -92,6 +92,8 @@ model User {
   reviewsDecided   ReviewItem[]      @relation("ReviewDecider")
   staffActionsDone StaffAction[]     @relation("StaffActor")
   staffActionsGot  StaffAction[]     @relation("StaffTarget")
+  seasonsTopBettor Season[]
+  seasonStandings  SeasonStanding[]
 
   @@map("user")
 }
@@ -319,6 +321,8 @@ model Character {
   matchesWon     TournamentMatch[] @relation("MatchWinner")
   reviewItems    ReviewItem[]
   staffActions   StaffAction[]
+  seasonsWon     Season[]
+  seasonStandings SeasonStanding[]
 
   @@unique([fighterId, serial])
   @@index([tier, enabled])
@@ -600,6 +604,8 @@ enum TitleCode {
   TIER_A
   TIER_S
   TOURNAMENT_CHAMPION
+  /// One per season (phase 3).
+  SEASON_CHAMPION
 }
 
 /// A title a character earned (DESIGN §8). Permanent: it stays with the character
@@ -615,6 +621,9 @@ model CharacterTitle {
   /// Tournament Champion: which tournament.
   tournamentId String?     @map("tournament_id") @db.Uuid
   tournament   Tournament? @relation(fields: [tournamentId], references: [id])
+  /// Season Champion: which season.
+  seasonId     String?     @map("season_id") @db.Uuid
+  season       Season?     @relation(fields: [seasonId], references: [id])
   /// Owner at the time it was earned.
   ownerKind   OwnerKind @map("owner_kind")
   ownerUserId String?   @map("owner_user_id") @db.Uuid
@@ -684,6 +693,8 @@ enum PlayerTitleCode {
   BETTOR_1ST
   BETTOR_2ND
   BETTOR_3RD
+  /// Won the most Salt betting in a season (phase 3).
+  SEASON_TOP_BETTOR
 }
 
 /// One cycle's single-elimination tournament (DESIGN §5). Bets use the tournament's own T-Salt book.
@@ -749,20 +760,25 @@ model TournamentMatch {
   @@map("tournament_match")
 }
 
-/// A player's title from a tournament's T-Salt podium, with the final balance.
+/// A player's title: a tournament's T-Salt podium, or a season's top bettor.
 model PlayerTitle {
   id           BigInt          @id @default(autoincrement())
   userId       String          @map("user_id") @db.Uuid
   user         User            @relation(fields: [userId], references: [id])
   code         PlayerTitleCode
-  tournamentId String          @map("tournament_id") @db.Uuid
-  tournament   Tournament      @relation(fields: [tournamentId], references: [id])
-  /// T-Salt balance at the end of the tournament.
+  /// Podium titles: the tournament.
+  tournamentId String?         @map("tournament_id") @db.Uuid
+  tournament   Tournament?     @relation(fields: [tournamentId], references: [id])
+  /// Season Top Bettor: the season.
+  seasonId     String?         @map("season_id") @db.Uuid
+  season       Season?         @relation(fields: [seasonId], references: [id])
+  /// What it was earned with: the final T-Salt balance (tournaments) or the Salt won (seasons).
   balance      Decimal         @db.Decimal(20, 0)
   earnedAt     DateTime        @default(now()) @map("earned_at") @db.Timestamptz(3)
 
   @@unique([tournamentId, code])
   @@unique([tournamentId, userId])
+  @@unique([seasonId, code])
   @@index([userId])
   @@map("player_title")
 }
@@ -842,4 +858,62 @@ model StaffAction {
   @@index([characterId])
   @@index([reviewItemId])
   @@map("staff_action")
+}
+
+// ---------------------------------------------------------------------------
+// Seasons (phase 3, step 2)
+
+enum SeasonStatus {
+  RUNNING
+  ENDED
+}
+
+/// An 8-week season (DESIGN §8-9). The player leaderboard counts Salt won in the
+/// running season; balances, ratings, records and titles never reset.
+model Season {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number              Int              @unique @default(autoincrement())
+  status              SeasonStatus     @default(RUNNING)
+  /// A fight belongs to the season its result came in (closed_at in [starts_at, ends_at)).
+  startsAt            DateTime         @map("starts_at") @db.Timestamptz(3)
+  endsAt              DateTime         @map("ends_at") @db.Timestamptz(3)
+  /// When it was closed (a little after ends_at: at the next booking).
+  endedAt             DateTime?        @map("ended_at") @db.Timestamptz(3)
+  championCharacterId String?          @map("champion_character_id") @db.Uuid
+  champion            Character?       @relation(fields: [championCharacterId], references: [id])
+  topBettorUserId     String?          @map("top_bettor_user_id") @db.Uuid
+  topBettor           User?            @relation(fields: [topBettorUserId], references: [id])
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  standings           SeasonStanding[]
+  titles              CharacterTitle[]
+  playerTitles        PlayerTitle[]
+
+  @@map("season")
+}
+
+enum StandingKind {
+  PLAYER
+  CHARACTER
+}
+
+/// A season's final standings, kept when it ends.
+model SeasonStanding {
+  seasonId    String       @map("season_id") @db.Uuid
+  season      Season       @relation(fields: [seasonId], references: [id])
+  kind        StandingKind
+  rank        Int          @db.SmallInt
+  /// PLAYER: who, Salt won (winnings minus stakes) and settled bets.
+  userId      String?      @map("user_id") @db.Uuid
+  user        User?        @relation(fields: [userId], references: [id])
+  saltWon     Decimal?     @map("salt_won") @db.Decimal(20, 0)
+  bets        Int?
+  /// CHARACTER: which, final rating and the season's record.
+  characterId String?      @map("character_id") @db.Uuid
+  character   Character?   @relation(fields: [characterId], references: [id])
+  rating      Float?
+  wins        Int?
+  losses      Int?
+
+  @@id([seasonId, kind, rank])
+  @@map("season_standing")
 }

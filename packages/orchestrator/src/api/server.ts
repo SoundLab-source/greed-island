@@ -55,7 +55,6 @@ import {
   currentFightId,
   currentTournamentId,
   fightView,
-  leaderboard,
   meView,
   myChallenges,
   myCharacters,
@@ -63,6 +62,7 @@ import {
   recentTournaments,
   tournamentView,
 } from "./views.ts";
+import { leaderboard, recentSeasons, seasonView } from "./season-views.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
 
 export interface ApiDeps {
@@ -367,7 +367,16 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null }));
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
-  app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db)));
+  app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db, config)));
+
+  // Seasons: the running one with live standings, and past ones with their final standings.
+  app.get("/api/seasons", async (_req, reply) => send(reply, await recentSeasons(db)));
+  app.get("/api/seasons/current", async (req, reply) => send(reply, await seasonView(db, config, null, await viewer(req))));
+  app.get<{ Params: { number: string } }>("/api/seasons/:number", async (req, reply) => {
+    const view = await seasonView(db, config, z.coerce.number().int().min(1).max(1_000_000).parse(req.params.number), await viewer(req));
+    if (!view) throw new HttpError(404, "NOT_FOUND", "no such season");
+    return send(reply, view);
+  });
   app.get("/api/characters", async (_req, reply) => send(reply, await characterRanking(db)));
   app.get<{ Params: { id: string } }>("/api/characters/:id", async (req, reply) => {
     const id = uuid.parse(req.params.id);

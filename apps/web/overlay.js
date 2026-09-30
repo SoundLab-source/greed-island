@@ -234,6 +234,11 @@
       if (d.status === "FINISHED") toast(`<span><b>${esc(d.champion.name)}</b> wins Tournament #${d.number}${d.podium.length ? ` · top bettor <b>${esc(d.podium[0].name)}</b>` : ""}</span>`);
       refreshTournament();
     });
+    es.addEventListener("season", (e) => {
+      const d = JSON.parse(e.data);
+      if (d.status === "STARTED") toast(`<span><b>Season ${d.number}</b> begins · the leaderboard starts over</span>`);
+      if (d.status === "ENDED") toast(`<span>Season ${d.number} is over${d.champion ? ` · champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? ` · top bettor <b>${esc(d.topBettor.name)}</b>` : ""}</span>`);
+    });
   }
 
   setInterval(() => {

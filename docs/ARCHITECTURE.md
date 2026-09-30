@@ -140,12 +140,13 @@ Fastify, same process as the orchestrator (they share the event bus). `GET /api/
 | `GET /api/challenges/options`, `GET /api/me/challenges`, `POST /api/challenges` | Your characters and other players' you can challenge; your incoming and outgoing challenges (queue position, fight once booked); send `{challengerCharacterId, challengedCharacterId}` (sending an open one again returns it) |
 | `POST /api/challenges/:id/accept`, `/decline`, `/cancel` | The challenged owner accepts or declines; the challenger cancels until it's booked |
 | `GET /api/tournaments`, `/api/tournaments/current`, `/api/tournaments/:id` | Recent tournaments; the bracket by round (seeds, winners, walkovers, fight numbers), T-Salt standings, podium and the viewer's T-Salt |
-| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, former names, license) |
+| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by Salt won in the running season (§14), character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, former names, license) |
 | `POST /api/characters/:id/name`, `POST /api/reviews/:id/withdraw` | Owner only: ask for a custom name `{name}` (waits for staff review; asking again while it waits returns it); take a waiting request back |
 | `GET /api/staff/queue`, `POST /api/staff/reviews/:id/approve`, `/reject` | Staff: waiting requests oldest first and recent decisions; decide with `{note?}` (a note is required to reject) |
 | `GET /api/staff/search?q=`, `POST /api/staff/players/:id/reset-name`, `POST /api/staff/characters/:id/reset-name` | Staff: find players (display name, exact email or id) and characters; reset a display name or a custom character name with `{note}` (the reason) |
 | `GET /api/staff/log`, `GET /api/staff/members`, `PUT /api/staff/members` | Staff: the staff log and staff list (emails for admins only); admin only: `{email, role: MODERATOR or PLAYER, note?}` appoints or removes a moderator |
-| `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, `tournament` (started, cancelled, finished with champion and podium), keep-alive comments |
+| `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, `tournament` (started, cancelled, finished with champion and podium), `season` (started; ended with champion and top bettor), keep-alive comments |
+| `GET /api/seasons`, `/api/seasons/current`, `/api/seasons/:number` | Recent seasons (dates, champion, top bettor); one season: the running one with live standings, who'd win if it ended now, and the viewer's rank, or an ended one's final standings |
 
 `apps/web` holds plain pages (no build step): the dev page at `/`, the watch page at `/watch.html` (video, betting and chat for viewers; `GET /api/site` says which Twitch channel to embed, `GI_TWITCH_CHANNEL`), and the stream overlay at `/overlay.html` (§12), which uses only public routes and the SSE stream.
 
@@ -178,7 +179,7 @@ SETTLE ──▶ applyFightRating ──▶ awardFightTitles ──▶ character
 titles + First Edition ──▶ unlocked cosmetics ──(owner's pick or automatic)──▶ frozen at OPEN_BETTING ──▶ FightLoadout.cosmetics ──▶ overlay
 ```
 
-- Titles are awarded in the settlement transaction from the frozen loadout tiers and the rating update: First Blood, 10 Wins, 100 Wins, Giant Slayer (beat a character 3+ tiers higher, P < B < A < S < X), and tier firsts for each band reached for the first time on a promotion (not the starting tier, not a climb back). Tournament Champion is catalogued for the tournaments step. Rules: `packages/shared/src/titles.ts`.
+- Titles are awarded in the settlement transaction from the frozen loadout tiers and the rating update: First Blood, 10 Wins, 100 Wins, Giant Slayer (beat a character 3+ tiers higher, P < B < A < S < X), and tier firsts for each band reached for the first time on a promotion (not the starting tier, not a climb back). Tournament Champion (§11) and Season Champion (§14) are awarded outside fights and can be earned again. Rules: `packages/shared/src/titles.ts`.
 - `character_title` is append-only; each row keeps the fight and the owner at the time, and one-time titles are unique per character. `pnpm titles:backfill` replays settled fights' loadouts to award titles for fights from before titles existed (same rules; a test checks it matches live awarding).
 - Each title unlocks a badge, and some a name plate; First Edition copies also get a badge. The owner can pick one title, one name plate and up to 3 badges; anything not picked is automatic (best unlocked). Cosmetics never change stats. Like upgrades, a pick applies from the next fight whose betting opens.
 - The catalogue (labels, ranks, colours) is data in code, served by `GET /api/cosmetics` for the future overlay; fight views return each side's frozen cosmetics with labels and colours.
@@ -236,3 +237,17 @@ every staff action -> staff_action (append-only log: who, their role then, what,
 - **Names** (`packages/orchestrator/src/staff.ts`): 3-20 characters, ASCII letters, digits, spaces and `' - . &` (no `#`, so a custom name can't look like an automatic "Grey Monk #1", and no lookalike letters from other alphabets). Unique ignoring case against every character, every fighter's name and other waiting requests; requests and approvals of the same name take turns on an advisory lock (7105). Approval checks the owner and the name again. A fight's loadout keeps the name it was booked with; the new name shows from the next fight. After an approved name, the next request can come `GI_RENAME_COOLDOWN_DAYS` (7) later.
 - **Resets.** Staff can clear a player's display name (they show as "Anon-…") or put a custom character name back to the automatic one; both need a reason, kept in the log.
 - **Staff page** (`apps/web/staff.html`): the queue, search and resets, the staff list (admins: appoint or remove by email), and the log. It uses the main page's session.
+
+## 14. Seasons (phase 3)
+
+```
+bookFight ──▶ advanceSeason: no season yet -> Season 1 starts now
+                            running season past ends_at -> final standings, Season Champion, Season Top Bettor, ENDED
+                                                        -> next season starts at the old ends_at (or now, after a break longer than a season)
+```
+
+- **Clock.** Checked at the start of every booking, in the same transaction (advisory lock 7106); bus `season` events go out after commit. A season is a date window: a fight belongs to the season its result came in (`fight.closed_at`), so a fight that straddles the end counts in the next one. Length `GI_SEASON_WEEKS` (8).
+- **Standings.** Players: Salt won (winnings minus stakes) on settled Salt bets; T-Salt bets never count. Characters: rating now (at the end: the final rating) and the season's record, active characters only. Rules: `packages/shared/src/seasons.ts`; queries and the end of a season: `packages/orchestrator/src/seasons.ts`.
+- **Titles.** Season Champion (character, like Tournament Champion: once per season, repeatable, with its owner at the time; unlocks the Legend name plate and SC badge) goes to the best-rated character with at least `GI_SEASON_MIN_FIGHTS` (10) fights that season. Season Top Bettor (player) goes to the player with the most Salt won who came out ahead with at least `GI_SEASON_MIN_BETS` (10) bets. Either can go unawarded.
+- **What resets.** The player leaderboard (`/api/leaderboard`) is Salt won in the running season, so it starts over each season: there's no all-time balance ranking (DESIGN §9: reset leaderboards, not balances). Balances, characters, ratings, records and titles never reset; nothing here touches the ledger.
+- **Kept.** The top 20 players and characters of each ended season (`season_standing`, append-only). `season_guard` keeps seasons in order without overlaps, one running at a time, dates fixed and ended seasons unchanged.

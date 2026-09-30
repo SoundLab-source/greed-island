@@ -325,6 +325,32 @@ describe("stats after fights", () => {
   });
 });
 
+describe("seasons", () => {
+  it("serves the running season, past seasons and the season leaderboard", async () => {
+    expect((await app.inject({ method: "GET", url: "/api/seasons/current" })).json()).toBeNull();
+    expect((await app.inject({ method: "GET", url: "/api/leaderboard" })).json()).toEqual([]);
+    const s = await session("Bettor");
+    // The first booking starts Season 1.
+    const f = await openFight();
+    const bet = await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 1, stake: "10", idempotencyKey: "season-bet-1" } });
+    expect(bet.statusCode).toBe(200);
+    for (const type of ["LOCK", "ENGINE_STARTED"] as const) await applyTransition(deps, f.id, { type });
+    await applyTransition(deps, f.id, { type: "MATCH_END", winnerSide: 2 });
+    await applyTransition(deps, f.id, { type: "SETTLED_OK" });
+
+    const current = (await app.inject({ method: "GET", url: "/api/seasons/current", headers: s.auth })).json();
+    expect(current).toMatchObject({ number: 1, status: "RUNNING", champion: null, rules: { minFights: 10, minBets: 10 }, me: { rank: 1, saltWon: "-10", bets: 1 } });
+    expect(current.players).toEqual([{ rank: 1, name: "Bettor", saltWon: "-10", bets: 1, eligible: false }]);
+    expect(current.characters).toHaveLength(2);
+    expect((await app.inject({ method: "GET", url: "/api/leaderboard" })).json()).toEqual(current.players);
+    expect((await app.inject({ method: "GET", url: "/api/seasons/1" })).json()).toMatchObject({ number: 1, status: "RUNNING" });
+    expect((await app.inject({ method: "GET", url: "/api/seasons" })).json()).toMatchObject([{ number: 1, status: "RUNNING" }]);
+    expect((await app.inject({ method: "GET", url: "/api/seasons/99" })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: "/api/seasons/first" })).statusCode).toBe(400);
+    expect((await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).json().season).toMatchObject({ number: 1, rank: 1, saltWon: "-10", bets: 1, minBets: 10 });
+  });
+});
+
 describe("staff and custom names", () => {
   async function signIn(email: string) {
     await app.inject({ method: "POST", url: "/api/auth/email", payload: { email } });

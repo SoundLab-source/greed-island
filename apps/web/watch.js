@@ -215,6 +215,11 @@
       if (d.status === "FINISHED") feed(`<b>${esc(d.champion.name)}</b> wins Tournament #${d.number}`);
       refreshMe().catch(() => {});
     });
+    es.addEventListener("season", (e) => {
+      const d = JSON.parse(e.data);
+      if (d.status === "STARTED") feed(`<b>Season ${d.number}</b> begins: the leaderboard starts over`);
+      if (d.status === "ENDED") feed(`Season ${d.number} is over${d.champion ? `: champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? `, top bettor <b>${esc(d.topBettor.name)}</b>` : ""}`);
+    });
   }
 
   setInterval(() => {
