@@ -9,7 +9,7 @@ The one page to read first: what the project is for, what's been built, what's n
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) hasn't started. |
-| **Next step** | A Phase 3 plan for you to review (community fighters and voting), and deciding where the stream runs (see "What's next"). |
+| **Next step** | Your review of the Phase 3 plan draft ([docs/PHASE3.md](docs/PHASE3.md)) and its open decisions, and deciding where the stream runs (see "What's next"). |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | Anything community or on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
 | **Health** | 409 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
@@ -80,12 +80,13 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - Check Twitch/YouTube rules on play-money betting.
 
 **Later phases**
-- Phase 3: archetype templates, the submission and voting pipeline, seasons. Needs a plan agreed with you first (like [PHASE2.md](docs/PHASE2.md)), and original or licensed art.
+- Phase 3: archetype templates, the submission and voting pipeline, seasons. Draft plan: [PHASE3.md](docs/PHASE3.md), waiting for your review. The real launch depends on original (or properly licensed) fighter templates and art, which is content work rather than code.
 - Phase 4: a legal review **before** anything else, then NFTs, trading and crowd-blended odds.
 
 ## Decisions waiting on you
 
 - **Defaults to review.** Every number chosen for an open design question (prices, upgrade costs, title rules, name plate colours, etc.) is listed in [PHASE2.md](docs/PHASE2.md) and is a setting that can be changed.
+- **Phase 3 decisions** ([PHASE3.md](docs/PHASE3.md)): where fighter templates and art come from, whether holder verification (crypto wallet sign-in) happens in phase 3 or after the legal review, who moderates, terms for uploaded art, and the default season and voting rules.
 - **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; season length and what resets; the crowd-odds constants (set from real data in phase 4). Tournament entry is free for now (a default you can change).
 - **Custom character names** stay automatic ("Grey Monk #1") until there's a moderation plan.
 
@@ -121,6 +122,7 @@ From Terminal instead: `docker compose up -d`, then `ENGINE_MODE=live pnpm dev` 
 | [CLAUDE.md](CLAUDE.md) | Rules, commands and conventions for anyone (or any AI) working on the code |
 | [docs/DESIGN.md](docs/DESIGN.md) | The game design: the source of truth for decisions |
 | [docs/PHASE2.md](docs/PHASE2.md) | Phase 2 build order and every default value |
+| [docs/PHASE3.md](docs/PHASE3.md) | Phase 3 draft plan (community fighters, voting, seasons), waiting for review |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit: state machine, ledger, engine, API, upgrades, titles |
 | [docs/SETUP.md](docs/SETUP.md) | Installing, running, adding characters, streaming, troubleshooting |
 | [docs/ikemen-notes.md](docs/ikemen-notes.md) | Verified engine facts, with source references and open items |
