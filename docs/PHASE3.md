@@ -12,6 +12,8 @@ Scope from DESIGN §13: archetype templates, the submission pipeline, voting, se
 4. **Terms for uploaded art:** still need a lawyer's eye. This gates opening submissions to the public, not building them.
 5. **Defaults:** accepted as proposed below (each one is a setting that can change later).
 
+**Later decision (2026-09-29): NFTs as fighters.** Each community still gets **one voted-in fighter** built on one archetype; holders don't each get their own fighter. Instead, a verified holder can give **their copies of that fighter their NFT's look**, and **the look stays with the character**, including when the holder later sells the NFT. It travels with the character like its titles and record (DESIGN §8). Details: "NFTs as fighters" below.
+
 ## The big dependency: fighter templates and art
 
 DESIGN §11 says every fighter is an **archetype template** (moves, animations, hitboxes, AI) **plus art**, and communities submit the art. That needs 3–5 original, balanced templates: a rushdown, a zoner, a grappler, an all-rounder and a heavy. Nothing in the repo can stand in for them:
@@ -31,7 +33,19 @@ Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 4. **Automatic checks** (waits for the archetype templates; built after step 5). For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
 5. ✅ **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts. Built before step 4, which needs the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §16.
 6. **Seasonal release.** The ballot's winners join the roster when the next season starts, with a debut tournament and a First Edition supply in the shop (both already exist from phase 2).
-7. **Holder verification and perks.** Verify that a player holds an NFT from a partner collection (read-only: a signed message, then reading the wallet's holdings), for **perks, never power** (DESIGN §11): early shop access, or exclusive cosmetics for their community's fighter.
+7. **Holder verification and perks.** Verify that a player holds an NFT from a partner collection (read-only: a signed message, then reading the wallet's holdings), for **perks, never power** (DESIGN §11): early shop access, **submitting a fighter from an NFT**, and **NFT looks** for their community's fighter (see "NFTs as fighters"). The looks need the archetype templates.
+
+## NFTs as fighters
+
+The owner's direction (2026-09-29), for step 7 and after the templates exist:
+
+- **Submitting from an NFT.** A holder connects their wallet and signs a free message (no transaction). We list their NFTs from collections staff have approved, and they pick one: the submission is filled in with the NFT's image as the portrait, the collection as the community, and "holder licence" as the rights basis with the collection's licence link. Staff review it like any submission, and it goes to the vote as usual.
+- **One fighter per community.** The voted-in fighter is built on one archetype template, with the same stats as any fighter of that archetype.
+- **NFT looks.** A verified holder can apply their NFT's look to their own copy of that community's fighter:
+  1. first, the NFT as the portrait and name-plate art, with its main colours applied to the fighter's sprites (automatic, works for any NFT);
+  2. then, per collection, **trait kits**: an artist draws each of the collection's traits (hat, fur, eyes...) once as a layer on the template's frames, and every NFT's look is built from its traits automatically.
+- **Looks stay with the character.** Once applied, a look is part of the character for good, like its titles: it stays when the holder sells the NFT, and travels with the character if it changes owner later (phase 4). Looks are cosmetic only: never stats.
+- **Approved collections.** Staff keep a list of collections that can be used, each with its licence. A look that stays after the NFT is sold needs a licence that allows it: public-domain (CC0) collections are fine; holder-licence collections (where the rights end when the NFT is sold) need the lawyer's OK or an agreement with the collection first.
 
 ## Defaults for open questions
 
@@ -61,6 +75,10 @@ Same approach as phase 2: each number is a setting, flagged in the commit that a
 - A fighter needs at least 1 vote to be elected. One that isn't elected frees its name and its community can submit again.
 - "Bets placed" counts every bet, Salt or T-Salt.
 
+**NFT looks**
+- One look per NFT: once an NFT's look is on a character, that NFT can't be applied to another character, including by its next owner. That keeps each look unique to one character.
+- A character carries one NFT look at a time; changing it (with another NFT the player holds) replaces it, and the old one goes back to being available.
+
 **Balance check**
 - 200 sim fights against a spread of the roster, per submission.
 - It passes if its win rate is within 10 percentage points of its archetype's reference fighter against the same opponents.
@@ -75,7 +93,7 @@ Same approach as phase 2: each number is a setting, flagged in the commit that a
 ## Still open
 
 - **Terms:** accepting uploaded art means terms of service and a rights statement that submitters agree to. These need a lawyer's eye before real submissions open to the public.
-- **Which partner collections** holder verification checks, and which chain (DESIGN §10 names Solana). Needed by step 7.
+- **Which partner collections** holder verification checks, and which chain (DESIGN §10 names Solana). Needed by step 7. For each: its licence, and whether a look can stay after the NFT is sold (see "NFTs as fighters").
 - **Art base:** whether to download and evaluate the CC0 Universal Prototype (see below), and the Daz licence question for the lawyer.
 
 ## Fighter art search
