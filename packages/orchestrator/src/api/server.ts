@@ -34,6 +34,7 @@ import {
   TITLE_CODES,
   UPGRADE_STATS,
   type Config,
+  type StaffPermission,
 } from "@greed-island/shared";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import path from "node:path";
@@ -44,6 +45,7 @@ import { answerChallenge, expireChallenges, sendChallenge, type ChallengeAnswer 
 import { setCosmetics } from "../cosmetics.ts";
 import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { buyCharacter, currentShop } from "../shop.ts";
+import { decideReview, ForbiddenError, requestCharacterName, requireStaff, resetCharacterName, resetDisplayName, setRole, withdrawRequest } from "../staff.ts";
 import { setSidegrade, upgradeStat } from "../upgrades.ts";
 import {
   betHistory,
@@ -61,6 +63,7 @@ import {
   recentTournaments,
   tournamentView,
 } from "./views.ts";
+import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
 
 export interface ApiDeps {
   db: Db;
@@ -114,6 +117,9 @@ const CosmeticsBody = z
     badges: z.array(z.enum(BADGE_IDS)).max(MAX_BADGES).optional(),
   })
   .strict();
+const NameBody = z.object({ name: z.string().max(100) });
+const NoteBody = z.object({ note: z.string().max(1000).nullable().optional() }).optional();
+const RoleBody = z.object({ email: z.string().max(254), role: z.enum(["MODERATOR", "PLAYER"]), note: z.string().max(1000).nullable().optional() });
 
 class HttpError extends Error {
   constructor(
@@ -134,6 +140,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code, message: err.message });
+    if (err instanceof ForbiddenError) return reply.status(403).send({ error: "FORBIDDEN", message: err.message });
     if (err instanceof AuthError) {
       const status = err.code === "RATE_LIMITED" ? 429 : 400;
       return reply.status(status).send({ error: err.code, message: err.message });
@@ -167,6 +174,8 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     if (!id) throw new HttpError(401, "UNAUTHORIZED", "sign in first (POST /api/session)");
     return id;
   };
+  /** A signed-in account with this staff permission (read fresh each request). */
+  const requireStaffViewer = async (req: FastifyRequest, permission: StaffPermission) => requireStaff(db, await requireViewer(req), permission);
   const send = (reply: FastifyReply, value: unknown) => reply.type("application/json").send(toJson(value));
 
   // Sessions: an anonymous account with the starting balance.
@@ -283,6 +292,64 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
       return send(reply, { status: c.status, challenges: await myChallenges(db, userId) });
     });
   }
+
+  // Custom character names: asked for by the owner, approved by staff.
+  app.post<{ Params: { id: string } }>("/api/characters/:id/name", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const characterId = uuid.parse(req.params.id);
+    const { name } = NameBody.parse(req.body);
+    const r = await requestCharacterName(db, config, { userId, characterId, name });
+    return send(reply.status(r.replayed ? 200 : 201), { request: { id: r.request.id, name: r.request.proposedName, status: r.request.status }, replayed: r.replayed });
+  });
+  app.post<{ Params: { id: string } }>("/api/reviews/:id/withdraw", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const r = await withdrawRequest(db, { userId, reviewId: uuid.parse(req.params.id) });
+    return send(reply, { id: r.id, status: r.status });
+  });
+
+  // Staff: the review queue, name resets, moderators and the staff log (staff.html).
+  app.get("/api/staff/queue", async (req, reply) => {
+    await requireStaffViewer(req, "review");
+    return send(reply, await reviewQueue(db));
+  });
+  for (const [path, decision] of [["approve", "APPROVE"], ["reject", "REJECT"]] as const) {
+    app.post<{ Params: { id: string } }>(`/api/staff/reviews/:id/${path}`, async (req, reply) => {
+      const { id: reviewerId } = await requireStaffViewer(req, "review");
+      const body = NoteBody.parse(req.body ?? undefined);
+      const r = await decideReview(db, { reviewerId, reviewId: uuid.parse(req.params.id), decision, note: body?.note ?? null });
+      return send(reply, { id: r.id, status: r.status });
+    });
+  }
+  app.get<{ Querystring: { q?: string } }>("/api/staff/search", async (req, reply) => {
+    await requireStaffViewer(req, "reset_names");
+    return send(reply, await staffSearch(db, z.string().max(100).parse(req.query.q ?? "")));
+  });
+  app.post<{ Params: { id: string } }>("/api/staff/players/:id/reset-name", async (req, reply) => {
+    const { id: actorId } = await requireStaffViewer(req, "reset_names");
+    const body = NoteBody.parse(req.body ?? undefined);
+    await resetDisplayName(db, { actorId, userId: uuid.parse(req.params.id), note: body?.note ?? "" });
+    return reply.status(204).send();
+  });
+  app.post<{ Params: { id: string } }>("/api/staff/characters/:id/reset-name", async (req, reply) => {
+    const { id: actorId } = await requireStaffViewer(req, "reset_names");
+    const body = NoteBody.parse(req.body ?? undefined);
+    const name = await resetCharacterName(db, { actorId, characterId: uuid.parse(req.params.id), note: body?.note ?? "" });
+    return send(reply, { name });
+  });
+  app.get("/api/staff/log", async (req, reply) => {
+    await requireStaffViewer(req, "view_log");
+    return send(reply, await staffLog(db));
+  });
+  app.get("/api/staff/members", async (req, reply) => {
+    const viewer = await requireStaffViewer(req, "view_log");
+    return send(reply, await staffMembers(db, viewer.role));
+  });
+  app.put("/api/staff/members", async (req, reply) => {
+    const { id: actorId } = await requireStaffViewer(req, "manage_moderators");
+    const body = RoleBody.parse(req.body);
+    const r = await setRole(db, { actorId, target: { email: body.email }, role: body.role, note: body.note ?? null });
+    return send(reply, r);
+  });
 
   // Tournaments: bracket, T-Salt standings and podium.
   app.get("/api/tournaments", async (_req, reply) => send(reply, await recentTournaments(db)));

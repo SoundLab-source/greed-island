@@ -1,6 +1,6 @@
-# Architecture (Phase 1: Stream MVP)
+# Architecture
 
-Scope: house characters, match cycle, Salt ledger, betting, fixed model odds, Glicko-2 ratings and tiers, fight stats, read API with live updates. Design source of truth: `docs/DESIGN.md`. Engine facts: `docs/ikemen-notes.md`.
+Phase 1 (Stream MVP) scope: house characters, match cycle, Salt ledger, betting, fixed model odds, Glicko-2 ratings and tiers, fight stats, read API with live updates. Phase 2 (§8-12) adds ownership, and phase 3 (§13 on) the community roster. Design source of truth: `docs/DESIGN.md`. Engine facts: `docs/ikemen-notes.md`.
 
 ## 1. Components
 
@@ -124,7 +124,7 @@ Engine events (NDJSON, zod-validated): `match_start`, `round_start {round}`, `ro
 
 ## 6. API and live updates
 
-Fastify, same process as the orchestrator (they share the event bus). Salt amounts are integer strings in and out; a JSON number is accepted for a stake only if it's a safe integer. Auth: a session token in `Authorization: Bearer`, from `POST /api/session` (anonymous player with the starting balance) or an emailed one-time sign-in link. Sessions live in their own table (several devices, 30-day expiry, sign-out); tokens and links are stored only as SHA-256 hashes. A sign-in link requested by an anonymous player attaches the email to that player, keeping their Salt and bets; if the email already has an account, the link signs in to it instead. Links expire after 15 minutes, work once, and are limited to 5 per email per hour. Mail goes through SMTP when `GI_SMTP_URL` is set, otherwise it's printed to the server console.
+Fastify, same process as the orchestrator (they share the event bus). `GET /api/me` includes the player's staff `role` and `permissions`; staff routes answer 403 to everyone else. Salt amounts are integer strings in and out; a JSON number is accepted for a stake only if it's a safe integer. Auth: a session token in `Authorization: Bearer`, from `POST /api/session` (anonymous player with the starting balance) or an emailed one-time sign-in link. Sessions live in their own table (several devices, 30-day expiry, sign-out); tokens and links are stored only as SHA-256 hashes. A sign-in link requested by an anonymous player attaches the email to that player, keeping their Salt and bets; if the email already has an account, the link signs in to it instead. Links expire after 15 minutes, work once, and are limited to 5 per email per hour. Mail goes through SMTP when `GI_SMTP_URL` is set, otherwise it's printed to the server console.
 
 | Route | Purpose |
 |---|---|
@@ -140,7 +140,11 @@ Fastify, same process as the orchestrator (they share the event bus). Salt amoun
 | `GET /api/challenges/options`, `GET /api/me/challenges`, `POST /api/challenges` | Your characters and other players' you can challenge; your incoming and outgoing challenges (queue position, fight once booked); send `{challengerCharacterId, challengedCharacterId}` (sending an open one again returns it) |
 | `POST /api/challenges/:id/accept`, `/decline`, `/cancel` | The challenged owner accepts or declines; the challenger cancels until it's booked |
 | `GET /api/tournaments`, `/api/tournaments/current`, `/api/tournaments/:id` | Recent tournaments; the bracket by round (seeds, winners, walkovers, fight numbers), T-Salt standings, podium and the viewer's T-Salt |
-| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, license) |
+| `GET /api/results`, `/api/leaderboard`, `/api/characters`, `/api/characters/:id` | Recent results, players by balance, character ranking (with owner), character profile (titles with provenance, tier history, upgrades, recent fights, former names, license) |
+| `POST /api/characters/:id/name`, `POST /api/reviews/:id/withdraw` | Owner only: ask for a custom name `{name}` (waits for staff review; asking again while it waits returns it); take a waiting request back |
+| `GET /api/staff/queue`, `POST /api/staff/reviews/:id/approve`, `/reject` | Staff: waiting requests oldest first and recent decisions; decide with `{note?}` (a note is required to reject) |
+| `GET /api/staff/search?q=`, `POST /api/staff/players/:id/reset-name`, `POST /api/staff/characters/:id/reset-name` | Staff: find players (display name, exact email or id) and characters; reset a display name or a custom character name with `{note}` (the reason) |
+| `GET /api/staff/log`, `GET /api/staff/members`, `PUT /api/staff/members` | Staff: the staff log and staff list (emails for admins only); admin only: `{email, role: MODERATOR or PLAYER, note?}` appoints or removes a moderator |
 | `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, `tournament` (started, cancelled, finished with champion and podium), keep-alive comments |
 
 `apps/web` holds plain pages (no build step): the dev page at `/`, the watch page at `/watch.html` (video, betting and chat for viewers; `GET /api/site` says which Twitch channel to embed, `GI_TWITCH_CHANNEL`), and the stream overlay at `/overlay.html` (§12), which uses only public routes and the SSE stream.
@@ -217,3 +221,18 @@ fight_state (bus) ──▶ ObsSceneSwitcher ──obs-websocket 5──▶ OBS:
 - **Overlay** (`apps/web/overlay.html`, `.css`, `.js`): laid out on a 1920x1080 grid in CSS units derived from the width, so it scales to any 16:9 browser source. It refetches `/api/fights/current` on state, odds and round events, shows each side's frozen cosmetics (name plate colours, title, badges from §9), odds, win chance, the countdown, pools after lock, round markers (`roundsToWin`), a result banner (winner, rating change, tier change, owner reward, or "no contest"), toasts for titles and tournaments, and a footer with recent results or who's still in the tournament. T-Salt fights are labelled.
 - **Setup** (`pnpm obs:setup`, `packages/orchestrator/src/obs-setup.ts`): creates the Fight and Betting scenes with a screen capture and the two overlay views through the same WebSocket, adds only what's missing, and reloads the overlay sources.
 - **Scene switching** (`packages/orchestrator/src/obs.ts`): optional (`GI_OBS_URL`). Uses Node's built-in WebSocket client, identifies with `eventSubscriptions: 0`, answers the password challenge, and sends `SetCurrentProgramScene` only when the wanted scene changes. It reconnects every 5 s, reports each kind of problem once, and never stops the stream. Protocol facts and what's still unverified: docs/obs-notes.md.
+
+## 13. Staff and the review queue (phase 3)
+
+```
+owner: POST /api/characters/:id/name -> review_item PENDING -> staff.html queue -> approve: character renamed, previous name kept
+                                                                             -> reject (with a note the owner sees)
+                                    <- owner withdraws while it waits
+every staff action -> staff_action (append-only log: who, their role then, what, why)
+```
+
+- **Roles** (`user.role`: PLAYER, MODERATOR, ADMIN). Rules in `packages/shared/src/staff.ts`. Moderators review, reset names and read the log; admins also appoint and remove moderators on the staff page. Admins are set only from the server's command line (`pnpm staff:role <email> admin`), which is logged with no actor. Staff need a verified email (`user_staff_verified` check). Every staff request reads the role from the database, so removing a moderator takes effect at once.
+- **Review queue** (`review_item`, kind `CHARACTER_NAME` for now; fighter submissions come later). One waiting name per character (partial unique index). A decision is final and what was asked can't change (`review_item_guard`). Nobody decides their own request, except an admin (logged like anything else).
+- **Names** (`packages/orchestrator/src/staff.ts`): 3-20 characters, ASCII letters, digits, spaces and `' - . &` (no `#`, so a custom name can't look like an automatic "Grey Monk #1", and no lookalike letters from other alphabets). Unique ignoring case against every character, every fighter's name and other waiting requests; requests and approvals of the same name take turns on an advisory lock (7105). Approval checks the owner and the name again. A fight's loadout keeps the name it was booked with; the new name shows from the next fight. After an approved name, the next request can come `GI_RENAME_COOLDOWN_DAYS` (7) later.
+- **Resets.** Staff can clear a player's display name (they show as "Anon-…") or put a custom character name back to the automatic one; both need a reason, kept in the log.
+- **Staff page** (`apps/web/staff.html`): the queue, search and resets, the staff list (admins: appoint or remove by email), and the log. It uses the main page's session.

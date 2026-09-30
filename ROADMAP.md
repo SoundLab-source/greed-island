@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after the game-window and stop fixes. Update this file at the end of every build step.*
+*Last updated 2026-09-29, after Phase 3 step 1 (staff and custom names). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) hasn't started. |
-| **Next step** | Your review of the Phase 3 plan draft ([docs/PHASE3.md](docs/PHASE3.md)) and its open decisions, and deciding where the stream runs (see "What's next"). |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
-| **Not built yet** | Anything community or on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 409 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) is under way: step 1 of 7 is built. |
+| **Next step** | Phase 3 step 2: seasons (see "What's next"), alongside the search for openly licensed fighter art. |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, a staff page with admin and moderator roles, custom character names approved by staff, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
+| **Not built yet** | Seasons, fighter submissions, voting, holder verification; anything on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
+| **Health** | 451 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -33,7 +33,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
 | **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | ✅ Done |
-| **3. Community roster** | Archetype templates, fighter submissions, review, voting, seasonal releases, holder perks | Not started |
+| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | In progress (1 of 7 steps) |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
 ## What's been done
@@ -61,6 +61,10 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 5. ✅ **Owner rewards and exhibitions** (`0bfe55d`): owners get 25 Salt each time their character wins on stream; owners challenge each other's characters, and accepted challenges play in the exhibition part of the cycle, oldest first, with house "showcase" fights between the strongest house characters filling the gaps.
 6. ✅ **Tournaments** (`337b2e3`): each cycle plays a single-elimination bracket of up to 16 characters from one tier (rotating S, A, B, P), seeded by rating. Every player bets with 1,000 tournament Salt ("T-Salt") per tournament, kept in a separate set of books that can never turn into Salt. The winning character earns "Tournament Champion" and the top 3 T-Salt balances earn player titles.
 
+**Phase 3: Community roster** (plan, your decisions and defaults: [PHASE3.md](docs/PHASE3.md))
+- ✅ **Plan agreed** (`b294fcf`, decisions recorded 2026-09-29): openly licensed fighter art first (commissioning is the fallback); read-only holder verification as the last step of phase 3; you as admin plus moderators you appoint.
+1. ✅ **Staff and custom names**: admin and moderator roles, a staff page (`/staff.html`) with a review queue, search and name resets, and a staff log that can't be edited or deleted. Owners can now ask for a custom character name; a moderator approves it (it's used from the next fight) or rejects it with a note the owner sees. Admins are set with `pnpm staff:role`.
+
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
 - ✅ **OBS installed and tested with real fights**: OBS 32.2.2 (checksum and Apple notarization verified). `pnpm obs:setup` creates the scenes and picks the screen to capture; scene switching followed every fight, including a real IKEMEN fight (#111); the betting screen and the fight bar render inside OBS over the capture. Known limit: the capture is the whole screen, and the game window opens behind other apps, so capturing only the game window is still open ([obs-notes.md](docs/obs-notes.md)).
@@ -69,7 +73,12 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**Recommended next: where the stream runs, then a private recording**
+**Recommended next: Phase 3 step 2, seasons**
+- 8-week seasons: at the end, "Season N Champion" for the highest-rated character and a title for the player who won the most Salt that season; the player leaderboard starts over each season. Balances, characters, ratings and titles never reset.
+- Alongside it: search for openly licensed fighting-game art and characters (commercial use allowed) for the archetype templates; findings go in [PHASE3.md](docs/PHASE3.md).
+- Then steps 3–7: submissions, automatic checks, voting, seasonal release, holder verification.
+
+**Streaming: where the stream runs, then a private recording**
 - The capture shows the whole screen. With `GI_GAME_TO_FRONT=true` this Mac can stream as long as it isn't used for anything else meanwhile (the game takes focus every fight). For a 24/7 stream, pick a machine where the game is the only thing showing: a home mini PC, a cloud server, or a second screen on this Mac.
 - Then a private test recording of real fights on that setup, and after that a Twitch channel for `GI_TWITCH_CHANNEL` and an unlisted test stream.
 - Optional engineering: make "capture only the game window" work, so a Mac in daily use can stream without the game taking focus.
@@ -80,15 +89,15 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - Check Twitch/YouTube rules on play-money betting.
 
 **Later phases**
-- Phase 3: archetype templates, the submission and voting pipeline, seasons. Draft plan: [PHASE3.md](docs/PHASE3.md), waiting for your review. The real launch depends on original (or properly licensed) fighter templates and art, which is content work rather than code.
+- Phase 3's real launch depends on properly licensed fighter templates and art, which is content work rather than code.
 - Phase 4: a legal review **before** anything else, then NFTs, trading and crowd-blended odds.
 
 ## Decisions waiting on you
 
 - **Defaults to review.** Every number chosen for an open design question (prices, upgrade costs, title rules, name plate colours, etc.) is listed in [PHASE2.md](docs/PHASE2.md) and is a setting that can be changed.
-- **Phase 3 decisions** ([PHASE3.md](docs/PHASE3.md)): where fighter templates and art come from, whether holder verification (crypto wallet sign-in) happens in phase 3 or after the legal review, who moderates, terms for uploaded art, and the default season and voting rules.
+- **Phase 3, still open** ([PHASE3.md](docs/PHASE3.md)): terms for uploaded art (a lawyer's eye before submissions open to the public), and which partner NFT collections holder verification checks.
+- **Make yourself admin:** sign in with your email on the main page once, then run `pnpm staff:role <your email> admin` in the project folder.
 - **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; season length and what resets; the crowd-odds constants (set from real data in phase 4). Tournament entry is free for now (a default you can change).
-- **Custom character names** stay automatic ("Grey Monk #1") until there's a moderation plan.
 
 ## How to pick up where we left off
 
@@ -99,20 +108,20 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 From Terminal instead: `docker compose up -d`, then `ENGINE_MODE=live pnpm dev` (or `pnpm dev` for practice fights), and Control-C to stop.
 
 **For a new developer or AI agent:**
-1. Read, in order: this file, [CLAUDE.md](CLAUDE.md) (rules and commands), [DESIGN.md](docs/DESIGN.md), [PHASE2.md](docs/PHASE2.md) (current plan and defaults), [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+1. Read, in order: this file, [CLAUDE.md](CLAUDE.md) (rules and commands), [DESIGN.md](docs/DESIGN.md), [PHASE3.md](docs/PHASE3.md) (current plan, decisions and defaults), [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 2. Set up from [SETUP.md](docs/SETUP.md): Node 24, pnpm 10, Docker; `cp .env.example .env`; `docker compose up -d`; `pnpm install`; `pnpm db:migrate`; `pnpm test`. `pnpm demo` runs 12 fake fights without IKEMEN.
-3. Build the next unchecked step in [PHASE2.md](docs/PHASE2.md), following the same loop as every step so far:
+3. Build the next unchecked step in [PHASE3.md](docs/PHASE3.md), following the same loop as every step so far:
    - design rules as pure functions in `packages/shared`, with tests (including property tests for money and odds);
    - database changes as a migration, plus a separate `_guards` migration for constraints and triggers;
    - wire it into the orchestrator and API, and show it on the dev page;
-   - update the docs (PHASE2.md ✅, ARCHITECTURE.md, CLAUDE.md commands, `.env.example`) and **this file**;
+   - update the docs (PHASE3.md ✅, ARCHITECTURE.md, CLAUDE.md commands, `.env.example`) and **this file**;
    - `pnpm typecheck` and `pnpm test` green, then check a fresh copy of the commit (a git worktree with an empty test database) before pushing to `main`;
    - list any new default values in the commit message.
 4. Never break the hard rules in [CLAUDE.md](CLAUDE.md): Salt stays closed-loop, money is integers in a double-entry ledger, fight state changes go through the state machine, engine facts must be verified, and no IKEMEN files or secrets in the repo.
 
 **Things specific to the current machine**
 - IKEMEN GO v1.0.0 is unzipped at `Ikemen_GO-v1.0.0-macos/` in the project folder (not in git); `.env` points `IKEMEN_DIR` at it. macOS needed a one-time "Open Anyway" in Privacy & Security.
-- The local database holds test data from development (test players such as Anon-409825, who owns Grey Monk #1). It never leaves the machine; `docker compose down -v` wipes it.
+- The local database holds test data from development (test players such as Anon-409825, who owns Grey Monk #1, and Tester, who owns Old Oak #1; a test staff account staff-test@example.test, no longer staff). It never leaves the machine; `docker compose down -v` wipes it.
 
 ## Where everything is
 
@@ -122,8 +131,8 @@ From Terminal instead: `docker compose up -d`, then `ENGINE_MODE=live pnpm dev` 
 | [CLAUDE.md](CLAUDE.md) | Rules, commands and conventions for anyone (or any AI) working on the code |
 | [docs/DESIGN.md](docs/DESIGN.md) | The game design: the source of truth for decisions |
 | [docs/PHASE2.md](docs/PHASE2.md) | Phase 2 build order and every default value |
-| [docs/PHASE3.md](docs/PHASE3.md) | Phase 3 draft plan (community fighters, voting, seasons), waiting for review |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit: state machine, ledger, engine, API, upgrades, titles |
+| [docs/PHASE3.md](docs/PHASE3.md) | Phase 3 build order, your decisions and every default (staff, seasons, submissions, voting) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit: state machine, ledger, engine, API, upgrades, titles, tournaments, overlay, staff |
 | [docs/SETUP.md](docs/SETUP.md) | Installing, running, adding characters, streaming, troubleshooting |
 | [docs/ikemen-notes.md](docs/ikemen-notes.md) | Verified engine facts, with source references and open items |
 | [docs/obs-notes.md](docs/obs-notes.md) | OBS WebSocket facts the scene switcher relies on, and what's still unverified |

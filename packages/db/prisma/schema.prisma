@@ -26,6 +26,13 @@ enum UserKind {
   EMAIL
 }
 
+/// Staff roles (phase 3). Only accounts with a verified email can be staff.
+enum UserRole {
+  PLAYER
+  MODERATOR
+  ADMIN
+}
+
 enum AccountKind {
   USER
   ESCROW
@@ -67,6 +74,8 @@ model User {
   /// Reserved for a later phase. Nothing in phase 1 reads or writes it.
   walletAddress    String?   @unique @map("wallet_address")
   displayName      String?   @map("display_name")
+  /// Admins are set from the server's command line; admins appoint moderators.
+  role             UserRole  @default(PLAYER)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   accounts         Account[]
   bets             Bet[]
@@ -79,6 +88,10 @@ model User {
   challengesSent   Challenge[]       @relation("ChallengeFrom")
   challengesGot    Challenge[]       @relation("ChallengeTo")
   playerTitles     PlayerTitle[]
+  reviewsSubmitted ReviewItem[]      @relation("ReviewSubmitter")
+  reviewsDecided   ReviewItem[]      @relation("ReviewDecider")
+  staffActionsDone StaffAction[]     @relation("StaffActor")
+  staffActionsGot  StaffAction[]     @relation("StaffTarget")
 
   @@map("user")
 }
@@ -304,6 +317,8 @@ model Character {
   matchesSide1   TournamentMatch[] @relation("MatchSide1")
   matchesSide2   TournamentMatch[] @relation("MatchSide2")
   matchesWon     TournamentMatch[] @relation("MatchWinner")
+  reviewItems    ReviewItem[]
+  staffActions   StaffAction[]
 
   @@unique([fighterId, serial])
   @@index([tier, enabled])
@@ -750,4 +765,81 @@ model PlayerTitle {
   @@unique([tournamentId, userId])
   @@index([userId])
   @@map("player_title")
+}
+
+// ---------------------------------------------------------------------------
+// Staff and the review queue (phase 3, step 1)
+
+enum ReviewKind {
+  /// An owner asks for a custom name for their character.
+  CHARACTER_NAME
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  /// The player took it back before a decision.
+  WITHDRAWN
+}
+
+/// Something a player asked for that a moderator or admin has to approve.
+model ReviewItem {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind              ReviewKind
+  status            ReviewStatus @default(PENDING)
+  submittedByUserId String       @map("submitted_by_user_id") @db.Uuid
+  submittedBy       User         @relation("ReviewSubmitter", fields: [submittedByUserId], references: [id])
+  /// CHARACTER_NAME: the character and the name asked for.
+  characterId       String?      @map("character_id") @db.Uuid
+  character         Character?   @relation(fields: [characterId], references: [id])
+  proposedName      String?      @map("proposed_name")
+  /// CHARACTER_NAME, approved: the name it replaced.
+  previousName      String?      @map("previous_name")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Approved, rejected or withdrawn.
+  decidedAt         DateTime?    @map("decided_at") @db.Timestamptz(3)
+  decidedByUserId   String?      @map("decided_by_user_id") @db.Uuid
+  decidedBy         User?        @relation("ReviewDecider", fields: [decidedByUserId], references: [id])
+  /// The reviewer's note to the player (required to reject).
+  note              String?
+  staffActions      StaffAction[]
+
+  @@index([status, createdAt])
+  @@index([characterId, createdAt])
+  @@index([submittedByUserId])
+  @@map("review_item")
+}
+
+enum StaffActionKind {
+  ROLE_SET
+  REVIEW_APPROVED
+  REVIEW_REJECTED
+  DISPLAY_NAME_RESET
+  CHARACTER_NAME_RESET
+}
+
+/// The staff log: every staff action, who did it and when. Append-only.
+model StaffAction {
+  id           BigInt          @id @default(autoincrement())
+  /// Null: done from the server's command line (pnpm staff:role).
+  actorUserId  String?         @map("actor_user_id") @db.Uuid
+  actor        User?           @relation("StaffActor", fields: [actorUserId], references: [id])
+  /// The actor's role at the time.
+  actorRole    UserRole?       @map("actor_role")
+  kind         StaffActionKind
+  targetUserId String?         @map("target_user_id") @db.Uuid
+  targetUser   User?           @relation("StaffTarget", fields: [targetUserId], references: [id])
+  characterId  String?         @map("character_id") @db.Uuid
+  character    Character?      @relation(fields: [characterId], references: [id])
+  reviewItemId String?         @map("review_item_id") @db.Uuid
+  reviewItem   ReviewItem?     @relation(fields: [reviewItemId], references: [id])
+  /// What changed, e.g. {"from": "PLAYER", "to": "MODERATOR"} or {"name": ..., "previousName": ..., "note": ...}.
+  detail       Json
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([targetUserId])
+  @@index([characterId])
+  @@index([reviewItemId])
+  @@map("staff_action")
 }

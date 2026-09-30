@@ -9,7 +9,8 @@
   "scripts": {
     "demo": "tsx src/scripts/demo.ts",
     "dev": "tsx src/scripts/dev.ts",
-    "obs:setup": "tsx src/scripts/obs-setup.ts"
+    "obs:setup": "tsx src/scripts/obs-setup.ts",
+    "staff:role": "tsx src/scripts/staff-role.ts"
   },
   "dependencies": {
     "@fastify/static": "10.1.5",

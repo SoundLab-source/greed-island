@@ -3,6 +3,7 @@ import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
 import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
 import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
+import { DEFAULT_STAFF, type StaffConfig } from "./staff.ts";
 import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 import { DEFAULT_TOURNAMENTS, type TournamentConfig } from "./tournaments.ts";
@@ -35,6 +36,7 @@ export interface Config {
   upgrades: UpgradeConfig;
   exhibitions: ExhibitionConfig;
   tournaments: TournamentConfig;
+  staff: StaffConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -109,6 +111,11 @@ export function validateExhibitions(x: ExhibitionConfig): ExhibitionConfig {
   return x;
 }
 
+export function validateStaff(s: StaffConfig): StaffConfig {
+  if (!(s.renameCooldownMs >= 0)) throw new ConfigError("rename cooldown must be >= 0");
+  return s;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const d = DEFAULT_ECONOMY;
   return {
@@ -164,6 +171,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     tournaments: validateTournaments({
       startingBalance: saltFromEnv(env, "GI_TOURNAMENT_BALANCE", DEFAULT_TOURNAMENTS.startingBalance),
       podium: numberFromEnv(env, "GI_TOURNAMENT_PODIUM", DEFAULT_TOURNAMENTS.podium),
+    }),
+    staff: validateStaff({
+      renameCooldownMs: numberFromEnv(env, "GI_RENAME_COOLDOWN_DAYS", DEFAULT_STAFF.renameCooldownMs / 86_400_000) * 86_400_000,
     }),
   };
 }

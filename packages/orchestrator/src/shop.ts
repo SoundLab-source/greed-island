@@ -12,7 +12,7 @@ import {
   type Db,
   type Tx,
 } from "@greed-island/db";
-import { LedgerRuleError, pickRotation, planSpend, priceFor, rotationWindow, type Config, type Rarity, type Salt } from "@greed-island/shared";
+import { automaticName, LedgerRuleError, pickRotation, planSpend, priceFor, rotationWindow, type Config, type Rarity, type Salt } from "@greed-island/shared";
 
 export interface ShopOffer {
   fighterId: string;
@@ -107,7 +107,7 @@ export async function buyCharacter(db: Db, config: Config, input: BuyInput, now 
         tx,
         {
           fighterId,
-          name: `${offer.displayName} #${serial}`,
+          name: automaticName(offer.displayName, serial),
           palette: house?.palette ?? 1,
           startRating: config.shop.startRating,
           owner: { userId, serial, firstEdition: serial <= config.shop.firstEditionSupply, acquiredAt: now, acquiredTxnId: txnId },

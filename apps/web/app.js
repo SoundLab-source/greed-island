@@ -117,6 +117,7 @@ async function refreshMe() {
   text($("account-status"), signedIn ? `Signed in as ${me.email}` : "Playing anonymously: add your email to keep your Salt on any device.");
   $("signin-form").style.display = signedIn ? "none" : "";
   $("logout").style.display = signedIn ? "" : "none";
+  $("staff-link").hidden = me.role === "PLAYER";
   text($("balance"), me.balance);
   text($("in-bets"), me.inOpenBets !== "0" ? `(+${me.inOpenBets} in open bets)` : "");
   text($("player-name"), `Leaderboard name: ${me.name}`);
@@ -173,13 +174,47 @@ async function refreshMine() {
       <br>${buttons}
       <br><select data-sidegrade="${c.id}">${options}</select> <button data-set-sidegrade="${c.id}">Set sidegrade (${c.prices.sidegrade}, removing is free)</button>
       <br><span class="muted">Titles: ${c.titles.length ? c.titles.map((t) => `${esc(t.label)} (fight #${t.fightNumber}, ${esc(t.earnedBy.name)})`).join(", ") : "none yet: win fights to earn them"}</span>
-      <br>${lookPicker(c)}</td></tr>`;
+      <br>${lookPicker(c)}
+      <br>${namePicker(c)}</td></tr>`;
   }).join("");
+  for (const b of document.querySelectorAll("[data-ask-name]")) b.onclick = () => askName(b.dataset.askName);
+  for (const b of document.querySelectorAll("[data-withdraw-name]")) b.onclick = () => withdrawName(b.dataset.withdrawName);
   for (const b of document.querySelectorAll("[data-save-look]")) b.onclick = () => saveLook(b.dataset.saveLook);
   for (const b of document.querySelectorAll("[data-upgrade]")) b.onclick = () => upgrade(b.dataset.upgrade, b.dataset.stat);
   for (const b of document.querySelectorAll("[data-set-sidegrade]")) {
     b.onclick = () => sidegrade(b.dataset.setSidegrade, document.querySelector(`[data-sidegrade="${b.dataset.setSidegrade}"]`).value || null);
   }
+}
+
+// Custom names: a moderator reviews each one before it's used.
+function namePicker(c) {
+  const r = c.nameRequest;
+  if (r?.status === "PENDING") {
+    return `<span class="muted">New name "${esc(r.name)}" is waiting for a moderator.</span> <button data-withdraw-name="${r.id}">Withdraw</button>`;
+  }
+  const last = r?.status === "REJECTED" ? ` <span class="muted">"${esc(r.name)}" was rejected: ${esc(r.note)}</span>` : "";
+  return `<input data-name-input="${c.id}" placeholder="new name, 3-20 letters" maxlength="20" style="width: 12em">
+    <button data-ask-name="${c.id}">Ask for this name (reviewed, free)</button>${last}`;
+}
+
+async function askName(id) {
+  try {
+    await api("POST", `/api/characters/${id}/name`, { name: document.querySelector(`[data-name-input="${id}"]`).value });
+    text($("shop-msg"), "Name sent for review. It's used from the character's next fight after a moderator approves it.");
+  } catch (e) {
+    text($("shop-msg"), e.message);
+  }
+  await refreshMine();
+}
+
+async function withdrawName(reviewId) {
+  try {
+    await api("POST", `/api/reviews/${reviewId}/withdraw`);
+    text($("shop-msg"), "Name request withdrawn.");
+  } catch (e) {
+    text($("shop-msg"), e.message);
+  }
+  await refreshMine();
 }
 
 // Pick the title, name plate and badges shown on stream. "Automatic" shows the best earned.

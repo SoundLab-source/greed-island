@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Greed Island staff</title>
+  <style>
+    /* Layout only, like the dev page. */
+    body { font-family: system-ui, sans-serif; margin: 16px; max-width: 1100px; }
+    .box { border: 1px solid #999; padding: 8px 12px; margin-bottom: 12px; overflow-x: auto; }
+    table { border-collapse: collapse; } td, th { padding: 2px 8px; text-align: left; vertical-align: top; }
+    button { margin-right: 6px; }
+    .muted { color: #666; }
+    .error { color: #b00; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>Greed Island <small class="muted">staff</small></h1>
+  <p><span id="who" class="muted">Loading…</span> · <a href="/">Main page</a></p>
+  <p id="msg" class="error"></p>
+
+  <div id="not-staff" class="box" hidden>
+    This page is for moderators and admins. Sign in with your email on the <a href="/">main page</a> first.
+    The first admin is set on the server with <code>pnpm staff:role you@example.com admin</code>; admins appoint moderators here.
+  </div>
+
+  <div id="staff" hidden>
+    <div class="box">
+      <h3>Review queue <small class="muted">oldest first</small></h3>
+      <table id="queue"></table>
+      <h4>Recent decisions</h4>
+      <table id="decided"></table>
+    </div>
+
+    <div class="box">
+      <h3>Find a player or character</h3>
+      <input id="q" placeholder="name, email or player id" style="width: 18em"> <button id="search">Search</button>
+      <div class="muted">Resetting needs a reason; it's kept in the staff log.</div>
+      <table id="results"></table>
+    </div>
+
+    <div class="box">
+      <h3>Staff</h3>
+      <table id="members"></table>
+      <div id="appoint" hidden>
+        <input id="role-email" type="email" placeholder="their@email.com" style="width: 16em">
+        <select id="role-value"><option value="MODERATOR">make moderator</option><option value="PLAYER">remove from staff</option></select>
+        <button id="role-save">Save</button>
+        <div class="muted">They need to have signed in with that email once. Admins are set on the server (pnpm staff:role).</div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>Staff log <small class="muted">newest first; can't be edited or deleted</small></h3>
+      <table id="log"></table>
+    </div>
+  </div>
+
+  <script src="staff.js"></script>
+</body>
+</html>

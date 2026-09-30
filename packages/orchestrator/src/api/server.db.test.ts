@@ -13,6 +13,7 @@ import { applyTransition, bookFight, type FightDeps } from "../fights.ts";
 import type { Rng } from "../matchmaking.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { ConsoleMailer } from "../mail.ts";
+import { setRole } from "../staff.ts";
 import { buildServer, loadTwitchChannel } from "./server.ts";
 
 const db = useTestDb();
@@ -324,6 +325,69 @@ describe("stats after fights", () => {
   });
 });
 
+describe("staff and custom names", () => {
+  async function signIn(email: string) {
+    await app.inject({ method: "POST", url: "/api/auth/email", payload: { email } });
+    const token = decodeURIComponent(/\?login=([^\s]+)/.exec(mailer.sent.at(-1)!.text)![1]!);
+    const body = (await app.inject({ method: "POST", url: "/api/auth/verify", payload: { token } })).json();
+    return { authorization: `Bearer ${body.token}` };
+  }
+
+  it("takes a name request from an owner, and lets staff approve it", async () => {
+    const player = await session("Owner");
+    const c = await db.character.create({
+      data: { fighterId: "f1", name: "f1 #1", rating: 1400, deviation: 100, volatility: 0.06, tier: "P", ownerKind: "USER", ownerUserId: player.me.id, serial: 1, acquiredAt: new Date() },
+    });
+    const ask = (name: string) => app.inject({ method: "POST", url: `/api/characters/${c.id}/name`, headers: player.auth, payload: { name } });
+    const first = await ask("Iron Lotus");
+    expect(first.statusCode).toBe(201);
+    expect(first.json()).toMatchObject({ request: { name: "Iron Lotus", status: "PENDING" }, replayed: false });
+    expect((await ask("Iron Lotus")).statusCode).toBe(200);
+    expect((await ask("Iron #2")).json()).toMatchObject({ error: "NOT_ELIGIBLE" });
+    const mine = (await app.inject({ method: "GET", url: "/api/me/characters", headers: player.auth })).json();
+    expect(mine[0]).toMatchObject({ name: "f1 #1", automaticName: "f1 #1", nameRequest: { name: "Iron Lotus", status: "PENDING" } });
+
+    // Players (and signed-out visitors) can't use staff routes.
+    expect((await app.inject({ method: "GET", url: "/api/staff/queue", headers: player.auth })).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: "/api/staff/queue" })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: `/api/staff/reviews/${first.json().request.id}/approve`, headers: player.auth })).statusCode).toBe(403);
+    expect(player.me).toMatchObject({ role: "PLAYER", permissions: [] });
+
+    // The admin (set from the command line) appoints a moderator by email.
+    const adminAuth = await signIn("boss@example.com");
+    await setRole(db, { actorId: null, target: { email: "boss@example.com" }, role: "ADMIN" });
+    expect((await app.inject({ method: "GET", url: "/api/me", headers: adminAuth })).json()).toMatchObject({ role: "ADMIN", permissions: expect.arrayContaining(["manage_moderators"]) });
+    const modAuth = await signIn("mod@example.com");
+    const appoint = await app.inject({ method: "PUT", url: "/api/staff/members", headers: adminAuth, payload: { email: "mod@example.com", role: "MODERATOR" } });
+    expect(appoint.json()).toMatchObject({ from: "PLAYER", to: "MODERATOR", changed: true });
+    expect((await app.inject({ method: "PUT", url: "/api/staff/members", headers: adminAuth, payload: { email: "mod@example.com", role: "ADMIN" } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PUT", url: "/api/staff/members", headers: modAuth, payload: { email: "boss@example.com", role: "PLAYER" } })).statusCode).toBe(403);
+    const members = (await app.inject({ method: "GET", url: "/api/staff/members", headers: modAuth })).json();
+    expect(members.map((m: { role: string; email: string | null }) => [m.role, m.email])).toEqual([["MODERATOR", null], ["ADMIN", null]]);
+    expect((await app.inject({ method: "GET", url: "/api/staff/members", headers: adminAuth })).json().map((m: { email: string }) => m.email)).toEqual(["mod@example.com", "boss@example.com"]);
+
+    // The moderator works through the queue.
+    const queue = (await app.inject({ method: "GET", url: "/api/staff/queue", headers: modAuth })).json();
+    expect(queue.pending).toHaveLength(1);
+    expect(queue.pending[0]).toMatchObject({ proposedName: "Iron Lotus", submittedBy: { name: "Owner" }, character: { name: "f1 #1" } });
+    const reject = await app.inject({ method: "POST", url: `/api/staff/reviews/${queue.pending[0].id}/reject`, headers: modAuth, payload: {} });
+    expect(reject.json()).toMatchObject({ error: "NOT_ELIGIBLE", message: expect.stringMatching(/say why/) });
+    const approve = await app.inject({ method: "POST", url: `/api/staff/reviews/${queue.pending[0].id}/approve`, headers: modAuth, payload: { note: "welcome" } });
+    expect(approve.json()).toEqual({ id: queue.pending[0].id, status: "APPROVED" });
+    expect((await app.inject({ method: "GET", url: `/api/characters/${c.id}` })).json()).toMatchObject({ name: "Iron Lotus", formerNames: ["f1 #1"] });
+
+    // Search, resets and the log.
+    const found = (await app.inject({ method: "GET", url: "/api/staff/search?q=owner", headers: modAuth })).json();
+    expect(found.players).toMatchObject([{ id: player.me.id, name: "Owner" }]);
+    expect((await app.inject({ method: "POST", url: `/api/staff/players/${player.me.id}/reset-name`, headers: modAuth, payload: { note: "rude" } })).statusCode).toBe(204);
+    const reset = await app.inject({ method: "POST", url: `/api/staff/characters/${c.id}/reset-name`, headers: modAuth, payload: { note: "rude" } });
+    expect(reset.json()).toEqual({ name: "f1 #1" });
+    const log = (await app.inject({ method: "GET", url: "/api/staff/log", headers: modAuth })).json();
+    expect(log.map((l: { kind: string }) => l.kind)).toEqual(["CHARACTER_NAME_RESET", "DISPLAY_NAME_RESET", "REVIEW_APPROVED", "ROLE_SET", "ROLE_SET"]);
+    expect((await app.inject({ method: "GET", url: "/api/staff/log", headers: player.auth })).statusCode).toBe(403);
+  });
+});
+
 describe("live stream", () => {
   it("sends hello, then bus events as they happen", async () => {
     await app.listen({ port: 0, host: "127.0.0.1" });
@@ -368,7 +432,7 @@ describe("live stream", () => {
     const overlay = await app.inject({ method: "GET", url: "/overlay.html" });
     expect(overlay.statusCode).toBe(200);
     expect(overlay.body).toContain("overlay.js");
-    for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
+    for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css", "/staff.html", "/staff.js"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
     // The watch page embeds Twitch only when a channel is configured.
     expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null });
     const withTwitch = await buildServer({ db, config, bus, mailer, twitchChannel: "greed_island" });

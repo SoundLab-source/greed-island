@@ -6,6 +6,7 @@
  */
 import { characterCosmetics, getBalance, openStakes, toSalt, tournamentBalance, tournamentBalances, type Db, type Prisma } from "@greed-island/db";
 import {
+  automaticName,
   describeCosmetics,
   describeUnlocked,
   formatMultiplier,
@@ -26,6 +27,7 @@ import {
   type TitleCode,
   type UpgradeConfig,
 } from "@greed-island/shared";
+import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -135,6 +137,7 @@ export async function characterProfile(db: Db, characterId: string) {
   return {
     ...card,
     license: (await db.fighter.findUniqueOrThrow({ where: { id: card.fighter.id } })).licenseNote,
+    formerNames: await formerNames(db, characterId),
     titles: await characterTitles(db, characterId),
     ...(await cosmeticOptions(db, characterId)),
     upgrades: changes.map((ch) => ({
@@ -182,6 +185,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     // Once betting opens, show the frozen loadout (what was bet on), not live values.
     const frozen = l
       ? {
+          name: l.name,
           tier: l.tier,
           rating: Math.round(l.rating),
           deviation: Math.round(l.deviation),
@@ -296,6 +300,7 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
     name: playerName(user),
     kind: user.kind,
     email: user.email,
+    ...staffInfo(user.role),
     balance: balance.toString(),
     inOpenBets: stakes.toString(),
     tournament: running
@@ -390,6 +395,8 @@ export async function myCharacters(db: Db, config: Config, userId: string) {
         ...card,
         prices: upgradePrices(card.levels, config.upgrades),
         earnings: (await ownerEarnings(db, c.id)).toString(),
+        automaticName: card.serial !== null ? automaticName(card.fighter.displayName, card.serial) : null,
+        nameRequest: await latestNameRequest(db, c.id),
         titles: await characterTitles(db, c.id),
         ...(await cosmeticOptions(db, c.id)),
       };

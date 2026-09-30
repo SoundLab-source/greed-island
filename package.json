@@ -23,6 +23,7 @@
     "demo": "pnpm db:migrate && pnpm roster:sync && pnpm --filter @greed-island/orchestrator run demo",
     "dev": "pnpm db:migrate && pnpm roster:sync && pnpm --filter @greed-island/orchestrator run dev",
     "obs:setup": "pnpm --filter @greed-island/orchestrator run obs:setup",
+    "staff:role": "pnpm --filter @greed-island/orchestrator run staff:role",
     "roster:variants": "pnpm --filter @greed-island/engine run roster:variants"
   },
   "devDependencies": {

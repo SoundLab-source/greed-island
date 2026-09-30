@@ -12,3 +12,4 @@ export * from "./titles.ts";
 export * from "./exhibitions.ts";
 export * from "./tournaments.ts";
 export * from "./players.ts";
+export * from "./staff.ts";
