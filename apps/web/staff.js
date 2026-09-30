@@ -32,24 +32,60 @@ async function act(fn) {
 
 const can = (p) => me?.permissions.includes(p);
 
+const nice = (s) => String(s ?? "").toLowerCase().replace(/_/g, " ");
+const opened = new Set(); // submission review ids with their details shown
+const thumbs = new Map(); // file id -> object URL
+
+// Submission images need the session header, so fetch them and show them as object URLs.
+async function thumb(subId, fileId) {
+  if (!thumbs.has(fileId)) {
+    const res = await fetch(`/api/submissions/${subId}/files/${fileId}`, { headers: { authorization: `Bearer ${token()}` } });
+    thumbs.set(fileId, res.ok ? URL.createObjectURL(await res.blob()) : "");
+  }
+  return thumbs.get(fileId);
+}
+
+async function submissionDetails(subId) {
+  const s = await api("GET", `/api/submissions/${subId}`);
+  const files = await Promise.all(s.files.map(async (f) => `<figure style="display:inline-block;margin:4px"><a href="${await thumb(s.id, f.id)}" target="_blank"><img src="${await thumb(s.id, f.id)}" alt="" style="max-width:160px;max-height:120px;border:1px solid #ccc;image-rendering:pixelated"></a>
+    <figcaption class="muted">${esc(nice(f.role))}: ${esc(f.label)} (${f.width}x${f.height})</figcaption></figure>`));
+  return `<div><strong>Rights:</strong> ${esc(s.rights.label)}<br>${esc(s.rights.details)}${s.rights.link ? `<br><a href="${esc(s.rights.link)}" target="_blank" rel="noopener noreferrer">${esc(s.rights.link)}</a>` : ""}
+    ${s.description ? `<br><strong>Description:</strong> ${esc(s.description)}` : ""}
+    <br><span class="muted">Sent ${s.reviews} time${s.reviews === 1 ? "" : "s"}; rights confirmed ${when(s.rights.confirmedAt)}</span></div>${files.join("")}`;
+}
+
 async function refreshQueue() {
   const q = await api("GET", "/api/staff/queue");
-  $("queue").innerHTML = q.pending.length
-    ? `<tr><th>Asked</th><th>Player</th><th>Character</th><th>New name</th><th></th></tr>` + q.pending.map((r) => `<tr>
-        <td class="muted">${when(r.createdAt)}</td>
-        <td>${esc(r.submittedBy.name)}</td>
-        <td>${esc(r.character?.name)} <span class="muted">(${esc(r.character?.fighter)}, owner ${esc(r.character?.owner)})</span>${r.character?.ownerChanged ? ' <span class="error">owner changed</span>' : ""}</td>
-        <td><strong>${esc(r.proposedName)}</strong></td>
-        <td><input data-note="${r.id}" placeholder="note to the player (needed to reject)" style="width: 16em">
-          <button data-approve="${r.id}">Approve</button><button data-reject="${r.id}">Reject</button></td></tr>`).join("")
-    : `<tr><td class="muted">Nothing waiting.</td></tr>`;
+  const rows = await Promise.all(q.pending.map(async (r) => {
+    const buttons = `<input data-note="${r.id}" placeholder="note to the player (needed to reject${r.submission ? " or ask for changes" : ""})" style="width: 16em">
+      <button data-approve="${r.id}">Approve</button>${r.submission ? `<button data-changes="${r.id}">Ask for changes</button>` : ""}<button data-reject="${r.id}">Reject</button>`;
+    if (!r.submission) {
+      return `<tr><td class="muted">${when(r.createdAt)}</td><td>${esc(r.submittedBy.name)}</td>
+        <td>Name for ${esc(r.character?.name)} <span class="muted">(${esc(r.character?.fighter)}, owner ${esc(r.character?.owner)})</span>${r.character?.ownerChanged ? ' <span class="error">owner changed</span>' : ""}</td>
+        <td><strong>${esc(r.proposedName)}</strong></td><td>${buttons}</td></tr>`;
+    }
+    const s = r.submission;
+    const details = opened.has(r.id) ? `<tr><td></td><td colspan="4">${await submissionDetails(s.id)}</td></tr>` : "";
+    return `<tr><td class="muted">${when(r.createdAt)}</td><td>${esc(r.submittedBy.name)}</td>
+      <td>Fighter submission #${s.number} <span class="muted">(${esc(s.community)}, ${esc(nice(s.archetype))})</span> <button data-open="${r.id}">${opened.has(r.id) ? "Hide" : "Show"} details</button></td>
+      <td><strong>${esc(s.fighterName)}</strong></td><td>${buttons}</td></tr>${details}`;
+  }));
+  $("queue").innerHTML = rows.length ? `<tr><th>Asked</th><th>Player</th><th>What</th><th>Name</th><th></th></tr>` + rows.join("") : `<tr><td class="muted">Nothing waiting.</td></tr>`;
   $("decided").innerHTML = q.recent.map((r) => `<tr>
-      <td class="muted">${when(r.decidedAt)}</td><td>${esc(r.status.toLowerCase())}</td>
-      <td>${esc(r.proposedName)}</td><td class="muted">for ${esc(r.character?.name)}, asked by ${esc(r.submittedBy.name)}</td>
+      <td class="muted">${when(r.decidedAt)}</td><td>${esc(nice(r.status))}</td>
+      <td>${esc(r.submission ? r.submission.fighterName : r.proposedName)}</td>
+      <td class="muted">${r.submission ? `fighter submission #${r.submission.number} (${esc(r.submission.community)})` : `for ${esc(r.character?.name)}`}, asked by ${esc(r.submittedBy.name)}</td>
       <td class="muted">${r.decidedBy ? `by ${esc(r.decidedBy.name)}` : "withdrawn by the player"}${r.note ? `: "${esc(r.note)}"` : ""}</td></tr>`).join("");
   const note = (id) => document.querySelector(`[data-note="${id}"]`).value;
-  for (const b of document.querySelectorAll("[data-approve]")) b.onclick = () => act(() => api("POST", `/api/staff/reviews/${b.dataset.approve}/approve`, { note: note(b.dataset.approve) || null }));
-  for (const b of document.querySelectorAll("[data-reject]")) b.onclick = () => act(() => api("POST", `/api/staff/reviews/${b.dataset.reject}/reject`, { note: note(b.dataset.reject) || null }));
+  for (const [attr, path] of [["approve", "approve"], ["changes", "request-changes"], ["reject", "reject"]]) {
+    for (const b of document.querySelectorAll(`[data-${attr}]`)) b.onclick = () => act(() => api("POST", `/api/staff/reviews/${b.dataset[attr]}/${path}`, { note: note(b.dataset[attr]) || null }));
+  }
+  for (const b of document.querySelectorAll("[data-open]")) {
+    b.onclick = () => {
+      opened.has(b.dataset.open) ? opened.delete(b.dataset.open) : opened.add(b.dataset.open);
+      refreshQueue().catch((e) => { $("msg").textContent = e.message; });
+    };
+  }
 }
 
 async function search() {
@@ -71,8 +107,11 @@ function describe(a) {
   const d = a.detail ?? {};
   switch (a.kind) {
     case "ROLE_SET": return `${esc(a.player?.name)}: ${esc(d.from?.toLowerCase())} → ${esc(d.to?.toLowerCase())}`;
-    case "REVIEW_APPROVED": return `approved the name "${esc(d.name)}" (was ${esc(d.previousName)}) for ${esc(a.player?.name)}`;
-    case "REVIEW_REJECTED": return `rejected the name "${esc(d.name)}" for ${esc(a.player?.name)}`;
+    case "REVIEW_APPROVED":
+      return d.kind === "FIGHTER_SUBMISSION" ? `approved fighter submission #${d.submission} "${esc(d.fighterName)}" (${esc(d.community)})` : `approved the name "${esc(d.name)}" (was ${esc(d.previousName)}) for ${esc(a.player?.name)}`;
+    case "REVIEW_REJECTED":
+      return d.kind === "FIGHTER_SUBMISSION" ? `rejected fighter submission #${d.submission} "${esc(d.fighterName)}" (${esc(d.community)})` : `rejected the name "${esc(d.name)}" for ${esc(a.player?.name)}`;
+    case "REVIEW_CHANGES_REQUESTED": return `asked for changes to fighter submission #${d.submission} "${esc(d.fighterName)}" (${esc(d.community)})`;
     case "DISPLAY_NAME_RESET": return `reset ${esc(a.player?.name)}'s display name (was "${esc(d.previousName)}")`;
     case "CHARACTER_NAME_RESET": return `reset "${esc(d.previousName)}" to ${esc(d.name)}`;
     default: return esc(a.kind);

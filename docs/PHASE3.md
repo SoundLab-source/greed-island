@@ -27,7 +27,7 @@ Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 
 1. ✅ **Staff roles and a review queue.** Admin and moderator roles, a staff page (`/staff.html`), and a log of every staff action. Needed first, because submissions, names and art all need a human to approve them. The first thing through the queue: custom character names (automatic since phase 2). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §13.
 2. ✅ **Seasons.** A season table and a season clock. At each season's end: champion titles ("Season 1 Champion", DESIGN §8), a leaderboard snapshot, and a leaderboard reset. Balances never reset (DESIGN §9). Nothing here depends on the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §14.
-3. **Submissions.** A form for a community to submit a fighter: the template it's built on, sprite sheets following that template, name, palettes, intro and win pose, and a proof-of-rights statement. Files are stored outside git (like IKEMEN content today) and reviewed in the admin queue.
+3. ✅ **Submissions.** A form for a community to submit a fighter: the template it's built on, sprite sheets following that template, name, palettes, intro and win pose, and a proof-of-rights statement. Files are stored outside git (like IKEMEN content today) and reviewed in the admin queue. Built staff-only (`GI_SUBMISSIONS_OPEN` opens it once the terms are ready). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §15.
 4. **Automatic checks.** For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
 5. **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts.
 6. **Seasonal release.** The ballot's winners join the roster when the next season starts, with a debut tournament and a First Edition supply in the shop (both already exist from phase 2).
@@ -62,8 +62,11 @@ Same approach as phase 2: each number is a setting, flagged in the commit that a
 - It passes if its win rate is within 10 percentage points of its archetype's reference fighter against the same opponents.
 
 **Submissions**
-- At most 1 open submission per community at a time.
-- A submission that fails review can be fixed and resubmitted.
+- At most 1 open submission per community at a time (and per account).
+- A submission that fails review can be fixed and resubmitted: staff either ask for changes (it comes back to the submitter) or reject it for good (rights or content problems).
+- Closed to the public until the terms are ready; staff can submit to test the pipeline.
+- Images: PNG only, up to 8 MB and 4096 pixels a side; 1-16 sprite sheets, 1 portrait, 1-2 intro, 1-2 win pose and 0-6 alternate colour sheets, 24 in all.
+- A verified email is required, so staff can reach the submitter.
 
 ## Still open
 

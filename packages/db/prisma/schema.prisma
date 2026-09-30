@@ -93,6 +93,7 @@ model User {
   staffActionsDone StaffAction[]     @relation("StaffActor")
   staffActionsGot  StaffAction[]     @relation("StaffTarget")
   seasonsTopBettor Season[]
+  submissions      Submission[]
   seasonStandings  SeasonStanding[]
 
   @@map("user")
@@ -789,6 +790,8 @@ model PlayerTitle {
 enum ReviewKind {
   /// An owner asks for a custom name for their character.
   CHARACTER_NAME
+  /// A community's fighter submission (phase 3, step 3).
+  FIGHTER_SUBMISSION
 }
 
 enum ReviewStatus {
@@ -797,6 +800,8 @@ enum ReviewStatus {
   REJECTED
   /// The player took it back before a decision.
   WITHDRAWN
+  /// Fighter submissions: fix what the note says and send it again (a new request).
+  CHANGES_REQUESTED
 }
 
 /// Something a player asked for that a moderator or admin has to approve.
@@ -810,6 +815,9 @@ model ReviewItem {
   characterId       String?      @map("character_id") @db.Uuid
   character         Character?   @relation(fields: [characterId], references: [id])
   proposedName      String?      @map("proposed_name")
+  /// FIGHTER_SUBMISSION: the submission, as sent this time.
+  submissionId      String?      @map("submission_id") @db.Uuid
+  submission        Submission?  @relation(fields: [submissionId], references: [id])
   /// CHARACTER_NAME, approved: the name it replaced.
   previousName      String?      @map("previous_name")
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -831,6 +839,7 @@ enum StaffActionKind {
   ROLE_SET
   REVIEW_APPROVED
   REVIEW_REJECTED
+  REVIEW_CHANGES_REQUESTED
   DISPLAY_NAME_RESET
   CHARACTER_NAME_RESET
 }
@@ -916,4 +925,82 @@ model SeasonStanding {
 
   @@id([seasonId, kind, rank])
   @@map("season_standing")
+}
+
+// ---------------------------------------------------------------------------
+// Fighter submissions (phase 3, step 3)
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum RightsBasis {
+  ORIGINAL
+  LICENSED
+  HOLDER_LICENCE
+}
+
+enum SubmissionFileRole {
+  SPRITES
+  PORTRAIT
+  INTRO
+  WIN_POSE
+  PALETTE
+}
+
+/// A community's fighter for the ballot: an archetype plus art (DESIGN §11).
+/// Images are stored outside git (GI_SUBMISSIONS_DIR); only their hashes are here.
+model Submission {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number            Int              @unique @default(autoincrement())
+  status            SubmissionStatus @default(DRAFT)
+  submittedByUserId String           @map("submitted_by_user_id") @db.Uuid
+  submittedBy       User             @relation(fields: [submittedByUserId], references: [id])
+  community         String
+  /// Lower-cased community name: one open submission per community.
+  communityKey      String           @map("community_key")
+  fighterName       String           @map("fighter_name")
+  archetype         Archetype
+  description       String           @default("")
+  rightsBasis       RightsBasis      @map("rights_basis")
+  rightsDetails     String           @map("rights_details")
+  rightsLink        String?          @map("rights_link")
+  /// When the submitter last confirmed the rights statement (on sending it for review).
+  rightsConfirmedAt DateTime?        @map("rights_confirmed_at") @db.Timestamptz(3)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// Last sent for review.
+  submittedAt       DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  /// Approved, rejected or withdrawn.
+  closedAt          DateTime?        @map("closed_at") @db.Timestamptz(3)
+  files             SubmissionFile[]
+  reviewItems       ReviewItem[]
+
+  @@index([status, submittedAt])
+  @@index([submittedByUserId])
+  @@map("submission")
+}
+
+/// One PNG image of a submission, stored as <GI_SUBMISSIONS_DIR>/<submission id>/<sha256>.png.
+model SubmissionFile {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  submissionId String             @map("submission_id") @db.Uuid
+  submission   Submission         @relation(fields: [submissionId], references: [id])
+  role         SubmissionFileRole
+  /// What the submitter calls it (e.g. "idle and walk"); never used as a path.
+  label        String
+  sha256       String
+  bytes        Int
+  width        Int
+  height       Int
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([submissionId, sha256])
+  @@index([submissionId, role])
+  @@map("submission_file")
 }

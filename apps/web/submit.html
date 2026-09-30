@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Submit a fighter</title>
+  <style>
+    /* Layout only, like the dev page. */
+    body { font-family: system-ui, sans-serif; margin: 16px; max-width: 900px; }
+    .box { border: 1px solid #999; padding: 8px 12px; margin-bottom: 12px; overflow-x: auto; }
+    label { display: block; margin: 6px 0; }
+    input[type=text], input:not([type]), select, textarea { width: 100%; max-width: 32em; box-sizing: border-box; }
+    textarea { height: 6em; }
+    table { border-collapse: collapse; } td, th { padding: 2px 8px; text-align: left; vertical-align: top; }
+    img.thumb { max-width: 160px; max-height: 120px; border: 1px solid #ccc; image-rendering: pixelated; }
+    .muted { color: #666; }
+    .error { color: #b00; }
+    .note { background: #fff7d6; padding: 4px 8px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>Submit a fighter <small class="muted">for the season ballot</small></h1>
+  <p class="muted">A community sends a fighter built on one of the archetypes: its sprite sheets, a portrait, an intro and a win pose (PNG images), and a statement of its rights to the art. Staff review it; approved fighters go to the season vote. <a href="/">Main page</a></p>
+  <p id="msg" class="error"></p>
+
+  <div id="closed" class="box" hidden></div>
+
+  <div id="list" class="box" hidden>
+    <h3>Your submissions</h3>
+    <table id="mine"></table>
+  </div>
+
+  <div id="editor" class="box" hidden>
+    <h3 id="editor-title">New submission</h3>
+    <div id="review-note" class="note" hidden></div>
+    <label>Community (your collection or group) <input id="community" maxlength="40"></label>
+    <label>Fighter name <input id="fighterName" maxlength="20"> <span class="muted">3-20 letters A-Z, digits, spaces and ' - . &amp;</span></label>
+    <label>Archetype <select id="archetype"></select></label>
+    <label>Description (optional) <textarea id="description" maxlength="500"></textarea></label>
+    <label>Where your rights to the art come from <select id="rightsBasis"></select></label>
+    <label>Explain (who made it, what licence, anything staff should know) <textarea id="rightsDetails" maxlength="2000"></textarea></label>
+    <label>Link to the licence or proof (https://, needed unless you made it yourselves) <input id="rightsLink" maxlength="300"></label>
+    <button id="save">Save details</button>
+
+    <div id="files-box" hidden>
+      <h4>Images <small id="limits" class="muted"></small></h4>
+      <table id="files"></table>
+      <p>
+        <select id="role"></select>
+        <input id="label" placeholder="label, e.g. idle and walk" maxlength="60" style="width: 14em">
+        <input id="file" type="file" accept="image/png">
+        <button id="upload">Add image</button>
+      </p>
+      <p id="missing" class="muted"></p>
+      <label><input id="confirm" type="checkbox"> We have the right to let Greed Island use this art for this fighter, as described above.</label>
+      <button id="submit">Send for review</button>
+      <button id="withdraw">Withdraw this submission</button>
+    </div>
+  </div>
+
+  <script src="submit.js"></script>
+</body>
+</html>

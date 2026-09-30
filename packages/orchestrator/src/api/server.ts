@@ -31,6 +31,10 @@ import {
   NAMEPLATE_IDS,
   parseSalt,
   SIDEGRADES,
+  ARCHETYPES,
+  FILE_ROLES,
+  isStaff,
+  RIGHTS_BASES,
   TITLE_CODES,
   UPGRADE_STATS,
   type Config,
@@ -45,6 +49,8 @@ import { answerChallenge, expireChallenges, sendChallenge, type ChallengeAnswer 
 import { setCosmetics } from "../cosmetics.ts";
 import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { buyCharacter, currentShop } from "../shop.ts";
+import { loadSubmissionStore, type SubmissionStore } from "../submission-store.ts";
+import { addSubmissionFile, createSubmission, readSubmissionFile, removeSubmissionFile, sendForReview, updateSubmission, withdrawSubmission } from "../submissions.ts";
 import { decideReview, ForbiddenError, requestCharacterName, requireStaff, resetCharacterName, resetDisplayName, setRole, withdrawRequest } from "../staff.ts";
 import { setSidegrade, upgradeStat } from "../upgrades.ts";
 import {
@@ -63,6 +69,7 @@ import {
   tournamentView,
 } from "./views.ts";
 import { leaderboard, recentSeasons, seasonView } from "./season-views.ts";
+import { mySubmissions, submissionDetail, submissionRules } from "./submission-views.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
 
 export interface ApiDeps {
@@ -81,6 +88,8 @@ export interface ApiDeps {
   logger?: boolean;
   /** Twitch channel shown on the watch page (player and chat); null shows the live betting board instead. */
   twitchChannel?: string | null;
+  /** Where submitted fighter images are stored. Defaults to GI_SUBMISSIONS_DIR or `submissions/`. */
+  submissionStore?: SubmissionStore;
 }
 
 /** GI_TWITCH_CHANNEL: a Twitch login name (4-25 letters, digits or underscores). */
@@ -118,7 +127,20 @@ const CosmeticsBody = z
   })
   .strict();
 const NameBody = z.object({ name: z.string().max(100) });
-const NoteBody = z.object({ note: z.string().max(1000).nullable().optional() }).optional();
+const NoteBody = z.object({ note: z.string().max(5000).nullable().optional() }).optional();
+const SubmissionBody = z
+  .object({
+    community: z.string().max(100),
+    fighterName: z.string().max(100),
+    archetype: z.enum(ARCHETYPES),
+    description: z.string().max(2000).default(""),
+    rightsBasis: z.enum(RIGHTS_BASES),
+    rightsDetails: z.string().max(5000),
+    rightsLink: z.string().max(1000).nullable().default(null),
+  })
+  .strict();
+const FileQuery = z.object({ role: z.enum(FILE_ROLES), label: z.string().min(1).max(200) });
+const SubmitBody = z.object({ confirmRights: z.boolean() });
 const RoleBody = z.object({ email: z.string().max(254), role: z.enum(["MODERATOR", "PLAYER"]), note: z.string().max(1000).nullable().optional() });
 
 class HttpError extends Error {
@@ -136,7 +158,10 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   const mailer = deps.mailer ?? new ConsoleMailer();
   const publicUrl = (deps.publicUrl ?? "http://127.0.0.1:3000").replace(/\/$/, "");
   const authCfg = deps.auth ?? DEFAULT_AUTH;
+  const store = deps.submissionStore ?? loadSubmissionStore();
   const app = Fastify({ logger: deps.logger ?? false });
+  // Submission images arrive as the raw PNG body (checked in pngInfo; the content type isn't trusted).
+  app.addContentTypeParser(["image/png", "application/octet-stream"], { parseAs: "buffer", bodyLimit: config.submissions.maxFileBytes + 1024 }, (_req, body, done) => done(null, body));
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code, message: err.message });
@@ -154,6 +179,8 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     if (err instanceof NotFoundError) return reply.status(404).send({ error: "NOT_FOUND", message: err.message });
     if (err instanceof z.ZodError) return reply.status(400).send({ error: "INVALID_REQUEST", message: err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
     const e = err as { validation?: unknown; statusCode?: number; message?: string };
+    if (e.statusCode === 413) return reply.status(413).send({ error: "TOO_LARGE", message: `an image is at most ${Math.floor(config.submissions.maxFileBytes / (1024 * 1024))} MB` });
+    if (e.statusCode === 415) return reply.status(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: e.message ?? "unsupported content type" });
     if (e.validation || e.statusCode === 400) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: e.message ?? "bad request" });
     }
@@ -312,7 +339,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     await requireStaffViewer(req, "review");
     return send(reply, await reviewQueue(db));
   });
-  for (const [path, decision] of [["approve", "APPROVE"], ["reject", "REJECT"]] as const) {
+  for (const [path, decision] of [["approve", "APPROVE"], ["reject", "REJECT"], ["request-changes", "REQUEST_CHANGES"]] as const) {
     app.post<{ Params: { id: string } }>(`/api/staff/reviews/:id/${path}`, async (req, reply) => {
       const { id: reviewerId } = await requireStaffViewer(req, "review");
       const body = NoteBody.parse(req.body ?? undefined);
@@ -349,6 +376,63 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const body = RoleBody.parse(req.body);
     const r = await setRole(db, { actorId, target: { email: body.email }, role: body.role, note: body.note ?? null });
     return send(reply, r);
+  });
+
+  // Fighter submissions (docs/PHASE3.md step 3): staff-only until GI_SUBMISSIONS_OPEN.
+  app.get("/api/submissions/rules", async (req, reply) => {
+    const id = await viewer(req);
+    const u = id ? await db.user.findUnique({ where: { id }, select: { role: true } }) : null;
+    return send(reply, submissionRules(config, u ? isStaff(u.role) : false));
+  });
+  app.get("/api/me/submissions", async (req, reply) => send(reply, await mySubmissions(db, await requireViewer(req))));
+  app.post("/api/submissions", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const sub = await createSubmission(db, config, { userId, details: SubmissionBody.parse(req.body) });
+    return send(reply.status(201), await submissionDetail(db, sub.id, { id: userId, staff: false }));
+  });
+  app.patch<{ Params: { id: string } }>("/api/submissions/:id", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const sub = await updateSubmission(db, config, { userId, submissionId: uuid.parse(req.params.id), details: SubmissionBody.parse(req.body) });
+    return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
+  });
+  app.get<{ Params: { id: string } }>("/api/submissions/:id", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const u = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+    const view = await submissionDetail(db, uuid.parse(req.params.id), { id: userId, staff: u ? isStaff(u.role) : false });
+    if (!view) throw new HttpError(404, "NOT_FOUND", "no such submission");
+    return send(reply, view);
+  });
+  app.put<{ Params: { id: string }; Querystring: { role?: string; label?: string } }>("/api/submissions/:id/files", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const q = FileQuery.parse(req.query);
+    if (!Buffer.isBuffer(req.body)) throw new HttpError(415, "UNSUPPORTED_MEDIA_TYPE", "send the PNG image as the request body (content-type: image/png)");
+    const file = await addSubmissionFile(db, config, store, { userId, submissionId: uuid.parse(req.params.id), role: q.role, label: q.label, bytes: req.body });
+    return send(reply.status(201), { id: file.id, role: file.role, label: file.label, width: file.width, height: file.height, bytes: file.bytes });
+  });
+  app.delete<{ Params: { id: string; fileId: string } }>("/api/submissions/:id/files/:fileId", async (req, reply) => {
+    const userId = await requireViewer(req);
+    await removeSubmissionFile(db, config, { userId, submissionId: uuid.parse(req.params.id), fileId: uuid.parse(req.params.fileId) });
+    return reply.status(204).send();
+  });
+  app.get<{ Params: { id: string; fileId: string } }>("/api/submissions/:id/files/:fileId", async (req, reply) => {
+    const viewerId = await requireViewer(req);
+    const bytes = await readSubmissionFile(db, store, { viewerId, submissionId: uuid.parse(req.params.id), fileId: uuid.parse(req.params.fileId) });
+    return reply
+      .header("content-type", "image/png")
+      .header("x-content-type-options", "nosniff")
+      .header("content-security-policy", "default-src 'none'")
+      .header("cache-control", "private, max-age=3600")
+      .send(bytes);
+  });
+  app.post<{ Params: { id: string } }>("/api/submissions/:id/submit", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const sub = await sendForReview(db, config, { userId, submissionId: uuid.parse(req.params.id), confirmRights: SubmitBody.parse(req.body).confirmRights });
+    return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
+  });
+  app.post<{ Params: { id: string } }>("/api/submissions/:id/withdraw", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const sub = await withdrawSubmission(db, { userId, submissionId: uuid.parse(req.params.id) });
+    return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
   });
 
   // Tournaments: bracket, T-Salt standings and podium.

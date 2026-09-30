@@ -12,6 +12,7 @@ import {
   characterNameProblem,
   hasPermission,
   LedgerRuleError,
+  MAX_SUBMISSION_NOTE_LENGTH,
   nameKey,
   normalizeCharacterName,
   reasonProblem,
@@ -19,9 +20,11 @@ import {
   reviewNoteProblem,
   reviewProblem,
   roleChangeProblem,
+  submissionTransition,
   type Config,
   type ReviewDecision,
   type StaffPermission,
+  type SubmissionStatus,
   type UserRole,
 } from "@greed-island/shared";
 
@@ -48,8 +51,8 @@ export async function requireStaff(db: Db | Tx, userId: string, permission: Staf
   return u;
 }
 
-/** Requests and approvals of the same name take turns, so two characters can't end up with it. */
-async function lockName(tx: Tx, name: string): Promise<void> {
+/** Requests and approvals of the same name take turns, so two characters (or submitted fighters) can't end up with it. */
+export async function lockName(tx: Tx, name: string): Promise<void> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(7105, hashtext(${nameKey(name)}))`;
 }
 
@@ -59,21 +62,33 @@ async function lockCharacter(tx: Tx, characterId: string) {
   return tx.character.findUniqueOrThrow({ where: { id: characterId }, include: { fighter: { select: { displayName: true } } } });
 }
 
+const NO_ID = "00000000-0000-0000-0000-000000000000";
+
 /**
- * Whether another character already has this name (ignoring case), a
- * fighter is called that, or (for new requests) another character's
- * request for it is waiting.
+ * Whether a name is in use, ignoring case: by another character, a fighter,
+ * a submitted fighter that's open or approved, or (for new requests) another
+ * character's name request that's waiting.
  */
-async function nameTaken(tx: Tx, name: string, characterId: string, includePending: boolean): Promise<boolean> {
+export async function nameTaken(
+  tx: Tx,
+  name: string,
+  opts: { exceptCharacterId?: string; exceptSubmissionId?: string; includePending: boolean },
+): Promise<boolean> {
   const key = nameKey(name);
+  const character = opts.exceptCharacterId ?? NO_ID;
+  const submission = opts.exceptSubmissionId ?? NO_ID;
   const rows = await tx.$queryRaw<{ n: number }[]>`
-    SELECT 1 AS n FROM "character" WHERE lower("name") = ${key} AND "id" <> ${characterId}::uuid
+    SELECT 1 AS n FROM "character" WHERE lower("name") = ${key} AND "id" <> ${character}::uuid
     UNION ALL
     SELECT 1 FROM "fighter" WHERE lower("display_name") = ${key}
     UNION ALL
+    SELECT 1 FROM "submission"
+    WHERE lower("fighter_name") = ${key} AND "id" <> ${submission}::uuid
+      AND "status" IN ('DRAFT', 'SUBMITTED', 'CHANGES_REQUESTED', 'APPROVED')
+    UNION ALL
     SELECT 1 FROM "review_item"
-    WHERE ${includePending} AND "kind" = 'CHARACTER_NAME' AND "status" = 'PENDING'
-      AND lower("proposed_name") = ${key} AND "character_id" <> ${characterId}::uuid
+    WHERE ${opts.includePending} AND "kind" = 'CHARACTER_NAME' AND "status" = 'PENDING'
+      AND lower("proposed_name") = ${key} AND "character_id" <> ${character}::uuid
     LIMIT 1`;
   return rows.length > 0;
 }
@@ -107,7 +122,7 @@ export async function requestCharacterName(
         config.staff,
       ),
     );
-    if (await nameTaken(tx, name, characterId, true)) refuse("that name is taken");
+    if (await nameTaken(tx, name, { exceptCharacterId: characterId, includePending: true })) refuse("that name is taken");
     const request = await tx.reviewItem.create({ data: { kind: "CHARACTER_NAME", submittedByUserId: userId, characterId, proposedName: name, createdAt: now } });
     return { request, replayed: false };
   });
@@ -125,14 +140,16 @@ export async function withdrawRequest(db: Db, input: { userId: string; reviewId:
     // Other players' requests look the same as missing ones.
     if (!item || item.submittedByUserId !== input.userId) throw new NotFoundError("no such request");
     if (item.status !== "PENDING") refuse(`this request was already ${item.status.toLowerCase()}`);
+    if (item.kind === "FIGHTER_SUBMISSION") refuse("withdraw the submission itself");
     return tx.reviewItem.update({ where: { id: item.id }, data: { status: "WITHDRAWN", decidedAt: now } });
   });
 }
 
 /**
- * A moderator or admin approves or rejects a request. Approving a name
- * renames the character from its next fight (fights already booked keep the
- * name they were booked with).
+ * A moderator or admin decides a request. A custom name is approved (the
+ * character is renamed from its next fight; fights already booked keep the
+ * name they were booked with) or rejected. A fighter submission is approved
+ * (it goes on to the ballot), sent back for changes, or rejected for good.
  */
 export async function decideReview(
   db: Db,
@@ -141,15 +158,19 @@ export async function decideReview(
 ): Promise<ReviewRow> {
   const { reviewerId, decision } = input;
   const note = cleanNote(input.note);
-  refuse(reviewNoteProblem(decision, note));
+  refuse(reviewNoteProblem(decision, note, MAX_SUBMISSION_NOTE_LENGTH));
   return withRetry(db, async (tx) => {
     const reviewer = await requireStaff(tx, reviewerId, "review");
     const item = await lockReview(tx, input.reviewId);
     if (!item) throw new NotFoundError("no such request");
     refuse(reviewProblem({ status: item.status, reviewerId, reviewerRole: reviewer.role, submitterId: item.submittedByUserId }));
-    const name = item.proposedName!;
     const decided = { decidedAt: now, decidedByUserId: reviewerId, note };
     const logged = { actorUserId: reviewerId, actorRole: reviewer.role, targetUserId: item.submittedByUserId, characterId: item.characterId, reviewItemId: item.id, createdAt: now };
+    if (item.kind === "FIGHTER_SUBMISSION") return decideSubmissionTx(tx, item, decision, { decided, logged, now });
+
+    refuse(reviewNoteProblem(decision, note));
+    if (decision === "REQUEST_CHANGES") refuse("only fighter submissions can be sent back for changes: approve or reject the name");
+    const name = item.proposedName!;
     if (decision === "REJECT") {
       const updated = await tx.reviewItem.update({ where: { id: item.id }, data: { status: "REJECTED", ...decided } });
       await tx.staffAction.create({ data: { ...logged, kind: "REVIEW_REJECTED", detail: { kind: item.kind, name, note } } });
@@ -158,12 +179,53 @@ export async function decideReview(
     await lockName(tx, name);
     const c = await lockCharacter(tx, item.characterId!);
     if (c.ownerUserId !== item.submittedByUserId) refuse("the character has a different owner now: reject this request");
-    if (await nameTaken(tx, name, c.id, false)) refuse("another character has this name now: reject this request");
+    if (await nameTaken(tx, name, { exceptCharacterId: c.id, includePending: false })) refuse("another character has this name now: reject this request");
     await tx.character.update({ where: { id: c.id }, data: { name } });
     const updated = await tx.reviewItem.update({ where: { id: item.id }, data: { status: "APPROVED", previousName: c.name, ...decided } });
     await tx.staffAction.create({ data: { ...logged, kind: "REVIEW_APPROVED", detail: { kind: item.kind, name, previousName: c.name, note } } });
     return updated;
   });
+}
+
+const DECISION_OUTCOME = {
+  APPROVE: { action: "APPROVE", review: "APPROVED", log: "REVIEW_APPROVED" },
+  REJECT: { action: "REJECT", review: "REJECTED", log: "REVIEW_REJECTED" },
+  REQUEST_CHANGES: { action: "REQUEST_CHANGES", review: "CHANGES_REQUESTED", log: "REVIEW_CHANGES_REQUESTED" },
+} as const;
+
+async function decideSubmissionTx(
+  tx: Tx,
+  item: ReviewRow,
+  decision: ReviewDecision,
+  ctx: {
+    decided: { decidedAt: Date; decidedByUserId: string; note: string | null };
+    logged: { actorUserId: string; actorRole: UserRole; targetUserId: string; characterId: string | null; reviewItemId: string; createdAt: Date };
+    now: Date;
+  },
+): Promise<ReviewRow> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "submission" WHERE "id" = ${item.submissionId}::uuid FOR UPDATE`;
+  if (!rows.length) throw new NotFoundError("no such submission");
+  const sub = await tx.submission.findUniqueOrThrow({ where: { id: item.submissionId! } });
+  const outcome = DECISION_OUTCOME[decision];
+  const t = submissionTransition(sub.status, outcome.action);
+  if (!t.ok) refuse(t.error);
+  if (decision === "APPROVE") {
+    await lockName(tx, sub.fighterName);
+    if (await nameTaken(tx, sub.fighterName, { exceptSubmissionId: sub.id, includePending: false })) {
+      refuse("a fighter or character has this name now: ask for changes");
+    }
+  }
+  const to = (t as { to: SubmissionStatus }).to;
+  await tx.submission.update({ where: { id: sub.id }, data: { status: to, closedAt: to === "CHANGES_REQUESTED" ? null : ctx.now } });
+  const updated = await tx.reviewItem.update({ where: { id: item.id }, data: { status: outcome.review, ...ctx.decided } });
+  await tx.staffAction.create({
+    data: {
+      ...ctx.logged,
+      kind: outcome.log,
+      detail: { kind: item.kind, submission: sub.number, fighterName: sub.fighterName, community: sub.community, note: ctx.decided.note },
+    },
+  });
+  return updated;
 }
 
 /** Staff clear a player's display name (they show as "Anon-…" again). */

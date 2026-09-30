@@ -5,6 +5,7 @@ import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
 import { DEFAULT_SEASONS, type SeasonConfig } from "./seasons.ts";
 import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
 import { DEFAULT_STAFF, type StaffConfig } from "./staff.ts";
+import { DEFAULT_SUBMISSIONS, type SubmissionConfig } from "./submissions.ts";
 import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 import { DEFAULT_TOURNAMENTS, type TournamentConfig } from "./tournaments.ts";
@@ -39,6 +40,7 @@ export interface Config {
   tournaments: TournamentConfig;
   staff: StaffConfig;
   seasons: SeasonConfig;
+  submissions: SubmissionConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -118,6 +120,22 @@ export function validateStaff(s: StaffConfig): StaffConfig {
   return s;
 }
 
+function booleanFromEnv(env: NodeJS.ProcessEnv, name: string, fallback: boolean): boolean {
+  const raw = env[name]?.trim().toLowerCase();
+  if (raw === undefined || raw === "") return fallback;
+  if (["1", "true", "yes"].includes(raw)) return true;
+  if (["0", "false", "no"].includes(raw)) return false;
+  throw new ConfigError(`${name}: expected true or false, got "${env[name]}"`);
+}
+
+export function validateSubmissions(s: SubmissionConfig): SubmissionConfig {
+  if (!(s.maxFileBytes >= 1024)) throw new ConfigError("the largest submission image must be at least 1 KB");
+  for (const [name, v] of [["maxFiles", s.maxFiles], ["maxImageSide", s.maxImageSide]] as const) {
+    if (!Number.isInteger(v) || v < 1) throw new ConfigError(`${name} must be a whole number >= 1`);
+  }
+  return s;
+}
+
 export function validateSeasons(s: SeasonConfig): SeasonConfig {
   if (!(s.lengthMs >= 3_600_000)) throw new ConfigError("a season must last at least an hour");
   for (const [name, v] of [["minFights", s.minFights], ["minBets", s.minBets], ["standingsSize", s.standingsSize]] as const) {
@@ -187,6 +205,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       lengthMs: numberFromEnv(env, "GI_SEASON_WEEKS", DEFAULT_SEASONS.lengthMs / (7 * 86_400_000)) * 7 * 86_400_000,
       minFights: numberFromEnv(env, "GI_SEASON_MIN_FIGHTS", DEFAULT_SEASONS.minFights),
       minBets: numberFromEnv(env, "GI_SEASON_MIN_BETS", DEFAULT_SEASONS.minBets),
+    }),
+    submissions: validateSubmissions({
+      ...DEFAULT_SUBMISSIONS,
+      open: booleanFromEnv(env, "GI_SUBMISSIONS_OPEN", DEFAULT_SUBMISSIONS.open),
+      maxFileBytes: Math.round(numberFromEnv(env, "GI_SUBMISSION_MAX_FILE_MB", DEFAULT_SUBMISSIONS.maxFileBytes / (1024 * 1024)) * 1024 * 1024),
+      maxFiles: numberFromEnv(env, "GI_SUBMISSION_MAX_FILES", DEFAULT_SUBMISSIONS.maxFiles),
     }),
     staff: validateStaff({
       renameCooldownMs: numberFromEnv(env, "GI_RENAME_COOLDOWN_DAYS", DEFAULT_STAFF.renameCooldownMs / 86_400_000) * 86_400_000,

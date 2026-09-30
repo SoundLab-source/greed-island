@@ -14,7 +14,7 @@ Phase 3: Community roster (see DESIGN.md §13) is in progress. Its plan and the 
 - `packages/db`: Prisma schema, migrations, ledger
 - `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`)
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
-- `apps/web`: minimal dev page (no styling work), the watch page for viewers (`watch.html`), the stream overlay (`overlay.html`) for OBS, and the staff page (`staff.html`)
+- `apps/web`: minimal dev page (no styling work), the watch page for viewers (`watch.html`), the stream overlay (`overlay.html`) for OBS, the staff page (`staff.html`) and the fighter submission page (`submit.html`)
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
 - `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, PHASE3, ikemen-notes, obs-notes
 
@@ -52,7 +52,7 @@ Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `
 - **Loadouts are frozen** when betting opens; every fight stores a snapshot of both loadouts, ratings and tiers.
 - **IKEMEN and OBS facts must be verified** in source, the official docs or by a real run (`docs/ikemen-notes.md`, `docs/obs-notes.md`). Anything unverified is marked UNVERIFIED in those notes and kept behind an adapter. Never invent flags, config keys or Lua functions.
 - Spawn the engine with an argument array, never a shell string.
-- Never commit IKEMEN binaries, characters, stages or secrets.
+- Never commit IKEMEN binaries, characters, stages, submitted images (`submissions/`) or secrets. Submitted images are untrusted: check them as PNG from their bytes, never build paths from what a submitter typed, and serve them only to their submitter and staff.
 
 ## Conventions
 - Tests next to code (`*.test.ts`). Property tests for the ledger and odds math.

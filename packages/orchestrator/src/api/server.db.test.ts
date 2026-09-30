@@ -6,7 +6,7 @@ import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FightBus } from "../bus.ts";
 import { DEFAULT_ORCHESTRATOR } from "../config.ts";
 import { applyTransition, bookFight, type FightDeps } from "../fights.ts";
@@ -14,9 +14,16 @@ import type { Rng } from "../matchmaking.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { ConsoleMailer } from "../mail.ts";
 import { setRole } from "../staff.ts";
+import { SubmissionStore } from "../submission-store.ts";
+import { png } from "../testing/png.ts";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import nodePath from "node:path";
 import { buildServer, loadTwitchChannel } from "./server.ts";
 
 const db = useTestDb();
+const submissionsDir = await mkdtemp(nodePath.join(tmpdir(), "gi-api-submissions-"));
+afterAll(() => rm(submissionsDir, { recursive: true, force: true }));
 const config: Config = { ...loadConfig({}), economy: testEconomy };
 const orch = { ...DEFAULT_ORCHESTRATOR, bettingWindowMs: 0, interFightDelayMs: 0 };
 const rng = (seed = "api"): Rng => {
@@ -38,7 +45,7 @@ beforeEach(async () => {
   }
   await db.stage.create({ data: { id: "s1", displayName: "Stage One", defPath: "stages/s1.def", licenseNote: "test" } });
   mailer = new ConsoleMailer(() => {});
-  app = await buildServer({ db, config, bus, heartbeatMs: 50, mailer, publicUrl: "https://gi.test/" });
+  app = await buildServer({ db, config, bus, heartbeatMs: 50, mailer, publicUrl: "https://gi.test/", submissionStore: new SubmissionStore(submissionsDir) });
 });
 afterEach(() => app.close());
 
@@ -414,6 +421,73 @@ describe("staff and custom names", () => {
   });
 });
 
+describe("fighter submissions", () => {
+  async function signIn(email: string) {
+    await app.inject({ method: "POST", url: "/api/auth/email", payload: { email } });
+    const token = decodeURIComponent(/\?login=([^\s]+)/.exec(mailer.sent.at(-1)!.text)![1]!);
+    const body = (await app.inject({ method: "POST", url: "/api/auth/verify", payload: { token } })).json();
+    return { authorization: `Bearer ${body.token}` };
+  }
+  const details = {
+    community: "Pixel Monks",
+    fighterName: "Iron Heron",
+    archetype: "GRAPPLER",
+    description: "A patient grappler.",
+    rightsBasis: "ORIGINAL",
+    rightsDetails: "Drawn by our member Sam in 2026; the community owns it.",
+    rightsLink: null,
+  };
+
+  it("takes a submission with PNG uploads from staff while closed, and lets staff review it", async () => {
+    const player = await signIn("player@example.com");
+    const rules = (await app.inject({ method: "GET", url: "/api/submissions/rules", headers: player })).json();
+    expect(rules).toMatchObject({ open: false, canSubmit: false, maxFiles: 24, archetypes: expect.arrayContaining(["GRAPPLER"]) });
+    expect((await app.inject({ method: "POST", url: "/api/submissions", headers: player, payload: details })).statusCode).toBe(403);
+
+    const adminAuth = await signIn("boss@example.com");
+    await setRole(db, { actorId: null, target: { email: "boss@example.com" }, role: "ADMIN" });
+    const modAuth = await signIn("mod@example.com");
+    await setRole(db, { actorId: null, target: { email: "mod@example.com" }, role: "MODERATOR" });
+    expect((await app.inject({ method: "GET", url: "/api/submissions/rules", headers: adminAuth })).json().canSubmit).toBe(true);
+    const created = await app.inject({ method: "POST", url: "/api/submissions", headers: adminAuth, payload: details });
+    expect(created.statusCode).toBe(201);
+    const sub = created.json();
+    expect(sub).toMatchObject({ status: "DRAFT", editable: true, missing: expect.arrayContaining(["a portrait"]) });
+    expect((await app.inject({ method: "POST", url: "/api/submissions", headers: adminAuth, payload: { ...details, extra: 1 } })).statusCode).toBe(400);
+
+    const upload = (role: string, body: Buffer, contentType = "image/png") =>
+      app.inject({ method: "PUT", url: `/api/submissions/${sub.id}/files?role=${role}&label=${encodeURIComponent(`${role} frames`)}`, headers: { ...adminAuth, "content-type": contentType }, payload: body });
+    const sprites = await upload("SPRITES", png(80, 60, 1));
+    expect(sprites.statusCode).toBe(201);
+    expect(sprites.json()).toMatchObject({ role: "SPRITES", label: "SPRITES frames", width: 80, height: 60 });
+    for (const [role, shade] of [["PORTRAIT", 2], ["INTRO", 3], ["WIN_POSE", 4]] as const) expect((await upload(role, png(80, 60, shade))).statusCode).toBe(201);
+    expect((await upload("SPRITES", Buffer.from("<svg/>"), "image/svg+xml")).statusCode).toBe(415);
+    expect((await upload("SPRITES", Buffer.from("not a png but claims to be one.."))).json()).toMatchObject({ error: "NOT_ELIGIBLE", message: "only PNG images are accepted" });
+    expect((await upload("SPRITES", Buffer.alloc(config.submissions.maxFileBytes + 2048))).statusCode).toBe(413);
+    expect((await upload("HAT", png(8, 8, 5))).statusCode).toBe(400);
+
+    // The image comes back only to the submitter and staff, as a plain PNG.
+    const img = await app.inject({ method: "GET", url: `/api/submissions/${sub.id}/files/${sprites.json().id}`, headers: modAuth });
+    expect(img.statusCode).toBe(200);
+    expect(img.headers["content-type"]).toBe("image/png");
+    expect(img.headers["x-content-type-options"]).toBe("nosniff");
+    expect(img.rawPayload).toEqual(png(80, 60, 1));
+    expect((await app.inject({ method: "GET", url: `/api/submissions/${sub.id}/files/${sprites.json().id}`, headers: player })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: `/api/submissions/${sub.id}`, headers: player })).statusCode).toBe(404);
+
+    const sent = await app.inject({ method: "POST", url: `/api/submissions/${sub.id}/submit`, headers: adminAuth, payload: { confirmRights: true } });
+    expect(sent.json()).toMatchObject({ status: "SUBMITTED", missing: [] });
+    const queue = (await app.inject({ method: "GET", url: "/api/staff/queue", headers: modAuth })).json();
+    expect(queue.pending[0]).toMatchObject({ kind: "FIGHTER_SUBMISSION", submission: { id: sub.id, fighterName: "Iron Heron" } });
+    const back = await app.inject({ method: "POST", url: `/api/staff/reviews/${queue.pending[0].id}/request-changes`, headers: modAuth, payload: { note: "Add a palette." } });
+    expect(back.json()).toMatchObject({ status: "CHANGES_REQUESTED" });
+    const mine = (await app.inject({ method: "GET", url: "/api/me/submissions", headers: adminAuth })).json();
+    expect(mine[0]).toMatchObject({ status: "CHANGES_REQUESTED", lastReview: { note: "Add a palette." } });
+    expect((await app.inject({ method: "DELETE", url: `/api/submissions/${sub.id}/files/${sprites.json().id}`, headers: adminAuth })).statusCode).toBe(204);
+    expect((await app.inject({ method: "POST", url: `/api/submissions/${sub.id}/withdraw`, headers: adminAuth })).json()).toMatchObject({ status: "WITHDRAWN" });
+  });
+});
+
 describe("live stream", () => {
   it("sends hello, then bus events as they happen", async () => {
     await app.listen({ port: 0, host: "127.0.0.1" });
@@ -458,7 +532,7 @@ describe("live stream", () => {
     const overlay = await app.inject({ method: "GET", url: "/overlay.html" });
     expect(overlay.statusCode).toBe(200);
     expect(overlay.body).toContain("overlay.js");
-    for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css", "/staff.html", "/staff.js"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
+    for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css", "/staff.html", "/staff.js", "/submit.html", "/submit.js"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
     // The watch page embeds Twitch only when a channel is configured.
     expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null });
     const withTwitch = await buildServer({ db, config, bus, mailer, twitchChannel: "greed_island" });

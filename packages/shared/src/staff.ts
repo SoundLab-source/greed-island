@@ -45,17 +45,19 @@ export const DEFAULT_STAFF: Readonly<StaffConfig> = Object.freeze({
   renameCooldownMs: 7 * 86_400_000,
 });
 
-export const REVIEW_STATUSES = ["PENDING", "APPROVED", "REJECTED", "WITHDRAWN"] as const;
+export const REVIEW_STATUSES = ["PENDING", "APPROVED", "REJECTED", "WITHDRAWN", "CHANGES_REQUESTED"] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
-export type ReviewDecision = "APPROVE" | "REJECT";
+/** REQUEST_CHANGES is for fighter submissions: the submitter fixes them and sends them again. */
+export type ReviewDecision = "APPROVE" | "REJECT" | "REQUEST_CHANGES";
 
-/** Longest note a reviewer can leave (the player sees it). */
+/** Longest note a reviewer can leave (the player sees it). Fighter submissions allow longer notes. */
 export const MAX_NOTE_LENGTH = 200;
+export const MAX_SUBMISSION_NOTE_LENGTH = 2000;
 
 /** Why this reviewer can't decide this request, or null if they can. Nobody reviews their own, except an admin. */
 export function reviewProblem(input: { status: ReviewStatus; reviewerId: string; reviewerRole: UserRole; submitterId: string }): string | null {
   if (!hasPermission(input.reviewerRole, "review")) return "only staff can review requests";
-  if (input.status !== "PENDING") return `this request was already ${input.status.toLowerCase()}`;
+  if (input.status !== "PENDING") return `this request was already ${input.status.toLowerCase().replace("_", " ")}`;
   if (input.reviewerId === input.submitterId && input.reviewerRole !== "ADMIN") return "you can't review your own request";
   return null;
 }
@@ -146,9 +148,10 @@ export function reasonProblem(note: string | null): string | null {
   return null;
 }
 
-/** A reviewer's note: required to reject (the player sees why), optional to approve. */
-export function reviewNoteProblem(decision: ReviewDecision, note: string | null): string | null {
-  if (note !== null && note.length > MAX_NOTE_LENGTH) return `a note is at most ${MAX_NOTE_LENGTH} characters`;
+/** A reviewer's note: required to reject or ask for changes (the player sees it), optional to approve. */
+export function reviewNoteProblem(decision: ReviewDecision, note: string | null, maxLength = MAX_NOTE_LENGTH): string | null {
+  if (note !== null && note.length > maxLength) return `a note is at most ${maxLength} characters`;
   if (decision === "REJECT" && !note) return "say why it's rejected: the player sees the note";
+  if (decision === "REQUEST_CHANGES" && !note) return "say what to change: the submitter sees the note";
   return null;
 }

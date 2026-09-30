@@ -39,3 +39,6 @@ packages/db/src/generated/
 
 # Roster scan output (review, then copy entries into roster.json)
 packages/engine/roster.draft.json
+
+# Submitted fighter images (GI_SUBMISSIONS_DIR); never committed
+submissions/

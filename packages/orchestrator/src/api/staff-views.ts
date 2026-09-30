@@ -6,7 +6,7 @@ import type { Db, Prisma } from "@greed-island/db";
 import { automaticName, hasPermission, permissionsOf, playerName, type UserRole } from "@greed-island/shared";
 
 type ReviewWithRefs = Prisma.ReviewItemGetPayload<{
-  include: { submittedBy: true; decidedBy: true; character: { include: { fighter: true; owner: true } } };
+  include: { submittedBy: true; decidedBy: true; character: { include: { fighter: true; owner: true } }; submission: true };
 }>;
 
 function reviewView(r: ReviewWithRefs) {
@@ -30,6 +30,10 @@ function reviewView(r: ReviewWithRefs) {
       : null,
     proposedName: r.proposedName,
     previousName: r.previousName,
+    /** FIGHTER_SUBMISSION: open it with GET /api/submissions/:id for the details and images. */
+    submission: r.submission
+      ? { id: r.submission.id, number: r.submission.number, status: r.submission.status, community: r.submission.community, fighterName: r.submission.fighterName, archetype: r.submission.archetype }
+      : null,
     createdAt: r.createdAt,
     decidedAt: r.decidedAt,
     decidedBy: r.decidedBy ? { id: r.decidedBy.id, name: playerName(r.decidedBy) } : null,
@@ -37,7 +41,7 @@ function reviewView(r: ReviewWithRefs) {
   };
 }
 
-const reviewInclude = { submittedBy: true, decidedBy: true, character: { include: { fighter: true, owner: true } } } as const;
+const reviewInclude = { submittedBy: true, decidedBy: true, character: { include: { fighter: true, owner: true } }, submission: true } as const;
 
 /** Waiting requests oldest first, then the latest decisions. */
 export async function reviewQueue(db: Db, take = 50) {

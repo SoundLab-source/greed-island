@@ -64,7 +64,7 @@ pnpm staff:role you@example.com admin
 
 `pnpm staff:role` with nothing after it lists the staff. As admin you appoint moderators on the staff page (they need to have signed in with their email once); admins are only added or removed with this command. Every staff action is kept in the staff log.
 
-**Where things go.** Each real fight writes its logs, the engine's result file and the event stream to `runs/<fightId>/` (gitignored). Your `.env` never leaves your machine.
+**Where things go.** Each real fight writes its logs, the engine's result file and the event stream to `runs/<fightId>/` (gitignored). Images sent with fighter submissions go to `submissions/` (gitignored; `GI_SUBMISSIONS_DIR` moves them): back that folder up along with the database. Your `.env` never leaves your machine.
 
 ## 3. Linux server (24/7 stream)
 

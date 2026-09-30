@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after Phase 3 step 2 (seasons). Update this file at the end of every build step.*
+*Last updated 2026-09-29, after Phase 3 step 3 (fighter submissions). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) is under way: steps 1 and 2 of 7 are built. |
-| **Next step** | Phase 3 step 3: fighter submissions. Waiting on you: OK to download the best free art base to evaluate it (see "Decisions waiting on you"). |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
-| **Not built yet** | Fighter submissions, voting, seasonal releases, holder verification; anything on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 466 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) is under way: steps 1-3 of 7 are built. |
+| **Next step** | Phase 3 step 5: voting (step 4's automatic checks need the fighter templates first). Waiting on you: OK to download the best free art base to evaluate it (see "Decisions waiting on you"). |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
+| **Not built yet** | Automatic checks on submissions, voting, seasonal releases, holder verification; anything on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
+| **Health** | 484 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -33,7 +33,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
 | **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | ✅ Done |
-| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | In progress (2 of 7 steps) |
+| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks | In progress (3 of 7 steps) |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
 ## What's been done
@@ -64,8 +64,9 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 **Phase 3: Community roster** (plan, your decisions and defaults: [PHASE3.md](docs/PHASE3.md))
 - ✅ **Plan agreed** (`b294fcf`, decisions recorded 2026-09-29): openly licensed fighter art first (commissioning is the fallback); read-only holder verification as the last step of phase 3; you as admin plus moderators you appoint.
 1. ✅ **Staff and custom names** (`1fadb54`): admin and moderator roles, a staff page (`/staff.html`) with a review queue, search and name resets, and a staff log that can't be edited or deleted. Owners can now ask for a custom character name; a moderator approves it (it's used from the next fight) or rejects it with a note the owner sees. Admins are set with `pnpm staff:role`.
-2. ✅ **Seasons**: 8-week seasons. The player leaderboard now counts Salt won this season, so it starts over each season (there's no ranking by balance any more). At the end, "Season N Champion" goes to the highest-rated character with 10+ fights that season, and "Season Top Bettor" to the player who won the most Salt with 10+ bets. Balances, characters, ratings and titles never reset. Season 1 started on this Mac's database on 2026-09-30 (UTC).
-- ✅ **Fighter art search** (research only): no complete, openly licensed fighting-game characters exist. The best base is a free (CC0) set of 3,150+ side-view frames whose character types match our archetypes (strikers, wrestlers, brawlers, boxers); it's made from 3D renders, so a lawyer should confirm the licence covers selling characters. Details and the other candidates: [PHASE3.md](docs/PHASE3.md) "Fighter art search".
+2. ✅ **Seasons** (`3f2ea23`): 8-week seasons. The player leaderboard now counts Salt won this season, so it starts over each season (there's no ranking by balance any more). At the end, "Season N Champion" goes to the highest-rated character with 10+ fights that season, and "Season Top Bettor" to the player who won the most Salt with 10+ bets. Balances, characters, ratings and titles never reset. Season 1 started on this Mac's database on 2026-09-30 (UTC).
+3. ✅ **Fighter submissions**: a page (`/submit.html`) where a community sends a fighter for the ballot: name, archetype, sprite sheets, portrait, intro and win pose (PNG images), and a statement of its rights to the art. Images are checked, stored outside git in `submissions/`, and only the submitter and staff can see them. Staff review it on the staff page: approve, ask for changes (the submitter fixes it and sends it again), or reject. **Staff-only for now**: it opens to the public (`GI_SUBMISSIONS_OPEN=true`) once a lawyer has looked at the terms.
+- ✅ **Fighter art search** (`28c3e06`, research only): no complete, openly licensed fighting-game characters exist. The best base is a free (CC0) set of 3,150+ side-view frames whose character types match our archetypes (strikers, wrestlers, brawlers, boxers); it's made from 3D renders, so a lawyer should confirm the licence covers selling characters. Details and the other candidates: [PHASE3.md](docs/PHASE3.md) "Fighter art search".
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
@@ -75,9 +76,9 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**Recommended next: Phase 3 step 3, submissions**
-- Step 3: a form for communities to submit a fighter (template, sprite sheets, name, palettes, proof of rights), stored outside git and reviewed in the staff queue. Opening it to the public waits for the terms (see "Decisions waiting on you").
-- Then steps 4–7: automatic checks, voting, seasonal release, holder verification.
+**Recommended next: Phase 3 step 5, voting** (a small change of order: step 4's automatic checks need the fighter templates, which don't exist yet)
+- Approved submissions go on the season ballot; voting runs in the last 2 weeks of a season; accounts with a verified email, 14+ days old and 20+ bets get 3 votes (at most 1 per fighter); results are published with vote counts; the top 2 are released.
+- Then step 6 (seasonal release) and step 7 (holder verification). Step 4 (smoke test, template check, balance simulation) once templates exist.
 
 **Streaming: where the stream runs, then a private recording**
 - The capture shows the whole screen. With `GI_GAME_TO_FRONT=true` this Mac can stream as long as it isn't used for anything else meanwhile (the game takes focus every fight). For a 24/7 stream, pick a machine where the game is the only thing showing: a home mini PC, a cloud server, or a second screen on this Mac.
