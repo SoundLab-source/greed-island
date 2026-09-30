@@ -37,7 +37,9 @@ Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 
 ## NFTs as fighters
 
-The owner's direction (2026-09-29), for step 7 and after the templates exist:
+The owner's direction (2026-09-29), for step 7 and after the templates exist.
+
+**Our own collection.** When a holder's NFT becomes a fighter (a submission that's elected, or an NFT look on their character), what they create in our system is minted as an NFT in **a new collection Greed Island runs**. Minting writes on-chain, so it's built in phase 4 with the other on-chain work (DESIGN §10: a character NFT carries its stats, record, titles and look). Phase 3 builds everything up to it: verified holders, approved collections, submissions and looks recorded against the source NFT, ready to mint.
 
 - **Submitting from an NFT.** A holder connects their wallet and signs a free message (no transaction). We list their NFTs from collections staff have approved, and they pick one: the submission is filled in with the NFT's image as the portrait, the collection as the community, and "holder licence" as the rights basis with the collection's licence link. Staff review it like any submission, and it goes to the vote as usual.
 - **One fighter per community.** The voted-in fighter is built on one archetype template, with the same stats as any fighter of that archetype.
@@ -119,12 +121,21 @@ Done 2026-09-29, as research only: nothing was downloaded. The question: is ther
 
 **A useful tool found:** [openkakutou/character](https://github.com/openkakutou/character) (MIT, Go, early-stage) reads and writes MUGEN/IKEMEN character files, including SFF sprite files. That could let the submission pipeline (step 3) build a fighter's sprite file from submitted PNG sheets without closed tools like Fighter Factory. To evaluate in step 3.
 
-**Recommended path**
-1. With your OK, download the Universal Prototype (and the Boxer) to check frame counts, sprite size and quality. (A download needs your yes each time.)
-2. Add the Daz question to the lawyer's list, next to the terms for uploaded art.
-3. Commission a MUGEN/IKEMEN character coder (code, not art) to build 3–4 archetype templates on it, with an artist filling in missing frames. Communities then submit art that follows each template's frame list.
-4. Pick one look for the roster: the prototype is pre-rendered 3D, the others are pixel art.
+**Second search (2026-09-29): 3D characters and animations rendered into sprites.** Free sprite packs never have a full fighter's move list, but free 3D animation libraries do. Rendering a 3D character from the side, one frame at a time, gives a complete sprite set, the way the Universal Prototype above was made.
+
+| Source | Licence | What it has |
+|---|---|---|
+| [Mixamo](https://www.mixamo.com) (Adobe) | Free with an Adobe account; royalty-free in commercial games; the raw files can't be redistributed or resold as assets (rendered frames inside our game are fine) | Thousands of motion-captured animations, including martial arts: punches, kicks, blocks, hit reactions, knockdowns, get-ups, taunts; auto-rigs any humanoid model |
+| [Universal Animation Library](https://store.godotengine.org/asset/quaternius/universal-animation-library/) (Quaternius) | CC0 | 120+ animations on a standard humanoid rig (works with Mixamo rigs): locomotion, jumps, combat, deaths, emotes |
+| [KayKit Character Animations](https://kaylousberg.itch.io/kaykit-character-animations) (Kay Lousberg) | CC0 | 150+ animations, including unarmed melee, blocking, hits, jumping and crouching |
+| [Ultimate Animated Character Pack](https://quaternius.com/packs/ultimatedanimatedcharacter.html) and other Quaternius packs | CC0 | 50+ rigged low-poly characters (FBX, Blend) |
+
+**Recommended path (updated)**
+1. **A 3D-to-sprite pipeline**, built once: a rigged character + fighting animations (Mixamo, Quaternius, KayKit) → rendered from the side in Blender (free, open source) by a script → pixel-art clean-up → sprite sheets → the IKEMEN sprite and animation files. Each archetype template is one set of animations mapped to IKEMEN's action numbers, plus its move and AI code (a MUGEN/IKEMEN character coder, commissioned).
+2. **Every fighter is then a model swap**: a community's fighter, or an NFT look, is a different model or outfit on the same rig, re-rendered automatically with the same moves. Collections with 3D avatars fit directly; 2D collections need a 3D version of their character (an artist) or trait pieces.
+3. **Style:** pick one look for the whole roster (pixel art from 3D renders, like the Universal Prototype, or cleaner hand-drawn style). The owner is gathering style references.
+4. Meanwhile, the Universal Prototype (CC0 sprites) and the Boxer can be downloaded and checked (a download needs the owner's yes each time).
 
 ## Not in phase 3
 
-On-chain characters, trading, crowd-blended odds, and any payment (phase 4, after a legal review). Palettes, hit sparks, auras, intros and win poses as paid cosmetics (DESIGN §12, later). Teams (DESIGN §8, later).
+On-chain characters (including minting our own collection from fighters and NFT looks), trading, crowd-blended odds, and any payment (phase 4, after a legal review). Palettes, hit sparks, auras, intros and win poses as paid cosmetics (DESIGN §12, later). Teams (DESIGN §8, later).
