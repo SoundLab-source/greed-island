@@ -278,6 +278,46 @@ async function refreshTournament() {
 // Exhibition challenges: send one with your character, answer ones sent to you.
 const STATUS_LABELS = { PENDING: "waiting for an answer", ACCEPTED: "accepted, waiting to play", DECLINED: "declined", CANCELLED: "cancelled", EXPIRED: "expired", BOOKED: "booked" };
 
+// The season vote on community fighters (approved submissions).
+async function refreshBallot() {
+  const b = await api("GET", "/api/ballot/current");
+  if (!b) {
+    text($("ballot-status"), "");
+    $("ballot").innerHTML = "";
+    return;
+  }
+  const day = (t) => new Date(t).toLocaleDateString();
+  if (b.status === "UPCOMING") {
+    text($("ballot-status"), `Season ${b.seasonNumber}: voting opens ${day(b.opensAt)}`);
+    $("ballot").innerHTML = `<tr><td class="muted">${b.waiting ? `${b.waiting} approved fighter${b.waiting === 1 ? "" : "s"} waiting for the ballot.` : "No approved fighters yet."} <a href="/submit.html">Submit a fighter</a></td></tr>`;
+    text($("ballot-msg"), "");
+    return;
+  }
+  const me = b.me;
+  text($("ballot-status"), b.status === "CLOSED" ? `Season ${b.seasonNumber}: results` : `Season ${b.seasonNumber}: voting until ${day(b.closesAt)}, top ${b.electedPerSeason} join the roster`);
+  $("ballot").innerHTML = b.entries.map((e) => {
+    const voted = me?.votedFor.includes(e.submissionId);
+    const button = !b.votingOpen || !me?.eligible ? "" : voted ? `<button data-unvote="${e.submissionId}">Take vote back</button>` : `<button data-vote="${e.submissionId}" ${me.votesLeft ? "" : "disabled"}>Vote</button>`;
+    const result = e.result ? `${e.result.votes} vote${e.result.votes === 1 ? "" : "s"}${e.result.elected ? " · <strong>elected</strong>" : ""}` : voted ? "your vote" : "";
+    return `<tr><td>${e.portraitFileId ? `<img src="/api/submissions/${e.submissionId}/files/${e.portraitFileId}" alt="" style="width:48px;height:48px;object-fit:contain;image-rendering:pixelated">` : ""}</td>
+      <td><strong>${esc(e.fighterName)}</strong><br><span class="muted">${esc(e.community)}, ${esc(e.archetype.toLowerCase().replace("_", "-"))}</span></td>
+      <td class="muted">${esc(e.description)}</td><td>${result}</td><td>${button}</td></tr>`;
+  }).join("");
+  text($("ballot-msg"), !b.votingOpen ? "" : !me ? "" : me.eligible ? `${me.votesLeft} of ${b.votesPerVoter} votes left (one per fighter; you can take them back until voting closes). Counts are shown when it closes.` : `You can't vote yet: ${me.reason}.`);
+  for (const btn of document.querySelectorAll("[data-vote]")) btn.onclick = () => ballotAction("POST", "/api/ballot/votes", { submissionId: btn.dataset.vote });
+  for (const btn of document.querySelectorAll("[data-unvote]")) btn.onclick = () => ballotAction("DELETE", `/api/ballot/votes/${btn.dataset.unvote}`);
+}
+
+async function ballotAction(method, path, body) {
+  try {
+    await api(method, path, body);
+  } catch (e) {
+    text($("ballot-msg"), e.message);
+    return;
+  }
+  await refreshBallot();
+}
+
 async function refreshChallenges() {
   const [options, mine] = await Promise.all([api("GET", "/api/challenges/options"), api("GET", "/api/me/challenges")]);
   const opt = (list) => list.map((c) => `<option value="${c.id}">${esc(c.name)} (${c.tier} ${c.rating}${c.owner ? `, ${esc(c.owner)}` : ""})</option>`).join("");
@@ -394,6 +434,12 @@ function connectStream() {
       : `season ${d.number} is over: champion ${d.champion?.name ?? "none"}, top bettor ${d.topBettor?.name ?? "none"}`);
     Promise.all([refreshTables(), refreshMe()]).catch(() => {});
   });
+  es.addEventListener("ballot", (e) => {
+    const d = JSON.parse(e.data);
+    log(d.status === "OPENED" ? `season ${d.seasonNumber} voting opens: ${d.fighters.map((f) => f.name).join(", ")}`
+      : `season ${d.seasonNumber} vote: ${d.results.filter((r) => r.elected).map((r) => `${r.name} (${r.votes})`).join(", ") || "nobody"} elected`);
+    refreshBallot().catch(() => {});
+  });
   es.onerror = () => log("stream disconnected, retrying…");
 }
 
@@ -420,6 +466,6 @@ $("bailout").onclick = () => api("POST", "/api/me/bailout").then(refreshMe).catc
 (async () => {
   await redeemLoginFromUrl();
   await ensureSession();
-  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine(), refreshChallenges(), refreshTournament()]);
+  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine(), refreshChallenges(), refreshTournament(), refreshBallot()]);
   connectStream();
 })().catch((e) => log(`error: ${e.message}`));

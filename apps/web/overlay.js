@@ -239,6 +239,14 @@
       if (d.status === "STARTED") toast(`<span><b>Season ${d.number}</b> begins · the leaderboard starts over</span>`);
       if (d.status === "ENDED") toast(`<span>Season ${d.number} is over${d.champion ? ` · champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? ` · top bettor <b>${esc(d.topBettor.name)}</b>` : ""}</span>`);
     });
+    es.addEventListener("ballot", (e) => {
+      const d = JSON.parse(e.data);
+      if (d.status === "OPENED") toast(`<span>Voting is open: <b>${d.fighters.length}</b> community fighter${d.fighters.length === 1 ? "" : "s"} on the Season ${d.seasonNumber} ballot</span>`);
+      if (d.status === "CLOSED") {
+        const elected = d.results.filter((r) => r.elected).map((r) => `<b>${esc(r.name)}</b>`);
+        toast(`<span>Season ${d.seasonNumber} vote: ${elected.length ? `${elected.join(" and ")} join the roster` : "nobody elected"}</span>`);
+      }
+    });
   }
 
   setInterval(() => {

@@ -220,6 +220,11 @@
       if (d.status === "STARTED") feed(`<b>Season ${d.number}</b> begins: the leaderboard starts over`);
       if (d.status === "ENDED") feed(`Season ${d.number} is over${d.champion ? `: champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? `, top bettor <b>${esc(d.topBettor.name)}</b>` : ""}`);
     });
+    es.addEventListener("ballot", (e) => {
+      const d = JSON.parse(e.data);
+      if (d.status === "OPENED") feed(`Voting is open for Season ${d.seasonNumber}: ${d.fighters.map((f) => `<b>${esc(f.name)}</b>`).join(", ")}`);
+      if (d.status === "CLOSED") feed(`Season ${d.seasonNumber} vote: ${d.results.map((r) => `${esc(r.name)} ${r.votes}${r.elected ? " (elected)" : ""}`).join(", ")}`);
+    });
   }
 
   setInterval(() => {

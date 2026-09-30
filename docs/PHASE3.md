@@ -28,8 +28,8 @@ Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 1. ✅ **Staff roles and a review queue.** Admin and moderator roles, a staff page (`/staff.html`), and a log of every staff action. Needed first, because submissions, names and art all need a human to approve them. The first thing through the queue: custom character names (automatic since phase 2). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §13.
 2. ✅ **Seasons.** A season table and a season clock. At each season's end: champion titles ("Season 1 Champion", DESIGN §8), a leaderboard snapshot, and a leaderboard reset. Balances never reset (DESIGN §9). Nothing here depends on the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §14.
 3. ✅ **Submissions.** A form for a community to submit a fighter: the template it's built on, sprite sheets following that template, name, palettes, intro and win pose, and a proof-of-rights statement. Files are stored outside git (like IKEMEN content today) and reviewed in the admin queue. Built staff-only (`GI_SUBMISSIONS_OPEN` opens it once the terms are ready). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §15.
-4. **Automatic checks.** For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
-5. **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts.
+4. **Automatic checks** (waits for the archetype templates; built after step 5). For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
+5. ✅ **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts. Built before step 4, which needs the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §16.
 6. **Seasonal release.** The ballot's winners join the roster when the next season starts, with a debut tournament and a First Edition supply in the shop (both already exist from phase 2).
 7. **Holder verification and perks.** Verify that a player holds an NFT from a partner collection (read-only: a signed message, then reading the wallet's holdings), for **perks, never power** (DESIGN §11): early shop access, or exclusive cosmetics for their community's fighter.
 
@@ -56,6 +56,10 @@ Same approach as phase 2: each number is a setting, flagged in the commit that a
 - Each eligible account gets 3 votes per ballot (at most 1 per fighter).
 - The top 2 fighters by votes are released each season; ties go to the one submitted first.
 - Voting runs for the last 2 weeks of a season.
+- The ballot holds every approved submission not yet on a ballot when voting opens; ones approved later wait for the next season. A submission is on one ballot only.
+- Votes are free, can be taken back until voting closes, and the counts stay hidden until then.
+- A fighter needs at least 1 vote to be elected. One that isn't elected frees its name and its community can submit again.
+- "Bets placed" counts every bet, Salt or T-Salt.
 
 **Balance check**
 - 200 sim fights against a spread of the roster, per submission.

@@ -19,6 +19,7 @@ import {
   type PlayerSeasonStat,
 } from "@greed-island/shared";
 import type { BusEvent } from "./bus.ts";
+import { closeBallot, openBallotIfDue } from "./voting.ts";
 
 type SeasonRow = Prisma.SeasonGetPayload<object>;
 
@@ -67,10 +68,12 @@ export async function advanceSeason(tx: Tx, config: Config, now: Date): Promise<
   // Season changes take turns (only one orchestrator runs, but be sure).
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(7106)`;
   const running = await tx.season.findFirst({ where: { status: "RUNNING" } });
-  if (running && now < running.endsAt) return [];
+  // Mid-season: open the ballot when voting starts.
+  if (running && now < running.endsAt) return openBallotIfDue(tx, config, running, now);
   const notices: BusEvent[] = [];
   let previousEndsAt: Date | null;
   if (running) {
+    notices.push(...(await closeBallot(tx, config, running, now)));
     notices.push(...(await endSeason(tx, running, config, now)));
     previousEndsAt = running.endsAt;
   } else {
@@ -78,6 +81,8 @@ export async function advanceSeason(tx: Tx, config: Config, now: Date): Promise<
   }
   const next = await tx.season.create({ data: { ...nextSeasonWindow(previousEndsAt, now, config.seasons), createdAt: now } });
   notices.push({ type: "season", seasonId: next.id, number: next.number, status: "STARTED", startsAt: next.startsAt.toISOString(), endsAt: next.endsAt.toISOString() });
+  // A season shorter than the voting window votes from its first day.
+  notices.push(...(await openBallotIfDue(tx, config, next, now)));
   return notices;
 }
 

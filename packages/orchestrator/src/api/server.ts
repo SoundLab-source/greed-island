@@ -70,6 +70,8 @@ import {
 } from "./views.ts";
 import { leaderboard, recentSeasons, seasonView } from "./season-views.ts";
 import { mySubmissions, submissionDetail, submissionRules } from "./submission-views.ts";
+import { ballotView } from "./ballot-views.ts";
+import { castVote, retractVote } from "../voting.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
 
 export interface ApiDeps {
@@ -415,7 +417,8 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     return reply.status(204).send();
   });
   app.get<{ Params: { id: string; fileId: string } }>("/api/submissions/:id/files/:fileId", async (req, reply) => {
-    const viewerId = await requireViewer(req);
+    // Public once the fighter is on a ballot; otherwise the submitter's and staff's.
+    const viewerId = await viewer(req);
     const bytes = await readSubmissionFile(db, store, { viewerId, submissionId: uuid.parse(req.params.id), fileId: uuid.parse(req.params.fileId) });
     return reply
       .header("content-type", "image/png")
@@ -433,6 +436,25 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const userId = await requireViewer(req);
     const sub = await withdrawSubmission(db, { userId, submissionId: uuid.parse(req.params.id) });
     return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
+  });
+
+  // Voting: the season ballot (docs/PHASE3.md step 5).
+  app.get("/api/ballot/current", async (req, reply) => send(reply, await ballotView(db, config, null, await viewer(req))));
+  app.get<{ Params: { season: string } }>("/api/ballots/:season", async (req, reply) => {
+    const view = await ballotView(db, config, z.coerce.number().int().min(1).max(1_000_000).parse(req.params.season), await viewer(req));
+    if (!view) throw new HttpError(404, "NOT_FOUND", "no such season");
+    return send(reply, view);
+  });
+  app.post("/api/ballot/votes", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const { submissionId } = z.object({ submissionId: z.string().uuid() }).parse(req.body);
+    const r = await castVote(db, config, { userId, submissionId });
+    return send(reply.status(r.replayed ? 200 : 201), { replayed: r.replayed, ballot: await ballotView(db, config, null, userId) });
+  });
+  app.delete<{ Params: { submissionId: string } }>("/api/ballot/votes/:submissionId", async (req, reply) => {
+    const userId = await requireViewer(req);
+    await retractVote(db, { userId, submissionId: uuid.parse(req.params.submissionId) });
+    return send(reply, { ballot: await ballotView(db, config, null, userId) });
   });
 
   // Tournaments: bracket, T-Salt standings and podium.

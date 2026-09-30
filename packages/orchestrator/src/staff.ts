@@ -66,7 +66,7 @@ const NO_ID = "00000000-0000-0000-0000-000000000000";
 
 /**
  * Whether a name is in use, ignoring case: by another character, a fighter,
- * a submitted fighter that's open or approved, or (for new requests) another
+ * a submitted fighter that's open, approved or elected, or (for new requests) another
  * character's name request that's waiting.
  */
 export async function nameTaken(
@@ -84,7 +84,7 @@ export async function nameTaken(
     UNION ALL
     SELECT 1 FROM "submission"
     WHERE lower("fighter_name") = ${key} AND "id" <> ${submission}::uuid
-      AND "status" IN ('DRAFT', 'SUBMITTED', 'CHANGES_REQUESTED', 'APPROVED')
+      AND "status" IN ('DRAFT', 'SUBMITTED', 'CHANGES_REQUESTED', 'APPROVED', 'ELECTED')
     UNION ALL
     SELECT 1 FROM "review_item"
     WHERE ${opts.includePending} AND "kind" = 'CHARACTER_NAME' AND "status" = 'PENDING'

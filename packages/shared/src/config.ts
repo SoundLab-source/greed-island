@@ -6,6 +6,7 @@ import { DEFAULT_SEASONS, type SeasonConfig } from "./seasons.ts";
 import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
 import { DEFAULT_STAFF, type StaffConfig } from "./staff.ts";
 import { DEFAULT_SUBMISSIONS, type SubmissionConfig } from "./submissions.ts";
+import { DEFAULT_VOTING, type VotingConfig } from "./voting.ts";
 import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 import { DEFAULT_TOURNAMENTS, type TournamentConfig } from "./tournaments.ts";
@@ -41,6 +42,7 @@ export interface Config {
   staff: StaffConfig;
   seasons: SeasonConfig;
   submissions: SubmissionConfig;
+  voting: VotingConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -136,6 +138,16 @@ export function validateSubmissions(s: SubmissionConfig): SubmissionConfig {
   return s;
 }
 
+/** A voting window longer than the season just means voting runs the whole season (votingOpensAt). */
+export function validateVoting(v: VotingConfig): VotingConfig {
+  if (!(v.windowMs > 0)) throw new ConfigError("voting must last more than 0 days");
+  if (!(v.minAccountAgeMs >= 0)) throw new ConfigError("the voter account age must be >= 0");
+  for (const [name, val, min] of [["votesPerVoter", v.votesPerVoter, 1], ["minBets", v.minBets, 0], ["electedPerSeason", v.electedPerSeason, 1]] as const) {
+    if (!Number.isInteger(val) || val < min) throw new ConfigError(`${name} must be a whole number >= ${min}`);
+  }
+  return v;
+}
+
 export function validateSeasons(s: SeasonConfig): SeasonConfig {
   if (!(s.lengthMs >= 3_600_000)) throw new ConfigError("a season must last at least an hour");
   for (const [name, v] of [["minFights", s.minFights], ["minBets", s.minBets], ["standingsSize", s.standingsSize]] as const) {
@@ -146,6 +158,13 @@ export function validateSeasons(s: SeasonConfig): SeasonConfig {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const d = DEFAULT_ECONOMY;
+  const DAY = 86_400_000;
+  const seasons = validateSeasons({
+    ...DEFAULT_SEASONS,
+    lengthMs: numberFromEnv(env, "GI_SEASON_WEEKS", DEFAULT_SEASONS.lengthMs / (7 * DAY)) * 7 * DAY,
+    minFights: numberFromEnv(env, "GI_SEASON_MIN_FIGHTS", DEFAULT_SEASONS.minFights),
+    minBets: numberFromEnv(env, "GI_SEASON_MIN_BETS", DEFAULT_SEASONS.minBets),
+  });
   return {
     economy: validateEconomy({
       startingBalance: saltFromEnv(env, "GI_STARTING_BALANCE", d.startingBalance),
@@ -200,12 +219,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       startingBalance: saltFromEnv(env, "GI_TOURNAMENT_BALANCE", DEFAULT_TOURNAMENTS.startingBalance),
       podium: numberFromEnv(env, "GI_TOURNAMENT_PODIUM", DEFAULT_TOURNAMENTS.podium),
     }),
-    seasons: validateSeasons({
-      ...DEFAULT_SEASONS,
-      lengthMs: numberFromEnv(env, "GI_SEASON_WEEKS", DEFAULT_SEASONS.lengthMs / (7 * 86_400_000)) * 7 * 86_400_000,
-      minFights: numberFromEnv(env, "GI_SEASON_MIN_FIGHTS", DEFAULT_SEASONS.minFights),
-      minBets: numberFromEnv(env, "GI_SEASON_MIN_BETS", DEFAULT_SEASONS.minBets),
-    }),
+    seasons,
+    voting: validateVoting(
+      {
+        windowMs: numberFromEnv(env, "GI_VOTING_DAYS", DEFAULT_VOTING.windowMs / DAY) * DAY,
+        votesPerVoter: numberFromEnv(env, "GI_VOTES_PER_VOTER", DEFAULT_VOTING.votesPerVoter),
+        minAccountAgeMs: numberFromEnv(env, "GI_VOTER_MIN_AGE_DAYS", DEFAULT_VOTING.minAccountAgeMs / DAY) * DAY,
+        minBets: numberFromEnv(env, "GI_VOTER_MIN_BETS", DEFAULT_VOTING.minBets),
+        electedPerSeason: numberFromEnv(env, "GI_ELECTED_PER_SEASON", DEFAULT_VOTING.electedPerSeason),
+      },
+    ),
     submissions: validateSubmissions({
       ...DEFAULT_SUBMISSIONS,
       open: booleanFromEnv(env, "GI_SUBMISSIONS_OPEN", DEFAULT_SUBMISSIONS.open),

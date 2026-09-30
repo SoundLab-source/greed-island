@@ -94,6 +94,7 @@ model User {
   staffActionsGot  StaffAction[]     @relation("StaffTarget")
   seasonsTopBettor Season[]
   submissions      Submission[]
+  votes            Vote[]
   seasonStandings  SeasonStanding[]
 
   @@map("user")
@@ -896,6 +897,7 @@ model Season {
   standings           SeasonStanding[]
   titles              CharacterTitle[]
   playerTitles        PlayerTitle[]
+  ballot              Ballot?
 
   @@map("season")
 }
@@ -937,6 +939,10 @@ enum SubmissionStatus {
   APPROVED
   REJECTED
   WITHDRAWN
+  /// Won a season vote (phase 3, step 5); joins the roster at the next season.
+  ELECTED
+  /// On a ballot but not elected; the community can submit again.
+  NOT_ELECTED
 }
 
 enum RightsBasis {
@@ -980,6 +986,7 @@ model Submission {
   closedAt          DateTime?        @map("closed_at") @db.Timestamptz(3)
   files             SubmissionFile[]
   reviewItems       ReviewItem[]
+  ballotEntry       BallotEntry?
 
   @@index([status, submittedAt])
   @@index([submittedByUserId])
@@ -1003,4 +1010,61 @@ model SubmissionFile {
   @@unique([submissionId, sha256])
   @@index([submissionId, role])
   @@map("submission_file")
+}
+
+// ---------------------------------------------------------------------------
+// Voting (phase 3, step 5)
+
+enum BallotStatus {
+  OPEN
+  CLOSED
+}
+
+/// A season's vote on approved fighter submissions (the last 2 weeks of the season).
+model Ballot {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonId  String        @unique @map("season_id") @db.Uuid
+  season    Season        @relation(fields: [seasonId], references: [id])
+  status    BallotStatus  @default(OPEN)
+  opensAt   DateTime      @map("opens_at") @db.Timestamptz(3)
+  /// The season's end.
+  closesAt  DateTime      @map("closes_at") @db.Timestamptz(3)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  closedAt  DateTime?     @map("closed_at") @db.Timestamptz(3)
+  entries   BallotEntry[]
+  votes     Vote[]
+
+  @@map("ballot")
+}
+
+/// A fighter on a ballot. A submission appears on one ballot at most. The
+/// results are filled in when the ballot closes.
+model BallotEntry {
+  ballotId     String     @map("ballot_id") @db.Uuid
+  ballot       Ballot     @relation(fields: [ballotId], references: [id])
+  submissionId String     @unique @map("submission_id") @db.Uuid
+  submission   Submission @relation(fields: [submissionId], references: [id])
+  votes        Int?
+  rank         Int?       @db.SmallInt
+  elected      Boolean?
+  castVotes    Vote[]
+
+  @@id([ballotId, submissionId])
+  @@map("ballot_entry")
+}
+
+/// One account's vote for one fighter. Can be taken back while voting is open.
+model Vote {
+  id           BigInt      @id @default(autoincrement())
+  ballotId     String      @map("ballot_id") @db.Uuid
+  ballot       Ballot      @relation(fields: [ballotId], references: [id])
+  userId       String      @map("user_id") @db.Uuid
+  user         User        @relation(fields: [userId], references: [id])
+  submissionId String      @map("submission_id") @db.Uuid
+  entry        BallotEntry @relation(fields: [ballotId, submissionId], references: [ballotId, submissionId])
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([ballotId, userId, submissionId])
+  @@index([ballotId, submissionId])
+  @@map("vote")
 }

@@ -165,11 +165,14 @@ export async function withdrawSubmission(db: Db, input: { userId: string; submis
   });
 }
 
-/** An image, for its submitter or staff who review. */
-export async function readSubmissionFile(db: Db, store: SubmissionStore, input: { viewerId: string; submissionId: string; fileId: string }): Promise<Buffer> {
-  const file = await db.submissionFile.findFirst({ where: { id: input.fileId, submissionId: input.submissionId }, include: { submission: { select: { submittedByUserId: true } } } });
-  const viewer = await db.user.findUnique({ where: { id: input.viewerId }, select: { role: true } });
-  const allowed = file && viewer && (file.submission.submittedByUserId === input.viewerId || isStaff(viewer.role));
+/** An image: public once its fighter is on a ballot; before that, only for its submitter and staff. */
+export async function readSubmissionFile(db: Db, store: SubmissionStore, input: { viewerId: string | undefined; submissionId: string; fileId: string }): Promise<Buffer> {
+  const file = await db.submissionFile.findFirst({
+    where: { id: input.fileId, submissionId: input.submissionId },
+    include: { submission: { select: { submittedByUserId: true, ballotEntry: { select: { ballotId: true } } } } },
+  });
+  const viewer = input.viewerId ? await db.user.findUnique({ where: { id: input.viewerId }, select: { role: true } }) : null;
+  const allowed = file && (file.submission.ballotEntry !== null || file.submission.submittedByUserId === input.viewerId || (viewer !== null && isStaff(viewer.role)));
   if (!allowed) throw new NotFoundError("no such image");
   return store.read(input.submissionId, file.sha256);
 }

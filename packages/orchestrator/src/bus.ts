@@ -34,7 +34,9 @@ export type BusEvent =
       status: "ENDED";
       champion: { characterId: string; name: string } | null;
       topBettor: { name: string; saltWon: Salt } | null;
-    };
+    }
+  | { type: "ballot"; status: "OPENED"; seasonNumber: number; closesAt: string; fighters: { name: string; community: string }[] }
+  | { type: "ballot"; status: "CLOSED"; seasonNumber: number; results: { name: string; community: string; votes: number; elected: boolean }[] };
 
 export class FightBus {
   private readonly emitter = new EventEmitter().setMaxListeners(0);

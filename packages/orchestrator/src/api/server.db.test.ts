@@ -1,4 +1,4 @@
-import { createCharacter } from "@greed-island/db";
+import { createCharacter, createSession, createUser } from "@greed-island/db";
 import { economy as testEconomy, ratingSettings, useTestDb } from "@greed-island/db/test";
 import { createFakeSource, seededRandom } from "@greed-island/engine";
 import { loadConfig, type Config } from "@greed-island/shared";
@@ -13,7 +13,8 @@ import { applyTransition, bookFight, type FightDeps } from "../fights.ts";
 import type { Rng } from "../matchmaking.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { ConsoleMailer } from "../mail.ts";
-import { setRole } from "../staff.ts";
+import { decideReview, setRole } from "../staff.ts";
+import { addSubmissionFile, createSubmission, sendForReview } from "../submissions.ts";
 import { SubmissionStore } from "../submission-store.ts";
 import { png } from "../testing/png.ts";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -485,6 +486,67 @@ describe("fighter submissions", () => {
     expect(mine[0]).toMatchObject({ status: "CHANGES_REQUESTED", lastReview: { note: "Add a palette." } });
     expect((await app.inject({ method: "DELETE", url: `/api/submissions/${sub.id}/files/${sprites.json().id}`, headers: adminAuth })).statusCode).toBe(204);
     expect((await app.inject({ method: "POST", url: `/api/submissions/${sub.id}/withdraw`, headers: adminAuth })).json()).toMatchObject({ status: "WITHDRAWN" });
+  });
+});
+
+describe("voting", () => {
+  it("serves the ballot, takes and returns votes, and shows ballot fighters' portraits to anyone", async () => {
+    const cfg: Config = {
+      ...config,
+      submissions: { ...config.submissions, open: true },
+      voting: { ...config.voting, windowMs: 90 * 86_400_000, minBets: 0, minAccountAgeMs: 0 },
+    };
+    const store = new SubmissionStore(submissionsDir);
+    const srv = await buildServer({ db, config: cfg, bus, mailer, submissionStore: store });
+    try {
+      const user = async (email: string) => {
+        const u = (await createUser(db, { kind: "EMAIL", email }, cfg.economy)).user;
+        await db.user.update({ where: { id: u.id }, data: { emailVerifiedAt: new Date() } });
+        return u.id;
+      };
+      const [mod, sam] = [await user("mod@example.com"), await user("sam@example.com")];
+      await setRole(db, { actorId: null, target: { userId: mod }, role: "MODERATOR" });
+      const sub = await createSubmission(db, cfg, {
+        userId: sam,
+        details: { community: "Pixel Monks", fighterName: "Iron Heron", archetype: "ZONER", description: "Keeps you out.", rightsBasis: "ORIGINAL", rightsDetails: "Drawn by our member Sam; all rights ours.", rightsLink: null },
+      });
+      let portrait = "";
+      for (const [role, shade] of [["SPRITES", 1], ["PORTRAIT", 2], ["INTRO", 3], ["WIN_POSE", 4]] as const) {
+        const f = await addSubmissionFile(db, cfg, store, { userId: sam, submissionId: sub.id, role, label: role, bytes: png(24, 24, shade) });
+        if (role === "PORTRAIT") portrait = f.id;
+      }
+      await sendForReview(db, cfg, { userId: sam, submissionId: sub.id, confirmRights: true });
+      await decideReview(db, { reviewerId: mod, reviewId: (await db.reviewItem.findFirstOrThrow({ where: { submissionId: sub.id } })).id, decision: "APPROVE" });
+      // Not public before the ballot.
+      expect((await srv.inject({ method: "GET", url: `/api/submissions/${sub.id}/files/${portrait}` })).statusCode).toBe(404);
+
+      // Voting lasts the whole season here, so the first booking opens the ballot.
+      await bookFight({ ...deps, config: cfg }, rng(), "fake");
+      const voter = (await srv.inject({ method: "POST", url: "/api/session" })).json();
+      const anonAuth = { authorization: `Bearer ${voter.token}` };
+      const anonView = (await srv.inject({ method: "GET", url: "/api/ballot/current", headers: anonAuth })).json();
+      expect(anonView).toMatchObject({ seasonNumber: 1, status: "OPEN", votingOpen: true, me: { eligible: false, reason: expect.stringMatching(/add your email/) } });
+      expect(anonView.entries).toEqual([
+        { submissionId: sub.id, number: 1, fighterName: "Iron Heron", community: "Pixel Monks", archetype: "ZONER", description: "Keeps you out.", portraitFileId: portrait, result: null },
+      ]);
+      expect((await srv.inject({ method: "POST", url: "/api/ballot/votes", headers: anonAuth, payload: { submissionId: sub.id } })).json()).toMatchObject({ error: "NOT_ELIGIBLE" });
+      const img = await srv.inject({ method: "GET", url: `/api/submissions/${sub.id}/files/${portrait}` });
+      expect(img.statusCode).toBe(200);
+      expect(img.rawPayload).toEqual(png(24, 24, 2));
+
+      const samAuth = { authorization: `Bearer ${await createSession(db, sam)}` };
+      const cast = await srv.inject({ method: "POST", url: "/api/ballot/votes", headers: samAuth, payload: { submissionId: sub.id } });
+      expect(cast.statusCode).toBe(201);
+      expect(cast.json().ballot.me).toMatchObject({ eligible: true, votedFor: [sub.id], votesLeft: 2 });
+      expect((await srv.inject({ method: "POST", url: "/api/ballot/votes", headers: samAuth, payload: { submissionId: sub.id } })).statusCode).toBe(200);
+      expect((await srv.inject({ method: "POST", url: "/api/ballot/votes", headers: samAuth, payload: { submissionId: "nope" } })).statusCode).toBe(400);
+      const back = await srv.inject({ method: "DELETE", url: `/api/ballot/votes/${sub.id}`, headers: samAuth });
+      expect(back.json().ballot.me).toMatchObject({ votedFor: [], votesLeft: 3 });
+      expect((await srv.inject({ method: "GET", url: "/api/ballots/1" })).json()).toMatchObject({ status: "OPEN", me: null });
+      expect((await srv.inject({ method: "GET", url: "/api/ballots/7" })).statusCode).toBe(404);
+    } finally {
+      await srv.close();
+    }
   });
 });
 
