@@ -9,7 +9,7 @@ The one page to read first: what the project is for, what's been built, what's n
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) is under way: steps 1 and 2 of 7 are built. |
-| **Next step** | The search for openly licensed fighter art, then Phase 3 step 3: fighter submissions (see "What's next"). |
+| **Next step** | Phase 3 step 3: fighter submissions. Waiting on you: OK to download the best free art base to evaluate it (see "Decisions waiting on you"). |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | Fighter submissions, voting, seasonal releases, holder verification; anything on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
 | **Health** | 466 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
@@ -65,6 +65,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - ✅ **Plan agreed** (`b294fcf`, decisions recorded 2026-09-29): openly licensed fighter art first (commissioning is the fallback); read-only holder verification as the last step of phase 3; you as admin plus moderators you appoint.
 1. ✅ **Staff and custom names** (`1fadb54`): admin and moderator roles, a staff page (`/staff.html`) with a review queue, search and name resets, and a staff log that can't be edited or deleted. Owners can now ask for a custom character name; a moderator approves it (it's used from the next fight) or rejects it with a note the owner sees. Admins are set with `pnpm staff:role`.
 2. ✅ **Seasons**: 8-week seasons. The player leaderboard now counts Salt won this season, so it starts over each season (there's no ranking by balance any more). At the end, "Season N Champion" goes to the highest-rated character with 10+ fights that season, and "Season Top Bettor" to the player who won the most Salt with 10+ bets. Balances, characters, ratings and titles never reset. Season 1 started on this Mac's database on 2026-09-30 (UTC).
+- ✅ **Fighter art search** (research only): no complete, openly licensed fighting-game characters exist. The best base is a free (CC0) set of 3,150+ side-view frames whose character types match our archetypes (strikers, wrestlers, brawlers, boxers); it's made from 3D renders, so a lawyer should confirm the licence covers selling characters. Details and the other candidates: [PHASE3.md](docs/PHASE3.md) "Fighter art search".
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
@@ -74,8 +75,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**Recommended next: the fighter art search, then Phase 3 step 3, submissions**
-- Search for openly licensed fighting-game art and characters (commercial use allowed) for the archetype templates; findings go in [PHASE3.md](docs/PHASE3.md). Research only: nothing is downloaded without your OK.
+**Recommended next: Phase 3 step 3, submissions**
 - Step 3: a form for communities to submit a fighter (template, sprite sheets, name, palettes, proof of rights), stored outside git and reviewed in the staff queue. Opening it to the public waits for the terms (see "Decisions waiting on you").
 - Then steps 4–7: automatic checks, voting, seasonal release, holder verification.
 
@@ -97,6 +97,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 - **Defaults to review.** Every number chosen for an open design question (prices, upgrade costs, title rules, name plate colours, etc.) is listed in [PHASE2.md](docs/PHASE2.md) and is a setting that can be changed.
 - **Phase 3, still open** ([PHASE3.md](docs/PHASE3.md)): terms for uploaded art (a lawyer's eye before submissions open to the public), and which partner NFT collections holder verification checks.
+- **Fighter art:** OK to download the CC0 "Universal Prototype" sprite set (and the CC0 Boxer) from OpenGameArt to check frame counts and quality? Then the templates need a MUGEN/IKEMEN character coder (commissioned code, not art). Add to the lawyer's list: the set is made from Daz 3D renders, and Daz's licence limits selling derivatives separately.
 - **Make yourself admin:** sign in with your email on the main page once, then run `pnpm staff:role <your email> admin` in the project folder.
 - **Still open** ([DESIGN.md](docs/DESIGN.md) §15): a card/gear system or stats only; the crowd-odds constants (set from real data in phase 4). Tournament entry is free for now, and seasons are 8 weeks with only the leaderboard resetting (defaults you can change).
 

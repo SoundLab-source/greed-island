@@ -6,7 +6,7 @@ Scope from DESIGN §13: archetype templates, the submission pipeline, voting, se
 
 ## The owner's decisions (2026-09-29)
 
-1. **Templates and art:** look for openly licensed assets first (art and characters whose licence allows commercial use). Commissioning an artist and a character coder is the fallback. The search and its findings go in the "Fighter art search" section below.
+1. **Templates and art:** look for openly licensed assets first (art and characters whose licence allows commercial use). Commissioning an artist and a character coder is the fallback. Findings: "Fighter art search" below.
 2. **Holder verification:** built in phase 3, as its last step. Read-only: a player signs a message with their wallet to prove it's theirs, and we read which NFTs it holds. No transactions, no trading, no payments.
 3. **Who reviews:** the owner as admin, plus moderators the admin appoints. Every staff action is logged: who approved what, and when.
 4. **Terms for uploaded art:** still need a lawyer's eye. This gates opening submissions to the public, not building them.
@@ -69,10 +69,36 @@ Same approach as phase 2: each number is a setting, flagged in the commit that a
 
 - **Terms:** accepting uploaded art means terms of service and a rights statement that submitters agree to. These need a lawyer's eye before real submissions open to the public.
 - **Which partner collections** holder verification checks, and which chain (DESIGN §10 names Solana). Needed by step 7.
+- **Art base:** whether to download and evaluate the CC0 Universal Prototype (see below), and the Daz licence question for the lawyer.
 
 ## Fighter art search
 
-To do alongside steps 1–2: openly licensed fighting-game art and characters whose licence allows commercial use (and later sale as First Editions), to base the archetype templates on. Findings, with licences, will be listed here.
+Done 2026-09-29, as research only: nothing was downloaded. The question: is there openly licensed fighting-game art or characters whose licence allows commercial use (and sale as First Editions, later NFTs) to base the archetype templates on?
+
+**Short answer:** no complete, openly licensed fighting-game characters exist (the MUGEN/IKEMEN community's characters are almost all ripped from commercial games). There are CC0 sprite sets that can be a **base**, and one of them lines up with our archetypes.
+
+| Asset | Author, where | Licence | What it has | Fit |
+|---|---|---|---|---|
+| **Universal Prototype for scrolling beat 'em up** | Puffolotti, [OpenGameArt](https://opengameart.org/content/universal-prototype-for-scrolling-beat-em-up-0) | CC0 | 3,150+ side-view frames (normal and 2x size), rendered from 3D models: strikers, wrestlers, brawlers and boxers with punches, kicks, grabs, throws, crouching and hit reactions; about 30–100 frames per usable character | **Best match**: striker ≈ rushdown, wrestler ≈ grappler, brawler ≈ all-rounder, plus boxers. Fewer frames than a full MUGEN character, so a character coder builds moves around them and an artist may add frames. **To check:** it's made from Daz 3D renders; Daz's licence allows 2D renders in commercial works but restricts selling derivatives separately, so a lawyer should confirm First Editions (and later NFTs) are fine |
+| Boxer Game Character | Raga2D, [OpenGameArt](https://opengameart.org/content/boxer-game-character) | CC0 | Cartoon boxer: idle, walk forward and back, 3 punches, block, hurt, dizzy, KO | A base for one boxer; no kicks, jumps or crouch |
+| Martial Hero 1–3 | LuizMelo, [itch.io](https://luizmelo.itch.io/martial-hero) | CC0 ("can be used freely and commercially") | Sword platformer characters: idle, run, jump, fall, 2 attacks, hit, death | Too few moves for a fighter; a weapon-fighter base at most |
+| Wrestling Assets | Chasersgaming, [OpenGameArt](https://opengameart.org/content/wrestling-assets) | CC0 | Small 8-bit (Master System style) wrestlers | Too low-resolution for a 1280x720 stream, unless we want a retro look |
+| Streets of Fight | ansimuz, [itch.io](https://ansimuz.itch.io/streets-of-fight) | "Ready for personal or commercial use" (no licence text on the page; listings call it CC0) | Beat 'em up: a player character (9 animations) and a punk enemy (4); paid add-on | Partial; confirm the licence with the author first |
+| LibreIkemen | blitzdoughnuts, Codeberg ([wiki](https://libregamewiki.org/LibreIkemen)) | CC0 | One character and a stage made for IKEMEN GO, from the game Wake to Hell; the project was cancelled in 2024 and its raw assets left public | The only CC0 content made for IKEMEN itself; one character, probably incomplete |
+
+**Ruled out**
+- CraftPix free sprite sheets: commercial games are fine, but the licence forbids passing the art on in a way players can get at it; selling characters (let alone NFTs) would need their written permission.
+- "Open source" MUGEN sprite sheets on community forums: edits of commercial characters (Ninja Gaiden, Double Dragon, Marvel), with no licence.
+- Castagne engine's example characters: the engine is MPL-2.0, but its example characters aren't in the main repository and are made for Godot; not pursued.
+- Kung Fu Man and our 8 house variants: non-commercial only (already known).
+
+**A useful tool found:** [openkakutou/character](https://github.com/openkakutou/character) (MIT, Go, early-stage) reads and writes MUGEN/IKEMEN character files, including SFF sprite files. That could let the submission pipeline (step 3) build a fighter's sprite file from submitted PNG sheets without closed tools like Fighter Factory. To evaluate in step 3.
+
+**Recommended path**
+1. With your OK, download the Universal Prototype (and the Boxer) to check frame counts, sprite size and quality. (A download needs your yes each time.)
+2. Add the Daz question to the lawyer's list, next to the terms for uploaded art.
+3. Commission a MUGEN/IKEMEN character coder (code, not art) to build 3–4 archetype templates on it, with an artist filling in missing frames. Communities then submit art that follows each template's frame list.
+4. Pick one look for the roster: the prototype is pre-rendered 3D, the others are pixel art.
 
 ## Not in phase 3
 
