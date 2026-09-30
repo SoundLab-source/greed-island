@@ -111,10 +111,33 @@ function describe(a) {
       return d.kind === "FIGHTER_SUBMISSION" ? `approved fighter submission #${d.submission} "${esc(d.fighterName)}" (${esc(d.community)})` : `approved the name "${esc(d.name)}" (was ${esc(d.previousName)}) for ${esc(a.player?.name)}`;
     case "REVIEW_REJECTED":
       return d.kind === "FIGHTER_SUBMISSION" ? `rejected fighter submission #${d.submission} "${esc(d.fighterName)}" (${esc(d.community)})` : `rejected the name "${esc(d.name)}" for ${esc(a.player?.name)}`;
+    case "COLLECTION_SET": return `${d.before ? "changed" : "approved"} the NFT collection ${esc(d.collection?.name)}${d.collection?.enabled ? "" : " (switched off)"}`;
     case "REVIEW_CHANGES_REQUESTED": return `asked for changes to fighter submission #${d.submission} "${esc(d.fighterName)}" (${esc(d.community)})`;
     case "DISPLAY_NAME_RESET": return `reset ${esc(a.player?.name)}'s display name (was "${esc(d.previousName)}")`;
     case "CHARACTER_NAME_RESET": return `reset "${esc(d.previousName)}" to ${esc(d.name)}`;
     default: return esc(a.kind);
+  }
+}
+
+async function refreshCollections() {
+  const cols = await api("GET", "/api/staff/collections");
+  $("collections").innerHTML = cols.map((c) => `<tr><td><strong>${esc(c.name)}</strong>${c.enabled ? "" : ' <span class="muted">(off)</span>'}<br><span class="muted">${esc(c.address)}</span></td>
+    <td class="muted">${c.submissionsAllowed ? "submissions" : ""}${c.looksAllowed ? `${c.submissionsAllowed ? ", " : ""}looks${c.fighterId ? ` on ${esc(c.fighterId)}` : ""}` : ""}</td>
+    <td class="muted">${c.licenceUrl ? `<a href="${esc(c.licenceUrl)}" target="_blank" rel="noopener noreferrer">licence</a>` : "no licence link"} ${esc(c.licenceNote)}</td>
+    <td>${can("manage_collections") ? `<button data-edit-col="${esc(c.address)}">Edit</button>` : ""}</td></tr>`).join("") || `<tr><td class="muted">No collections approved yet.</td></tr>`;
+  $("collection-form").hidden = !can("manage_collections");
+  for (const b of document.querySelectorAll("[data-edit-col]")) {
+    b.onclick = () => {
+      const c = cols.find((x) => x.address === b.dataset.editCol);
+      $("col-address").value = c.address;
+      $("col-name").value = c.name;
+      $("col-licence").value = c.licenceUrl ?? "";
+      $("col-note").value = c.licenceNote;
+      $("col-submissions").checked = c.submissionsAllowed;
+      $("col-looks").checked = c.looksAllowed;
+      $("col-fighter").value = c.fighterId ?? "";
+      $("col-enabled").checked = c.enabled;
+    };
   }
 }
 
@@ -137,11 +160,21 @@ async function refresh() {
   $("not-staff").hidden = staff;
   $("staff").hidden = !staff;
   if (!staff) return;
-  await Promise.all([can("review") && refreshQueue(), can("view_log") && refreshStaff()]).catch((e) => { $("msg").textContent = e.message; });
+  await Promise.all([can("review") && refreshQueue(), can("view_log") && refreshStaff(), can("view_log") && refreshCollections()]).catch((e) => { $("msg").textContent = e.message; });
 }
 
 $("search").onclick = () => search().catch((e) => { $("msg").textContent = e.message; });
 $("q").onkeydown = (e) => { if (e.key === "Enter") $("search").click(); };
+$("col-save").onclick = () => act(() => api("PUT", "/api/staff/collections", {
+  address: $("col-address").value.trim(),
+  name: $("col-name").value.trim(),
+  licenceUrl: $("col-licence").value.trim() || null,
+  licenceNote: $("col-note").value.trim(),
+  submissionsAllowed: $("col-submissions").checked,
+  looksAllowed: $("col-looks").checked,
+  fighterId: $("col-fighter").value.trim() || null,
+  enabled: $("col-enabled").checked,
+}));
 $("role-save").onclick = () => act(() => api("PUT", "/api/staff/members", { email: $("role-email").value, role: $("role-value").value }));
 refresh();
 // Refresh every 30 s, but not while a note or reason is being typed.

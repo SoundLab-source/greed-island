@@ -64,6 +64,8 @@ pnpm staff:role you@example.com admin
 
 `pnpm staff:role` with nothing after it lists the staff. As admin you appoint moderators on the staff page (they need to have signed in with their email once); admins are only added or removed with this command. Every staff action is kept in the staff log.
 
+**NFT holders (optional).** To let players link Solana wallets and use their NFTs, get a DAS-capable Solana RPC address from a provider (it usually includes an API key) and put it in `.env` as `GI_SOLANA_RPC_URL`. Then, as admin, approve collections on the staff page. Wallet linking is read-only: players sign a free message, nothing is sent on-chain. Details: docs/nft-notes.md.
+
 **Where things go.** Each real fight writes its logs, the engine's result file and the event stream to `runs/<fightId>/` (gitignored). Images sent with fighter submissions go to `submissions/` (gitignored; `GI_SUBMISSIONS_DIR` moves them): back that folder up along with the database. Your `.env` never leaves your machine.
 
 ## 3. Linux server (24/7 stream)

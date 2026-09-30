@@ -68,15 +68,30 @@ async function checkDetails(tx: Tx, raw: SubmissionDetails, exceptSubmissionId?:
   return d;
 }
 
-/** Start a draft. One open submission per account and per community. */
-export async function createSubmission(db: Db, config: Config, input: { userId: string; details: SubmissionDetails }, now = new Date()): Promise<SubmissionRow> {
+/** Start a draft. One open submission per account and per community. `nft`: the NFT it was started from (fixed for good). */
+export async function createSubmission(
+  db: Db,
+  config: Config,
+  input: { userId: string; details: SubmissionDetails; nft?: { assetId: string; collectionId: string } },
+  now = new Date(),
+): Promise<SubmissionRow> {
   return withRetry(db, async (tx) => {
     await requireSubmitter(tx, input.userId, config);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(7108, hashtext(${input.userId}))`;
     const mine = await tx.submission.findFirst({ where: { submittedByUserId: input.userId, status: { in: [...OPEN_SUBMISSION_STATUSES] } }, select: { number: true } });
     if (mine) refuse(`you already have an open submission (#${mine.number}); finish or withdraw it first`);
     const d = await checkDetails(tx, input.details);
-    return tx.submission.create({ data: { ...d, communityKey: communityKey(d.community), submittedByUserId: input.userId, createdAt: now, updatedAt: now } });
+    return tx.submission.create({
+      data: {
+        ...d,
+        communityKey: communityKey(d.community),
+        submittedByUserId: input.userId,
+        nftAssetId: input.nft?.assetId ?? null,
+        nftCollectionId: input.nft?.collectionId ?? null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
   });
 }
 

@@ -95,6 +95,8 @@ model User {
   seasonsTopBettor Season[]
   submissions      Submission[]
   votes            Vote[]
+  wallets          Wallet[]
+  walletChallenges WalletChallenge[]
   seasonStandings  SeasonStanding[]
 
   @@map("user")
@@ -244,6 +246,7 @@ model Fighter {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   characters     Character[]
+  nftCollections NftCollection[]
 
   @@map("fighter")
 }
@@ -843,6 +846,8 @@ enum StaffActionKind {
   REVIEW_CHANGES_REQUESTED
   DISPLAY_NAME_RESET
   CHARACTER_NAME_RESET
+  /// An NFT collection approved, changed or switched off (phase 3, step 7).
+  COLLECTION_SET
 }
 
 /// The staff log: every staff action, who did it and when. Append-only.
@@ -978,6 +983,10 @@ model Submission {
   rightsLink        String?          @map("rights_link")
   /// When the submitter last confirmed the rights statement (on sending it for review).
   rightsConfirmedAt DateTime?        @map("rights_confirmed_at") @db.Timestamptz(3)
+  /// Started from an NFT the submitter held (step 7): which one, and its collection.
+  nftAssetId        String?          @map("nft_asset_id")
+  nftCollectionId   String?          @map("nft_collection_id") @db.Uuid
+  nftCollection     NftCollection?   @relation(fields: [nftCollectionId], references: [id])
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   /// Last sent for review.
@@ -1067,4 +1076,68 @@ model Vote {
   @@unique([ballotId, userId, submissionId])
   @@index([ballotId, submissionId])
   @@map("vote")
+}
+
+// ---------------------------------------------------------------------------
+// Holders and NFTs (phase 3, step 7). Read-only: nothing here writes on-chain.
+
+enum Chain {
+  SOLANA
+}
+
+/// A wallet a player proved they control by signing a message.
+model Wallet {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id])
+  chain      Chain
+  address    String
+  verifiedAt DateTime @map("verified_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([chain, address])
+  @@index([userId])
+  @@map("wallet")
+}
+
+/// A one-time message for a wallet to sign; only the latest use counts.
+model WalletChallenge {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id])
+  chain     Chain
+  address   String
+  nonce     String    @unique
+  message   String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
+  @@map("wallet_challenge")
+}
+
+/// An NFT collection staff approved: its holders can submit a fighter from an
+/// NFT, and (with a community fighter set) give their characters NFT looks.
+model NftCollection {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chain              Chain
+  /// The collection's address (its verified collection key in DAS).
+  address            String
+  name               String
+  /// Where its licence can be read.
+  licenceUrl         String?      @map("licence_url")
+  licenceNote        String       @default("") @map("licence_note")
+  submissionsAllowed Boolean      @default(false) @map("submissions_allowed")
+  looksAllowed       Boolean      @default(false) @map("looks_allowed")
+  /// The community's fighter, whose copies can wear this collection's NFT looks.
+  fighterId          String?      @map("fighter_id")
+  fighter            Fighter?     @relation(fields: [fighterId], references: [id])
+  enabled            Boolean      @default(true)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  submissions        Submission[]
+
+  @@unique([chain, address])
+  @@map("nft_collection")
 }

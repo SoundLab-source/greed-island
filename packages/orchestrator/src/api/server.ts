@@ -72,6 +72,9 @@ import { leaderboard, recentSeasons, seasonView } from "./season-views.ts";
 import { mySubmissions, submissionDetail, submissionRules } from "./submission-views.ts";
 import { ballotView } from "./ballot-views.ts";
 import { castVote, retractVote } from "../voting.ts";
+import { createWalletChallenge, listCollections, listWallets, myNfts, setCollection, submitFromNft, unlinkWallet, verifyWallet } from "../holders.ts";
+import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
+import { loadNftSource, NftSourceError, type NftSource } from "../nft-source.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
 
 export interface ApiDeps {
@@ -92,6 +95,10 @@ export interface ApiDeps {
   twitchChannel?: string | null;
   /** Where submitted fighter images are stored. Defaults to GI_SUBMISSIONS_DIR or `submissions/`. */
   submissionStore?: SubmissionStore;
+  /** Where NFT holdings are read (a DAS endpoint). Defaults to GI_SOLANA_RPC_URL; null turns NFT features off. */
+  nftSource?: NftSource | null;
+  /** Downloads NFT images. Defaults to a guarded https fetch. */
+  images?: ImageFetcher;
 }
 
 /** GI_TWITCH_CHANNEL: a Twitch login name (4-25 letters, digits or underscores). */
@@ -143,6 +150,21 @@ const SubmissionBody = z
   .strict();
 const FileQuery = z.object({ role: z.enum(FILE_ROLES), label: z.string().min(1).max(200) });
 const SubmitBody = z.object({ confirmRights: z.boolean() });
+const WalletChallengeBody = z.object({ address: z.string().max(64) });
+const WalletVerifyBody = z.object({ nonce: z.string().regex(/^[0-9a-f]{32}$/), signature: z.string().max(200) });
+const FromNftBody = z.object({ assetId: z.string().min(1).max(64), archetype: z.enum(ARCHETYPES).optional() });
+const CollectionBody = z
+  .object({
+    address: z.string().max(64),
+    name: z.string().max(100),
+    licenceUrl: z.string().max(500).nullable().default(null),
+    licenceNote: z.string().max(1000).default(""),
+    submissionsAllowed: z.boolean().default(false),
+    looksAllowed: z.boolean().default(false),
+    fighterId: z.string().max(64).nullable().default(null),
+    enabled: z.boolean().default(true),
+  })
+  .strict();
 const RoleBody = z.object({ email: z.string().max(254), role: z.enum(["MODERATOR", "PLAYER"]), note: z.string().max(1000).nullable().optional() });
 
 class HttpError extends Error {
@@ -161,6 +183,8 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   const publicUrl = (deps.publicUrl ?? "http://127.0.0.1:3000").replace(/\/$/, "");
   const authCfg = deps.auth ?? DEFAULT_AUTH;
   const store = deps.submissionStore ?? loadSubmissionStore();
+  const nftSource = deps.nftSource === undefined ? loadNftSource() : deps.nftSource;
+  const images = deps.images ?? imageFetcher(config.submissions.maxFileBytes);
   const app = Fastify({ logger: deps.logger ?? false });
   // Submission images arrive as the raw PNG body (checked in pngInfo; the content type isn't trusted).
   app.addContentTypeParser(["image/png", "application/octet-stream"], { parseAs: "buffer", bodyLimit: config.submissions.maxFileBytes + 1024 }, (_req, body, done) => done(null, body));
@@ -168,6 +192,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code, message: err.message });
     if (err instanceof ForbiddenError) return reply.status(403).send({ error: "FORBIDDEN", message: err.message });
+    if (err instanceof NftSourceError) return reply.status(502).send({ error: "NFT_SERVICE", message: err.message });
     if (err instanceof AuthError) {
       const status = err.code === "RATE_LIMITED" ? 429 : 400;
       return reply.status(status).send({ error: err.code, message: err.message });
@@ -436,6 +461,41 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const userId = await requireViewer(req);
     const sub = await withdrawSubmission(db, { userId, submissionId: uuid.parse(req.params.id) });
     return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
+  });
+
+  // Holders (docs/PHASE3.md step 7): link a wallet by signing a message, list NFTs, submit from one. Read-only.
+  app.get("/api/me/wallets", async (req, reply) => send(reply, await listWallets(db, await requireViewer(req))));
+  app.post("/api/me/wallets/challenge", async (req, reply) => {
+    const userId = await requireViewer(req);
+    return send(reply, await createWalletChallenge(db, config, { userId, address: WalletChallengeBody.parse(req.body).address }));
+  });
+  app.post("/api/me/wallets/verify", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const body = WalletVerifyBody.parse(req.body);
+    // The signature arrives as base64 (64 bytes).
+    const signature = Buffer.from(body.signature, "base64");
+    const wallet = await verifyWallet(db, config, { userId, nonce: body.nonce, signature });
+    return send(reply, { wallet: { id: wallet.id, chain: wallet.chain, address: wallet.address, verifiedAt: wallet.verifiedAt }, wallets: await listWallets(db, userId) });
+  });
+  app.delete<{ Params: { id: string } }>("/api/me/wallets/:id", async (req, reply) => {
+    await unlinkWallet(db, { userId: await requireViewer(req), walletId: uuid.parse(req.params.id) });
+    return reply.status(204).send();
+  });
+  app.get("/api/me/nfts", async (req, reply) => send(reply, await myNfts(db, nftSource, await requireViewer(req))));
+  app.get("/api/nft/collections", async (_req, reply) => send(reply, await listCollections(db, { includeDisabled: false })));
+  app.post("/api/submissions/from-nft", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const body = FromNftBody.parse(req.body);
+    const r = await submitFromNft(db, config, { source: nftSource, store, images }, { userId, assetId: body.assetId, ...(body.archetype ? { archetype: body.archetype } : {}) });
+    return send(reply.status(201), { portrait: r.portrait, submission: await submissionDetail(db, r.submission.id, { id: userId, staff: false }) });
+  });
+  app.get("/api/staff/collections", async (req, reply) => {
+    await requireStaffViewer(req, "view_log");
+    return send(reply, await listCollections(db, { includeDisabled: true }));
+  });
+  app.put("/api/staff/collections", async (req, reply) => {
+    const { id: actorId } = await requireStaffViewer(req, "manage_collections");
+    return send(reply, await setCollection(db, { actorId, collection: CollectionBody.parse(req.body) }));
   });
 
   // Voting: the season ballot (docs/PHASE3.md step 5).

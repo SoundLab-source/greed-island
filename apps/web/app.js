@@ -278,6 +278,62 @@ async function refreshTournament() {
 // Exhibition challenges: send one with your character, answer ones sent to you.
 const STATUS_LABELS = { PENDING: "waiting for an answer", ACCEPTED: "accepted, waiting to play", DECLINED: "declined", CANCELLED: "cancelled", EXPIRED: "expired", BOOKED: "booked" };
 
+// Wallets (linked by signing a free message) and NFTs from approved collections.
+async function refreshWallets() {
+  const r = await api("GET", "/api/me/nfts");
+  $("wallets").innerHTML = r.wallets.map((w) => `<div>${esc(w.address.slice(0, 6))}…${esc(w.address.slice(-4))} <span class="muted">linked ${new Date(w.verifiedAt).toLocaleDateString()}</span>
+    <button data-unlink="${w.id}">Unlink</button></div>`).join("") || `<div class="muted">No wallet linked.</div>`;
+  for (const b of document.querySelectorAll("[data-unlink]")) b.onclick = () => walletAction(() => api("DELETE", `/api/me/wallets/${b.dataset.unlink}`));
+  if (!r.configured) {
+    $("nfts").innerHTML = "";
+    text($("nft-msg"), r.wallets.length ? "NFT lookups aren't set up on this server yet (GI_SOLANA_RPC_URL)." : "");
+    return;
+  }
+  $("nfts").innerHTML = r.nfts.map((n) => `<tr>
+    <td>${n.image ? `<img src="${esc(n.image)}" alt="" referrerpolicy="no-referrer" style="width:48px;height:48px;object-fit:cover">` : ""}</td>
+    <td><strong>${esc(n.name)}</strong><br><span class="muted">${esc(n.collection.name)}</span></td>
+    <td>${n.submitted ? '<span class="muted">submitted</span>' : n.collection.submissionsAllowed ? `<button data-submit-nft="${esc(n.assetId)}">Submit as a fighter</button>` : ""}</td></tr>`).join("");
+  text($("nft-msg"), r.nfts.length ? (r.otherNfts ? `${r.otherNfts} other NFT${r.otherNfts === 1 ? "" : "s"} from collections that aren't approved.` : "")
+    : r.wallets.length ? "No NFTs from approved collections in your linked wallets." : "");
+  for (const b of document.querySelectorAll("[data-submit-nft]")) {
+    b.onclick = () => walletAction(async () => {
+      const s = await api("POST", "/api/submissions/from-nft", { assetId: b.dataset.submitNft });
+      window.open("/submit.html", "_blank");
+      return `Started submission #${s.submission.number} (${s.portrait === "added" ? "its image is the portrait" : "add a PNG portrait"}). Finish it on the submit page.`;
+    });
+  }
+}
+
+// Run a wallet action, refresh the box, then show the action's message (or its error).
+async function walletAction(fn) {
+  let message = null;
+  try {
+    message = (await fn()) ?? null;
+  } catch (e) {
+    message = e.message;
+  }
+  await refreshWallets().catch(() => {});
+  if (message) text($("nft-msg"), message);
+}
+
+// Phantom (and wallets that copy its API) inject a provider; signing a message is free and sends no transaction.
+function solanaProvider() {
+  return window.phantom?.solana ?? window.solana ?? window.solflare ?? null;
+}
+
+async function linkWallet() {
+  const provider = solanaProvider();
+  if (!provider) throw new Error("No Solana wallet found in this browser: install one (such as Phantom), then reload.");
+  const connected = await provider.connect();
+  const address = (connected?.publicKey ?? provider.publicKey).toString();
+  const challenge = await api("POST", "/api/me/wallets/challenge", { address });
+  const signed = await provider.signMessage(new TextEncoder().encode(challenge.message), "utf8");
+  const bytes = signed instanceof Uint8Array ? signed : signed.signature;
+  const signature = btoa(String.fromCharCode(...bytes));
+  await api("POST", "/api/me/wallets/verify", { nonce: challenge.nonce, signature });
+  return "Wallet linked.";
+}
+
 // The season vote on community fighters (approved submissions).
 async function refreshBallot() {
   const b = await api("GET", "/api/ballot/current");
@@ -443,6 +499,7 @@ function connectStream() {
   es.onerror = () => log("stream disconnected, retrying…");
 }
 
+$("link-wallet").onclick = () => walletAction(linkWallet);
 $("bet1").onclick = () => bet(1);
 $("bet2").onclick = () => bet(2);
 $("send-link").onclick = async () => {
@@ -466,6 +523,6 @@ $("bailout").onclick = () => api("POST", "/api/me/bailout").then(refreshMe).catc
 (async () => {
   await redeemLoginFromUrl();
   await ensureSession();
-  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine(), refreshChallenges(), refreshTournament(), refreshBallot()]);
+  await Promise.all([refreshFight(), refreshMe(), refreshTables(), refreshShop(), refreshMine(), refreshChallenges(), refreshTournament(), refreshBallot(), refreshWallets()]);
   connectStream();
 })().catch((e) => log(`error: ${e.message}`));

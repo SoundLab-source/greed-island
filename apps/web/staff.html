@@ -52,6 +52,23 @@
     </div>
 
     <div class="box">
+      <h3>NFT collections <small class="muted">holders of these can submit fighters from their NFTs, and later give characters NFT looks</small></h3>
+      <table id="collections"></table>
+      <div id="collection-form" hidden>
+        <h4>Add or change a collection</h4>
+        <label>Collection address (Solana) <input id="col-address" style="width: 28em"></label><br>
+        <label>Name <input id="col-name" maxlength="60"></label><br>
+        <label>Licence link (https://) <input id="col-licence" style="width: 28em"></label><br>
+        <label>Licence note <input id="col-note" style="width: 28em" maxlength="1000"></label><br>
+        <label><input id="col-submissions" type="checkbox"> holders can submit fighters</label>
+        <label><input id="col-looks" type="checkbox"> NFT looks allowed</label>
+        <label>Community fighter id (for looks) <input id="col-fighter" maxlength="64"></label>
+        <label><input id="col-enabled" type="checkbox" checked> enabled</label><br>
+        <button id="col-save">Save collection</button>
+      </div>
+    </div>
+
+    <div class="box">
       <h3>Staff log <small class="muted">newest first; can't be edited or deleted</small></h3>
       <table id="log"></table>
     </div>

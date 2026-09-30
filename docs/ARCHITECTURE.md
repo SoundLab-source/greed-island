@@ -148,6 +148,9 @@ Fastify, same process as the orchestrator (they share the event bus). `GET /api/
 | `GET /api/staff/search?q=`, `POST /api/staff/players/:id/reset-name`, `POST /api/staff/characters/:id/reset-name` | Staff: find players (display name, exact email or id) and characters; reset a display name or a custom character name with `{note}` (the reason) |
 | `GET /api/staff/log`, `GET /api/staff/members`, `PUT /api/staff/members` | Staff: the staff log and staff list (emails for admins only); admin only: `{email, role: MODERATOR or PLAYER, note?}` appoints or removes a moderator |
 | `GET /api/stream` | SSE: `fight_state`, `odds_live`, `odds_locked`, `engine_event`, `fight_result`, `title_earned`, `tournament` (started, cancelled, finished with champion and podium), `season` (started; ended with champion and top bettor), `ballot` (opened with its fighters; closed with counts and who was elected), keep-alive comments |
+| `GET /api/me/wallets`, `POST /api/me/wallets/challenge`, `POST /api/me/wallets/verify`, `DELETE /api/me/wallets/:id` | Link a Solana wallet (§17): ask for a one-time message `{address}`, send the wallet's signature `{nonce, signature (base64)}`; list or unlink wallets |
+| `GET /api/me/nfts`, `GET /api/nft/collections`, `POST /api/submissions/from-nft` | NFTs in your linked wallets from approved collections (and whether NFT lookups are set up); the approved collections; start a submission from an NFT `{assetId, archetype?}` |
+| `GET`/`PUT /api/staff/collections` | Staff see the collections; admins add or change one `{address, name, licenceUrl, licenceNote, submissionsAllowed, looksAllowed, fighterId, enabled}` |
 | `GET /api/ballot/current`, `/api/ballots/:season`, `POST /api/ballot/votes`, `DELETE /api/ballot/votes/:submissionId` | The season ballot (§16): fighters, the viewer's eligibility, votes left and votes cast while open, published counts and who was elected once closed; vote `{submissionId}` (again returns the same vote); take a vote back |
 | `GET /api/seasons`, `/api/seasons/current`, `/api/seasons/:number` | Recent seasons (dates, champion, top bettor); one season: the running one with live standings, who'd win if it ended now, and the viewer's rank, or an ended one's final standings |
 
@@ -282,3 +285,17 @@ season clock: season ends -> count, rank, elect the top 2 with >= 1 vote -> subm
 - **Ballot.** One per season (`ballot.season_id` unique), created at the first booking in the voting window if anything is approved; a submission is on one ballot at most (`ballot_entry.submission_id` unique). Fighters on a ballot, and their images, are public; counts are not until it closes.
 - **Result.** At the season's end, before the season's own titles: most votes first, ties to the fighter first sent for review; the top `GI_ELECTED_PER_SEASON` (2) with at least one vote are ELECTED, the rest NOT_ELECTED (their names are free again and their communities can submit again). Elected fighters join the roster at the next season (step 6, not built yet).
 - **Guards.** Votes are cast or taken back only while the ballot is open and uncounted, never edited (`vote_guard`); entries are never removed and their results written once (`ballot_entry_guard`); a ballot closes only with every result counted and never changes after (`ballot_guard`); a submission becomes elected or not only by matching its ballot result (`submission_guard`).
+
+## 17. Holders and NFTs (phase 3)
+
+```
+dev page: connect wallet -> POST challenge {address} -> wallet signs the message (free) -> POST verify {nonce, signature} -> wallet linked
+GET /api/me/nfts -> DAS getAssetsByOwner for each linked wallet -> only NFTs from approved collections
+"Submit as a fighter" -> getAsset again (still yours? approved?) -> draft submission (community, name, rights, portrait from the NFT image)
+```
+
+- **Read-only.** Wallets are proven by signing a message; NFTs are read from a DAS endpoint (`GI_SOLANA_RPC_URL`). Nothing signs or sends a transaction. Facts and what's still untried with real services: docs/nft-notes.md.
+- **Wallets.** A one-time message (10 minutes, used once, `wallet_challenge_guard`), 10 requests per account per hour, Ed25519 verified with Node's crypto. Up to `GI_MAX_WALLETS` (3) per account; a wallet moves to whichever account last signed for it.
+- **Collections.** Admins approve a collection on the staff page (new `manage_collections` permission; logged as `COLLECTION_SET`): whether its holders can submit fighters (needs a licence link), whether NFT looks are allowed, and which fighter is the community's (for looks). Only verified collections in DAS count.
+- **Submitting from an NFT.** Rechecks the NFT's owner and collection at that moment, then starts a normal draft (§15): the collection as the community, a fighter name from the NFT's name (or "Fighter 1234" if it can't be used), "holder licence" as the rights basis with the collection's licence link, and the NFT's image as the portrait when it's a PNG. The submission keeps the NFT and collection it came from, fixed for good (ready for minting in phase 4).
+- **NFT images** are downloaded by a guarded fetcher (`image-fetch.ts`): https on the standard port only, every resolved address must be public (checked when connecting), up to 3 redirects, a size cap and a timeout.

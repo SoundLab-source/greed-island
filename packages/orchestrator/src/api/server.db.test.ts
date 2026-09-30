@@ -17,6 +17,9 @@ import { decideReview, setRole } from "../staff.ts";
 import { addSubmissionFile, createSubmission, sendForReview } from "../submissions.ts";
 import { SubmissionStore } from "../submission-store.ts";
 import { png } from "../testing/png.ts";
+import { MemoryNftSource } from "../nft-source.ts";
+import { encodeBase58 } from "@greed-island/shared";
+import { generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
@@ -544,6 +547,52 @@ describe("voting", () => {
       expect(back.json().ballot.me).toMatchObject({ votedFor: [], votesLeft: 3 });
       expect((await srv.inject({ method: "GET", url: "/api/ballots/1" })).json()).toMatchObject({ status: "OPEN", me: null });
       expect((await srv.inject({ method: "GET", url: "/api/ballots/7" })).statusCode).toBe(404);
+    } finally {
+      await srv.close();
+    }
+  });
+});
+
+describe("holders", () => {
+  it("links a wallet by signature, lists approved NFTs and starts a submission from one", async () => {
+    const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+    const address = encodeBase58(Buffer.from(publicKey.export({ format: "jwk" }).x!, "base64url"));
+    const collectionAddress = encodeBase58(new Uint8Array(32).fill(9));
+    const assetId = encodeBase58(new Uint8Array(32).fill(1));
+    const source = new MemoryNftSource([{ assetId, name: "Pixel Monk #42", image: "https://img.example/42.png", collection: collectionAddress, attributes: [], owner: address }]);
+    const srv = await buildServer({ db, config: { ...config, submissions: { ...config.submissions, open: true } }, bus, mailer, submissionStore: new SubmissionStore(submissionsDir), nftSource: source, images: async () => png(32, 32, 1) });
+    try {
+      const signIn = async (email: string) => {
+        await srv.inject({ method: "POST", url: "/api/auth/email", payload: { email } });
+        const token = decodeURIComponent(/\?login=([^\s]+)/.exec(mailer.sent.at(-1)!.text)![1]!);
+        return { authorization: `Bearer ${(await srv.inject({ method: "POST", url: "/api/auth/verify", payload: { token } })).json().token}` };
+      };
+      const adminAuth = await signIn("boss@example.com");
+      await setRole(db, { actorId: null, target: { email: "boss@example.com" }, role: "ADMIN" });
+      const modAuth = await signIn("mod@example.com");
+      await setRole(db, { actorId: null, target: { email: "mod@example.com" }, role: "MODERATOR" });
+      const collection = { address: collectionAddress, name: "Pixel Monks", licenceUrl: "https://pixelmonks.example/licence", submissionsAllowed: true };
+      expect((await srv.inject({ method: "PUT", url: "/api/staff/collections", headers: modAuth, payload: collection })).statusCode).toBe(403);
+      expect((await srv.inject({ method: "PUT", url: "/api/staff/collections", headers: adminAuth, payload: collection })).json()).toMatchObject({ name: "Pixel Monks", submissionsAllowed: true });
+      expect((await srv.inject({ method: "GET", url: "/api/nft/collections" })).json()).toMatchObject([{ name: "Pixel Monks" }]);
+
+      const sam = await signIn("sam@example.com");
+      expect((await srv.inject({ method: "GET", url: "/api/me/nfts", headers: sam })).json()).toMatchObject({ configured: true, wallets: [], nfts: [] });
+      const challenge = (await srv.inject({ method: "POST", url: "/api/me/wallets/challenge", headers: sam, payload: { address } })).json();
+      expect(challenge.message).toContain(address);
+      const badSig = Buffer.alloc(64).toString("base64");
+      expect((await srv.inject({ method: "POST", url: "/api/me/wallets/verify", headers: sam, payload: { nonce: challenge.nonce, signature: badSig } })).json()).toMatchObject({ error: "NOT_ELIGIBLE" });
+      const signature = sign(null, Buffer.from(challenge.message, "utf8"), privateKey).toString("base64");
+      const linked = await srv.inject({ method: "POST", url: "/api/me/wallets/verify", headers: sam, payload: { nonce: challenge.nonce, signature } });
+      expect(linked.json()).toMatchObject({ wallet: { address }, wallets: [{ address }] });
+      expect((await srv.inject({ method: "GET", url: "/api/me/nfts", headers: sam })).json()).toMatchObject({ nfts: [{ assetId, collection: { name: "Pixel Monks" }, submitted: false }] });
+
+      const started = await srv.inject({ method: "POST", url: "/api/submissions/from-nft", headers: sam, payload: { assetId, archetype: "HEAVY" } });
+      expect(started.statusCode).toBe(201);
+      expect(started.json()).toMatchObject({ portrait: "added", submission: { status: "DRAFT", community: "Pixel Monks", fighterName: "Pixel Monk 42", archetype: "HEAVY", files: [{ role: "PORTRAIT" }] } });
+      const walletId = linked.json().wallet.id;
+      expect((await srv.inject({ method: "DELETE", url: `/api/me/wallets/${walletId}`, headers: sam })).statusCode).toBe(204);
+      expect((await srv.inject({ method: "POST", url: "/api/me/wallets/challenge", headers: sam, payload: { address: "0xnope" } })).json()).toMatchObject({ error: "NOT_ELIGIBLE" });
     } finally {
       await srv.close();
     }

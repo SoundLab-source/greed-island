@@ -16,3 +16,4 @@ export * from "./staff.ts";
 export * from "./seasons.ts";
 export * from "./submissions.ts";
 export * from "./voting.ts";
+export * from "./nft.ts";

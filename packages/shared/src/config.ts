@@ -7,6 +7,7 @@ import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
 import { DEFAULT_STAFF, type StaffConfig } from "./staff.ts";
 import { DEFAULT_SUBMISSIONS, type SubmissionConfig } from "./submissions.ts";
 import { DEFAULT_VOTING, type VotingConfig } from "./voting.ts";
+import { DEFAULT_NFT, type NftConfig } from "./nft.ts";
 import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
 import { DEFAULT_TIERS, validateTiers, type TierConfig } from "./tiers.ts";
 import { DEFAULT_TOURNAMENTS, type TournamentConfig } from "./tournaments.ts";
@@ -43,6 +44,7 @@ export interface Config {
   seasons: SeasonConfig;
   submissions: SubmissionConfig;
   voting: VotingConfig;
+  nft: NftConfig;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -220,6 +222,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       podium: numberFromEnv(env, "GI_TOURNAMENT_PODIUM", DEFAULT_TOURNAMENTS.podium),
     }),
     seasons,
+    nft: {
+      challengeTtlMs: DEFAULT_NFT.challengeTtlMs,
+      maxWalletsPerUser: numberFromEnv(env, "GI_MAX_WALLETS", DEFAULT_NFT.maxWalletsPerUser),
+    },
     voting: validateVoting(
       {
         windowMs: numberFromEnv(env, "GI_VOTING_DAYS", DEFAULT_VOTING.windowMs / DAY) * DAY,

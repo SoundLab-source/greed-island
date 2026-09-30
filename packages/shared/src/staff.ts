@@ -16,12 +16,14 @@ export type StaffPermission =
   /** Read the staff log and the staff list. */
   | "view_log"
   /** Appoint and remove moderators. */
-  | "manage_moderators";
+  | "manage_moderators"
+  /** Approve NFT collections for submissions and looks. */
+  | "manage_collections";
 
 const PERMISSIONS: Record<UserRole, readonly StaffPermission[]> = {
   PLAYER: [],
   MODERATOR: ["review", "reset_names", "view_log"],
-  ADMIN: ["review", "reset_names", "view_log", "manage_moderators"],
+  ADMIN: ["review", "reset_names", "view_log", "manage_moderators", "manage_collections"],
 };
 
 export function hasPermission(role: UserRole, permission: StaffPermission): boolean {
