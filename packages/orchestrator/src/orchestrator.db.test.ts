@@ -175,6 +175,28 @@ describe("Orchestrator with the fake engine", () => {
     expect(await getBalance(db, user.id)).toBe(400n);
   });
 
+  it("records a stop during the fight as a deliberate stop (ADMIN), not a crash", async () => {
+    const { user } = await createUser(db, { kind: "ANONYMOUS" }, config.economy);
+    // An engine that runs until it's told to stop, like a real one.
+    const untilStopped = {
+      mode: "fake" as const,
+      run: (_spec: unknown, run: { signal?: AbortSignal } = {}) =>
+        new Promise<{ kind: "engine_crash"; detail: string }>((resolve) => {
+          const done = () => resolve({ kind: "engine_crash", detail: "aborted" });
+          if (run.signal?.aborted) done();
+          else run.signal?.addEventListener("abort", done);
+        }),
+    };
+    const o = new Orchestrator({ ...deps, orch: { ...orch, bettingWindowMs: 50 }, source: untilStopped, rng: rng() });
+    bus.subscribe(async (e) => {
+      if (e.type === "fight_state" && e.state === "BETTING_OPEN") await placeFightBet(db, config, { userId: user.id, fightId: e.fightId, side: 2, stake: 30n, idempotencyKey: "y-0000001" });
+      if (e.type === "fight_state" && e.state === "IN_PROGRESS") o.stop();
+    });
+    expect(await o.runOneFight()).toMatchObject({ result: "VOIDED", voidReason: "ADMIN" });
+    expect(await getBalance(db, user.id)).toBe(400n);
+    expect((await auditLedger(db)).ok).toBe(true);
+  });
+
   it("refuses sim mode", () => {
     expect(() => new Orchestrator({ ...deps, source: { mode: "sim", run: async () => ({ kind: "engine_crash", detail: "" }) } })).toThrow(/sim/);
   });

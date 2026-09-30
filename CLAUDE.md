@@ -34,7 +34,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm ikemen:install-mod`: copy `ikemen/mods/salty_events.lua` into `$IKEMEN_DIR/external/mods/` (the runner refuses to launch if it's missing or outdated)
 - `pnpm match:once [--p1 key] [--p2 key] [--stage id] [--sim] [--p1-attack 115 --p2-life 120 ...]`: one real fight from roster.json (no DB), optionally with upgraded stats; artifacts in `runs/<fightId>/`
 - `pnpm roster:smoke [--dry-run]`: run each enabled fighter and stage once in `sim`; disables failures in roster.json
-- `Start Greed Island.command` / `Stop Greed Island.command` (macOS, double-click): start Docker if needed and run `ENGINE_MODE=live pnpm dev` in a Terminal window, open the watch page, bring each fight window to the front; stop it (SIGINT; closing the window sends SIGHUP, also handled)
+- `Start Greed Island.command` / `Stop Greed Island.command` (macOS, double-click): start Docker if needed and run `ENGINE_MODE=live GI_GAME_TO_FRONT=true pnpm dev` in a Terminal window and open the watch page; stop it (SIGINT; closing the window sends SIGHUP, also handled)
 - `pnpm obs:setup`: with OBS open and `GI_OBS_URL`/`GI_OBS_PASSWORD` set, create the Fight and Betting scenes (screen capture + overlay) and reload the overlay; safe to re-run
 
 Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.

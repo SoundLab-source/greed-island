@@ -78,6 +78,10 @@ export function outcomeFromDump(dump: LuaDump, roundsToWin: number): EngineOutco
   if (typeof w1 !== "number" || typeof w2 !== "number") return null;
   const r1 = w1 >= roundsToWin;
   const r2 = w2 >= roundsToWin;
+  // Nobody reached the win count: the match never finished (the window was
+  // closed or the engine quit). A real draw ends with both at the count
+  // (docs/ikemen-notes.md §3); a closed window logs WinSide -1, Wins 0-0 (§4).
+  if (!r1 && !r2) return { kind: "engine_crash", detail: `the match stopped before anyone won (wins ${w1}-${w2}): the game was closed or quit` };
   const tally: WinnerSide = r1 === r2 ? 0 : r1 ? 1 : 2;
   // winSide is 0-based (0 = P1, 1 = P2), −1 for a draw.
   const engine: WinnerSide = winSide === 0 ? 1 : winSide === 1 ? 2 : 0;

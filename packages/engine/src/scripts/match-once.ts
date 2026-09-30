@@ -49,6 +49,8 @@ const source = createIkemenSource({
   aiLevel: cfg.aiLevel,
   simSpeed: cfg.simSpeed,
   extraArgs: cfg.extraArgs,
+  // One fight you're here to watch: show it in front.
+  bringToFront: mode === "live" || cfg.bringToFront,
 });
 console.log(`Fight ${spec.fightId} (${mode}): ${p1} vs ${p2} on ${stage}`);
 for (const side of [1, 2] as const) {

@@ -56,29 +56,13 @@ fi
   done
 ) &
 
-# Bring each new fight's window to the front while the server runs.
-if [[ $BRING_GAME_TO_FRONT == 1 && $REAL_FIGHTS == 1 ]]; then
-  (
-    last=""
-    sleep 5
-    while pgrep -f "tsx.*src/scripts/dev\.ts$" >/dev/null; do
-      p=$(pgrep -f "Ikemen_GO_MacOS" | head -1)
-      if [[ -n $p && $p != $last ]]; then
-        sleep 2
-        osascript -l JavaScript -e "ObjC.import('AppKit'); const a = \$.NSRunningApplication.runningApplicationWithProcessIdentifier($p); a.isNil() ? '' : a.activateWithOptions(\$.NSApplicationActivateAllWindows)" >/dev/null 2>&1
-        last=$p
-      fi
-      sleep 1
-    done
-  ) &
-fi
-
 echo "The watch page opens in your browser in a moment: $WATCH_URL"
 echo "Leave this window open while it runs. Press Control-C here to stop."
 echo
 
 # The game server runs in this window until stopped.
 if [[ $REAL_FIGHTS == 1 ]]; then
+  if [[ $BRING_GAME_TO_FRONT == 1 ]]; then export GI_GAME_TO_FRONT=true; fi
   ENGINE_MODE=live pnpm dev
 else
   ENGINE_MODE=fake pnpm dev

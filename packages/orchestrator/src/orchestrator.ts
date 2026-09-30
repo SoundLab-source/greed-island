@@ -106,6 +106,9 @@ export class Orchestrator {
 
       if (outcome.kind === "finished") {
         await move({ type: "MATCH_END", winnerSide: outcome.winnerSide });
+      } else if (this.stopped) {
+        // We stopped the engine ourselves (shutdown): not a crash.
+        await move({ type: "VOID", reason: "ADMIN", detail: "orchestrator stopped" });
       } else if (outcome.kind === "engine_timeout") {
         await move({ type: "ENGINE_TIMEOUT", detail: outcome.detail });
       } else {

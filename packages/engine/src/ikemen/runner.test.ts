@@ -42,7 +42,7 @@ const spec = (fightId: string, stage = "stages/s.def"): FightSpec => ({
   roundsToWin: 2,
 });
 
-function source(mode: string, timeoutMs = 10_000) {
+function source(mode: string, timeoutMs = 10_000, extra: Partial<Parameters<typeof createIkemenSource>[0]> = {}) {
   return createIkemenSource({
     mode: "sim",
     ikemenDir,
@@ -52,6 +52,7 @@ function source(mode: string, timeoutMs = 10_000) {
     killGraceMs: 200,
     postMatchGraceMs: 300,
     env: { ...process.env, IKEMEN_BIN: binary, STUB_MODE: mode },
+    ...extra,
   });
 }
 
@@ -85,6 +86,24 @@ describe("ikemen runner", () => {
     const outcome = await source("log-only").run(spec("log"));
     expect(outcome).toMatchObject({ kind: "finished", winnerSide: 2 });
     expect(JSON.parse(await readFile(path.join(runsDir, "log", "result.json"), "utf8")).source).toBe("log");
+  });
+
+  it("reports a closed game window as a stopped match, not a draw", async () => {
+    const outcome = await source("closed").run(spec("closed"));
+    expect(outcome).toMatchObject({ kind: "engine_crash", detail: expect.stringMatching(/stopped before anyone won/) });
+  });
+
+  it("brings the game window forward once, only when asked", async () => {
+    const pids: number[] = [];
+    const activate = (pid: number) => pids.push(pid);
+    await source("linger", 10_000, { bringToFront: true, bringToFrontDelayMs: 20, activate }).run(spec("front"));
+    expect(pids).toHaveLength(1);
+    expect(pids[0]).toBeGreaterThan(0);
+    await source("linger", 10_000, { activate }).run(spec("no-front"));
+    expect(pids).toHaveLength(1);
+    // A game that's already gone isn't activated.
+    await source("ok", 10_000, { bringToFront: true, bringToFrontDelayMs: 2_000, activate }).run(spec("gone"));
+    expect(pids).toHaveLength(1);
   });
 
   it("treats unreadable event lines as a crash", async () => {

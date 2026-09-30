@@ -38,6 +38,12 @@ switch (process.env.STUB_MODE) {
   case "log-only":
     dump(1, 1, 2);
     break;
+  case "closed":
+    // The window closed mid-match: a clean exit, and a log with nobody at the win count.
+    emit({ type: "match_start", p1: "A", p2: "B" });
+    emit({ type: "round_start", round: 1 });
+    dump(-1, 0, 0);
+    break;
   case "garbage":
     appendFileSync(events, "this is not json\n");
     break;

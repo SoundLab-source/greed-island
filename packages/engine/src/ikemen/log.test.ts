@@ -36,6 +36,15 @@ describe("real event stream", () => {
   });
 });
 
+describe("real -log output from a closed game window", () => {
+  it("is a stopped match, not a draw (nobody reached the win count)", async () => {
+    const text = await readFile(new URL("./fixtures/v1.0.0-closed-early/match.log", import.meta.url), "utf8");
+    const dump = parseLuaDump(text);
+    expect(dump).toMatchObject({ MatchTime: 0, WinSide: -1, LastRound: 0 });
+    expect(outcomeFromDump(dump, 2)).toMatchObject({ kind: "engine_crash", detail: expect.stringMatching(/stopped before anyone won/) });
+  });
+});
+
 describe("outcomeFromDump edge cases", () => {
   const dump = (winSide: number, w1: number, w2: number) =>
     parseLuaDump(`table: 0x1 {\n  ["WinSide"] => ${winSide}\n  ["Wins"] => table: 0x2 {\n    [1] => ${w1}\n    [2] => ${w2}\n  }\n}\n`);

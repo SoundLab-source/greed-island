@@ -114,7 +114,7 @@ Add `&site=your.site` to show where people can bet. The overlay is laid out for 
 
 On the first start OBS shows a permissions window and an auto-configuration wizard: allow **Screen Recording** (needed for the game capture), cancel the wizard (streaming settings are set later, in Settings → Stream), then **quit and reopen OBS**. Until that restart the overlay stays blank and the capture stays off.
 
-**What the capture shows.** The game capture records the whole main screen. IKEMEN opens its window behind whatever app is in front, so on a Mac you're also using, viewers would see your own windows. Stream from a machine where the game is the only thing on screen, or keep the game window in front. Capturing only IKEMEN's window doesn't work yet (docs/obs-notes.md).
+**What the capture shows.** The game capture records the whole main screen. IKEMEN opens its window behind whatever app is in front, so set `GI_GAME_TO_FRONT=true` in `.env` when streaming: each fight's window then comes to the front a moment after it opens (it takes focus, so don't use the Mac for other things while streaming). A machine where the game is the only thing on screen is simplest. Capturing only IKEMEN's window doesn't work yet (docs/obs-notes.md).
 
 Then, in OBS, Settings → Stream: pick Twitch or YouTube and paste the stream key, and press Start Streaming. On a Linux server, OBS can run on the Xvfb display (`obs --startstreaming --minimize-to-tray`).
 

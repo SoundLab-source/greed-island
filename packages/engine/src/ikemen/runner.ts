@@ -17,6 +17,7 @@ import { buildArgs, runConfigIni, type RunPaths } from "./args.ts";
 import { deriveCharacter, pruneDerived, readConstants } from "./derive.ts";
 import { findIkemenBinary, isModInstalled } from "./install.ts";
 import { outcomeFromLog } from "./log.ts";
+import { activateMacApp } from "./window.ts";
 
 /** How many per-fight character copies (attack/defense upgrades) to keep on disk. */
 const LOADOUT_CACHE_SIZE = 64;
@@ -38,6 +39,16 @@ export interface IkemenSourceOptions {
   /** Between SIGTERM and SIGKILL. */
   killGraceMs?: number;
   env?: NodeJS.ProcessEnv;
+  /**
+   * Bring the game window to the front shortly after launch (macOS), so a
+   * whole-screen stream capture shows the fight. Off by default: it takes
+   * focus from whatever you're doing.
+   */
+  bringToFront?: boolean;
+  /** Wait before bringing it forward (the window needs a moment to appear). */
+  bringToFrontDelayMs?: number;
+  /** How to bring a process to the front (tests replace it). */
+  activate?: (pid: number) => unknown;
 }
 
 /** Reads complete lines appended to a file since the last call. */
@@ -148,6 +159,15 @@ export function createIkemenSource(options: IkemenSourceOptions): EventSource {
       let exitInfo: Awaited<typeof exited> | null = null;
       void exited.then((info) => (exitInfo = info));
 
+      let frontTimer: ReturnType<typeof setTimeout> | undefined;
+      if (options.bringToFront && child.pid) {
+        const pid = child.pid;
+        const activate = options.activate ?? activateMacApp;
+        frontTimer = setTimeout(() => {
+          if (!exitInfo) void Promise.resolve(activate(pid)).catch(() => {});
+        }, options.bringToFrontDelayMs ?? 2_500);
+      }
+
       const kill = async () => {
         if (exitInfo) return;
         child.kill("SIGTERM");
@@ -193,6 +213,7 @@ export function createIkemenSource(options: IkemenSourceOptions): EventSource {
         await exited;
         await drain();
       } finally {
+        clearTimeout(frontTimer);
         await tail.close();
         closeSync(outFd);
         closeSync(errFd);

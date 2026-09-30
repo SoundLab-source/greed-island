@@ -2,14 +2,14 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-29, after the first test with real OBS and real IKEMEN fights. Update this file at the end of every build step.*
+*Last updated 2026-09-29, after the game-window and stop fixes. Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster) hasn't started. |
-| **Next step** | Decide where the stream runs (a machine where the game is the only thing on screen), then a private test recording (see "What's next"). Phase 3 needs a plan agreed with you first. |
+| **Next step** | A Phase 3 plan for you to review (community fighters and voting), and deciding where the stream runs (see "What's next"). |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | Anything community or on-chain. Not yet working: capturing only the game window. Not yet tried: a real stream |
 | **Health** | 409 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
@@ -64,14 +64,15 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
 - ✅ **OBS installed and tested with real fights**: OBS 32.2.2 (checksum and Apple notarization verified). `pnpm obs:setup` creates the scenes and picks the screen to capture; scene switching followed every fight, including a real IKEMEN fight (#111); the betting screen and the fight bar render inside OBS over the capture. Known limit: the capture is the whole screen, and the game window opens behind other apps, so capturing only the game window is still open ([obs-notes.md](docs/obs-notes.md)).
+- ✅ **Double-click Start / Stop files** (`57453b6`) for the Mac, and **game window fixes**: each fight's window can come to the front by itself (`GI_GAME_TO_FRONT`, on in the Start file), so whole-screen capture shows the game; a closed game window is recorded as a stopped fight instead of a "draw", and stopping the server mid-fight as a deliberate stop instead of a crash (bets refunded either way).
 - ✅ **Watch page** (`/watch.html`): the video (a Twitch channel via `GI_TWITCH_CHANNEL`, or the live betting screen until there is one), one-click Red/Blue betting with stake shortcuts, the countdown, and Twitch chat or a live feed of results. Works on phones.
 
 ## What's next
 
 **Recommended next: where the stream runs, then a private recording**
-- The capture shows the whole screen and the game opens behind other apps, so a stream needs a machine (or a spare Mac user account or display) where the game is the only thing showing. Decide: a home mini PC, a cloud server, or a second screen on this Mac.
+- The capture shows the whole screen. With `GI_GAME_TO_FRONT=true` this Mac can stream as long as it isn't used for anything else meanwhile (the game takes focus every fight). For a 24/7 stream, pick a machine where the game is the only thing showing: a home mini PC, a cloud server, or a second screen on this Mac.
 - Then a private test recording of real fights on that setup, and after that a Twitch channel for `GI_TWITCH_CHANNEL` and an unlisted test stream.
-- Optional engineering: make "capture only the game window" work (e.g. launching IKEMEN so macOS treats it as a normal app), so a Mac in daily use can stream too.
+- Optional engineering: make "capture only the game window" work, so a Mac in daily use can stream without the game taking focus.
 
 **Also needed before a public stream**
 - Running on a Linux server with a virtual display (Xvfb): written up, not yet tried.

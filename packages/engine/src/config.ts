@@ -15,6 +15,8 @@ export interface EngineConfig {
   simSpeed: number;
   /** Extra IKEMEN flags, space-separated in GI_IKEMEN_ARGS (e.g. "-windowed"). */
   extraArgs: string[];
+  /** GI_GAME_TO_FRONT=true: bring each fight's window to the front (macOS; for streaming). */
+  bringToFront: boolean;
 }
 
 function num(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
@@ -37,5 +39,6 @@ export function loadEngineConfig(env: NodeJS.ProcessEnv = process.env): EngineCo
     aiLevel: num(env, "GI_AI_LEVEL", 8),
     simSpeed: num(env, "GI_SIM_SPEED", 4),
     extraArgs: (env["GI_IKEMEN_ARGS"] ?? "-windowed").split(/\s+/).filter(Boolean),
+    bringToFront: ["1", "true", "yes"].includes((env["GI_GAME_TO_FRONT"] ?? "").trim().toLowerCase()),
   };
 }

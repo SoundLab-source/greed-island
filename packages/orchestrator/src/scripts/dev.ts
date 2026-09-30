@@ -30,6 +30,7 @@ if (engine.mode === "fake") {
     timeoutMs: engine.timeoutMs,
     aiLevel: engine.aiLevel,
     extraArgs: engine.extraArgs,
+    bringToFront: engine.bringToFront,
   });
 } else {
   throw new Error("ENGINE_MODE=sim is only for roster:smoke; use fake or live");
