@@ -1,0 +1,166 @@
+/**
+ * GRAPPLER template, "Wrestler": wants to be close. Palm strikes and a
+ * clothesline up front, a bull rush and a big dropkick, and two throws: a body
+ * slam up close and a lunging dive grab (a command throw that beats blocking).
+ */
+import type { TemplateSpec } from "./spec.ts";
+import { sharedAnims, UNIVERSAL_PROTOTYPE } from "./universal-prototype.ts";
+
+export const GRAPPLER: TemplateSpec = {
+  id: "gi-tpl-grappler",
+  name: "Wrestler",
+  archetype: "GRAPPLER",
+  art: UNIVERSAL_PROTOTYPE,
+  constants: {
+    life: 1050,
+    attack: 100,
+    defence: 100,
+    walkFwd: 2.1,
+    walkBack: -2,
+    runFwd: 4.2,
+    hopBack: [-4, -3.4],
+    jumpUp: -8,
+    jumpFwd: 2.3,
+    jumpBack: -2.3,
+    gravity: 0.44,
+    width: [17, 16],
+    height: 62,
+  },
+  anims: [
+    ...sharedAnims({ stand: [499, 500, 501, 502, 501, 500], standTicks: 7 }),
+    { action: 180, cells: { from: 1158, to: 1162 }, ticks: [6, 6, 6, 6, 60], loop: false, comment: "win: arms wide" },
+    { action: 181, cells: { from: 201, to: 205 }, ticks: [6, 6, 6, 8, 60], loop: false, comment: "win: fist pump" },
+    { action: 190, cells: [492, 493, 494, 495, 496, 497, 498, 499], ticks: [5, 5, 6, 8, 20, 6, 5, 10], comment: "intro: wrestler's squat" },
+    { action: 195, cells: { from: 22, to: 26 }, ticks: [5, 5, 5, 20, 6], comment: "taunt" },
+  ],
+  attacks: [
+    {
+      state: 200, name: "Jab", from: "stand", command: "x",
+      anim: { action: 200, cells: [251, 252, 253, 254, 255, 256], ticks: [2, 4, 3, 3, 3, 3] },
+      hits: [{ frames: [1], damage: 25, height: "high", weight: "light", hitStun: 11, blockStun: 9, push: 4 }],
+      ai: { range: 45, weight: 2 },
+    },
+    {
+      state: 210, name: "Double Palm", from: "stand", command: "y",
+      anim: { action: 210, cells: [2546, 2547, 2548, 2549, 2550, 2551, 2552], ticks: [3, 3, 3, 4, 4, 4, 4] },
+      hits: [{ frames: [3, 4], damage: 60, height: "high", weight: "medium", hitStun: 16, blockStun: 12, push: 8 }],
+      ai: { range: 65, weight: 2 },
+    },
+    {
+      state: 230, name: "Mid Kick", from: "stand", command: "a",
+      anim: { action: 230, cells: [389, 390, 391, 392, 393, 394, 395], ticks: [2, 3, 3, 4, 3, 3, 3] },
+      hits: [{ frames: [2, 3], damage: 32, height: "mid", weight: "light", hitStun: 12, blockStun: 10, push: 5 }],
+      ai: { range: 60, weight: 2 },
+    },
+    {
+      state: 240, name: "Clothesline", from: "stand", command: "b",
+      anim: { action: 240, cells: [1813, 1814, 1815, 1816, 1817, 1818], ticks: [4, 4, 4, 5, 5, 5] },
+      hits: [{ frames: [2, 3], damage: 70, height: "high", weight: "heavy", hitStun: 18, blockStun: 13, push: 7 }],
+      ai: { range: 60, weight: 2 },
+    },
+    {
+      state: 400, name: "Crouching Jab", from: "crouch", command: "x",
+      anim: { action: 400, cells: [2275, 2276, 2277, 2278, 2279], ticks: [2, 3, 3, 3, 3] },
+      hits: [{ frames: [1, 2], damage: 22, height: "low", weight: "light", hitStun: 10, blockStun: 8, push: 4 }],
+      ai: { range: 45, weight: 1 },
+    },
+    {
+      state: 410, name: "Crouching Straight", from: "crouch", command: "y",
+      anim: { action: 410, cells: [2281, 2282, 2283, 2284, 2285, 2286], ticks: [3, 3, 4, 4, 4, 4] },
+      hits: [{ frames: [2, 3], damage: 55, height: "high", weight: "medium", hitStun: 16, blockStun: 12, push: 5 }],
+      ai: { range: 50, weight: 1, antiAir: true },
+    },
+    {
+      state: 430, name: "Low Kick", from: "crouch", command: "a",
+      anim: { action: 430, cells: [726, 727, 728, 729, 730, 731], ticks: [2, 3, 4, 4, 3, 3] },
+      hits: [{ frames: [2, 3], damage: 28, height: "low", weight: "light", hitStun: 12, blockStun: 10, push: 5 }],
+      ai: { range: 60, weight: 1 },
+    },
+    {
+      state: 440, name: "Sweep", from: "crouch", command: "b",
+      anim: { action: 440, cells: [846, 847, 848, 849, 850, 851, 852], ticks: [3, 3, 3, 4, 5, 5, 5] },
+      hits: [{ frames: [4, 5], damage: 55, height: "low", weight: "heavy", hitStun: 20, blockStun: 14, push: 5, trip: true, launch: [1.5, -3] }],
+      ai: { range: 75, weight: 1 },
+    },
+    {
+      state: 600, name: "Jumping Punch", from: "air", command: "x",
+      anim: { action: 600, cells: [601, 602, 603, 604, 605], ticks: [3, 3, 6, 5, 5], anchor: "feet" },
+      hits: [{ frames: [2, 3], damage: 35, height: "high", weight: "light", hitStun: 12, blockStun: 10, push: 4 }],
+      ai: { range: 50, weight: 2 },
+    },
+    {
+      state: 630, name: "Flying Kick", from: "air", command: "b",
+      anim: { action: 630, cells: [659, 660, 661, 662, 663], ticks: [3, 4, 8, 6, 6], anchor: "feet" },
+      hits: [{ frames: [1, 2], damage: 60, height: "high", weight: "medium", hitStun: 16, blockStun: 12, push: 5 }],
+      ai: { range: 65, weight: 2 },
+    },
+    {
+      state: 1000, name: "Bull Rush", from: "stand", command: "QCF_x", special: true,
+      anim: { action: 1000, cells: [2552, 2553, 2554, 2555, 2556, 2557, 2558], ticks: [3, 5, 5, 4, 4, 4, 4] },
+      hits: [{ frames: [1, 2], damage: 85, chip: 8, height: "high", weight: "heavy", hitStun: 20, blockStun: 16, push: 8, knockdown: true, launch: [4, -5] }],
+      moves: [{ frame: 0, x: 5 }, { frame: 3, x: 0 }],
+      ai: { range: 110, weight: 1 },
+    },
+    {
+      state: 1100, name: "Dropkick", from: "stand", command: "QCB_b", special: true,
+      anim: { action: 1100, cells: [516, 517, 518, 519, 520, 521, 522, 523, 524, 527, 530, 531, 532, 533, 534], ticks: [3, 4, 8, 4, 4, 4, 4, 6, 6, 6, 6, 5, 5, 5, 5] },
+      hits: [{ frames: [2], damage: 95, chip: 9, height: "high", weight: "heavy", hitStun: 22, blockStun: 18, push: 10, knockdown: true, launch: [5, -5] }],
+      moves: [{ frame: 1, x: 4.5 }, { frame: 4, x: 0 }],
+      ai: { range: 100, weight: 1 },
+    },
+  ],
+  throws: [
+    {
+      state: 800, name: "Body Slam", command: "throw",
+      reach: { action: 800, cells: [946, 947, 948], ticks: [2, 3, 6] },
+      catchFrames: [1, 2],
+      hold: [
+        { cell: 948, ticks: 4, victim: [30, 0] },
+        { cell: 950, ticks: 4, victim: [30, 0] },
+        { cell: 1032, ticks: 4, victim: [22, 30], lifted: true },
+        { cell: 1033, ticks: 6, victim: [6, 95], lifted: true },
+        { cell: 1034, ticks: 6, victim: [6, 105], lifted: true },
+        { cell: 1035, ticks: 4, victim: [30, 70], lifted: true },
+        { cell: 1036, ticks: 4, victim: [45, 25] },
+        { cell: 1037, ticks: 5, victim: [45, 0] },
+        { cell: 1038, ticks: 5, victim: [45, 0] },
+        { cell: 1039, ticks: 6, victim: [45, 0] },
+        { cell: 1040, ticks: 5, victim: [45, 0] },
+        { cell: 1041, ticks: 5, victim: [45, 0] },
+      ],
+      release: { frame: 6, x: 2.5, y: 3 },
+      damage: 95,
+      ai: { range: 22, weight: 2 },
+    },
+    {
+      state: 1300, name: "Dive Grab", command: "QCF_y", special: true,
+      reach: { action: 1300, cells: [504, 506, 508, 509, 510, 511, 512, 513], ticks: [2, 2, 3, 3, 3, 4, 5, 6] },
+      catchFrames: [3, 4, 5],
+      moves: [{ frame: 2, x: 5 }, { frame: 6, x: 0 }],
+      hold: [
+        { cell: 948, ticks: 5, victim: [30, 0] },
+        { cell: 1033, ticks: 6, victim: [6, 95], lifted: true },
+        { cell: 1034, ticks: 10, victim: [6, 115], lifted: true },
+        { cell: 976, ticks: 4, victim: [20, 70], lifted: true },
+        { cell: 977, ticks: 5, victim: [35, 15] },
+        { cell: 978, ticks: 8, victim: [35, 0] },
+        { cell: 979, ticks: 6, victim: [35, 0] },
+        { cell: 980, ticks: 6, victim: [35, 0] },
+      ],
+      release: { frame: 4, x: 1.5, y: 5 },
+      damage: 130,
+      ai: { range: 70, weight: 1 },
+    },
+  ],
+  ai: { range: 35, aggression: 85, block: 580, jump: 5, run: 25 },
+  colors: {
+    25: "#6a3a8a", 26: "#502c68", 27: "#361d45", 28: "#1b0f23",
+    37: "#303030", 38: "#232323", 39: "#171717", 40: "#0b0b0b",
+  },
+  palettes: [
+    { name: "Gold", colors: { 25: "#d9a93a", 26: "#a8822c", 27: "#71571e", 28: "#382b0f" } },
+    { name: "Teal", colors: { 25: "#2f8f8a", 26: "#246b68", 27: "#184745", 28: "#0c2423" } },
+    { name: "Ivory", colors: { 25: "#ece6d6", 26: "#c1bba9", 27: "#877f6f", 28: "#433f37", 37: "#5a2a2a", 38: "#441f1f", 39: "#2d1515", 40: "#170a0a" } },
+  ],
+  portrait: { cell: 499 },
+};

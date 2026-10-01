@@ -11,7 +11,7 @@
  * Shared states (walking, jumping, guarding, getting hit) come from the
  * engine's common1.cns.
  */
-import type { AttackSpec, Command, HitSpec, TemplateSpec } from "./spec.ts";
+import type { AttackSpec, Command, HitSpec, TemplateSpec, ThrowSpec } from "./spec.ts";
 
 /** Round for a .cns file. */
 function n(x: number): string {
@@ -84,8 +84,8 @@ function hitDef(spec: TemplateSpec, a: AttackSpec, h: HitSpec, i: number): strin
   const w = WEIGHT[h.weight];
   const knock = h.knockdown || h.trip;
   const launch = h.launch ?? (h.trip ? [1.5, -3] : [4, -5]);
-  const guard = h.height === "low" ? "LA" : "MA";
-  const ground = h.trip ? "Trip" : h.height === "high" ? "High" : "Low";
+  const guard = h.height === "low" ? "LA" : h.height === "overhead" ? "HA" : "MA";
+  const ground = h.trip ? "Trip" : h.height === "high" || h.height === "overhead" ? "High" : "Low";
   const hitAnim = knock ? (h.trip ? w.anim : "Back") : w.anim;
   const values: Record<string, string | number> = {
     type: "HitDef",
@@ -118,6 +118,32 @@ function hitDef(spec: TemplateSpec, a: AttackSpec, h: HitSpec, i: number): strin
   return [`[State ${a.state}, hit ${i + 1}]`, ...Object.entries(values).map(([key, v]) => `${key} = ${typeof v === "number" ? n(v) : v}`)].join("\n");
 }
 
+/** A Projectile controller carrying the move's hit (MUGEN's Projectile takes the HitDef parameters). */
+function projectileDef(spec: TemplateSpec, a: AttackSpec): string {
+  const k = unitScale(spec);
+  const p = a.projectile!;
+  const hit = hitDef(spec, a, a.hits[0]!, 0).split("\n").slice(1) // drop the [State] line
+    .filter((l) => !/^(type|trigger1|priority|pausetime) =/.test(l))
+    .map((l) => (l.startsWith("attr = ") ? `attr = S, ${a.special ? "SP" : "NP"}` : l));
+  return [
+    `[State ${a.state}, projectile]`,
+    "type = Projectile",
+    `trigger1 = AnimElem = ${p.frame + 1}`,
+    `projID = ${a.state}`,
+    `projanim = ${a.state + 50}`,
+    `projhitanim = ${a.state + 51}`,
+    `projremanim = ${a.state + 52}`,
+    `velocity = ${n(p.speed * k)}, 0`,
+    `offset = ${n(30 * k)}, ${n(-p.height * k)}`,
+    "projpriority = 1",
+    "projsprpriority = 3",
+    `projedgebound = ${n(40 * k)}`,
+    `projstagebound = ${n(40 * k)}`,
+    "pausetime = 0, 12",
+    ...hit,
+  ].join("\n");
+}
+
 function attackState(spec: TemplateSpec, a: AttackSpec): string {
   const k = unitScale(spec);
   const t = stateType(a);
@@ -138,13 +164,65 @@ function attackState(spec: TemplateSpec, a: AttackSpec): string {
   for (const m of a.moves ?? []) {
     lines.push(`[State ${a.state}, move]`, "type = VelSet", `trigger1 = AnimElem = ${m.frame + 1}`, `x = ${n(m.x * k)}`, ...(m.y !== undefined ? [`y = ${n(m.y * k)}`] : []), "");
   }
-  a.hits.forEach((h, i) => lines.push(hitDef(spec, a, h, i), ""));
+  if (a.projectile) lines.push(projectileDef(spec, a), "");
+  else a.hits.forEach((h, i) => lines.push(hitDef(spec, a, h, i), ""));
   if (t === "A") {
     // Air attacks land when they reach the ground; the animation holds until then.
     lines.push(`[State ${a.state}, land]`, "type = ChangeState", "trigger1 = Vel Y > 0 && Pos Y >= 0", "value = 52", "");
   } else {
     lines.push(`[State ${a.state}, end]`, "type = ChangeState", "trigger1 = AnimTime = 0", `value = ${t === "C" ? 11 : 0}`, "ctrl = 1", "");
   }
+  return lines.join("\n");
+}
+
+/**
+ * A throw's states, in the pattern MUGEN characters use: a HitDef with
+ * p1stateno/p2stateno moves both fighters into our states; TargetBind holds
+ * the victim frame by frame; TargetLifeAdd and TargetState throw it; the
+ * victim falls under gravity until it lands in the engine's state 5100.
+ */
+function throwStates(spec: TemplateSpec, t: ThrowSpec): string {
+  const k = unitScale(spec);
+  const S = t.state;
+  const lines = [
+    `; ${t.name} (${t.special ? "special" : "normal"} throw, ${t.command})`,
+    `[Statedef ${S}]`, "type = S", "movetype = A", "physics = S", "juggle = 0", "velset = 0, 0", "ctrl = 0", `anim = ${S}`, "sprpriority = 2", "",
+  ];
+  for (const m of t.moves ?? []) lines.push(`[State ${S}, move]`, "type = VelSet", `trigger1 = AnimElem = ${m.frame + 1}`, `x = ${n(m.x * k)}`, "");
+  lines.push(
+    `[State ${S}, grab]`, "type = HitDef", `trigger1 = AnimElem = ${t.catchFrames[0]! + 1}`,
+    `attr = S, ${t.special ? "ST" : "NT"}`, "hitflag = M-", `priority = ${t.special ? 2 : 1}, Miss`, "sparkno = -1",
+    "p1sprpriority = 1", "p1facing = 1", "p2facing = 1", `p1stateno = ${S + 10}`, `p2stateno = ${S + 20}`, "guard.dist = 0", "fall = 1", "",
+    `[State ${S}, missed]`, "type = ChangeState", "trigger1 = AnimTime = 0", "value = 0", "ctrl = 1", "",
+    `[Statedef ${S + 10}]`, "type = S", "movetype = A", "physics = N", `anim = ${S + 10}`, "velset = 0, 0", `poweradd = ${t.special ? 0 : 30}`, "",
+  );
+  const lifted = t.hold.findIndex((h) => h.lifted);
+  t.hold.forEach((h, i) => {
+    if (i > t.release.frame) return;
+    const during = i === t.hold.length - 1 ? `AnimElemTime(${i + 1}) >= 0` : `AnimElemTime(${i + 1}) >= 0 && AnimElemTime(${i + 2}) < 0`;
+    lines.push(`[State ${S + 10}, hold ${i + 1}]`, "type = TargetBind", `trigger1 = ${during}`, `pos = ${n(h.victim[0] * k)}, ${n(-h.victim[1] * k)}`, "");
+  });
+  if (lifted >= 0 && lifted < t.release.frame) lines.push(`[State ${S + 10}, lift]`, "type = TargetState", `trigger1 = AnimElem = ${lifted + 1}`, `value = ${S + 21}`, "");
+  lines.push(
+    `[State ${S + 10}, damage]`, "type = TargetLifeAdd", `trigger1 = AnimElem = ${t.release.frame + 1}`, `value = ${-t.damage}`, "",
+    `[State ${S + 10}, throw]`, "type = TargetState", `trigger1 = AnimElem = ${t.release.frame + 1}`, `value = ${S + 22}`, "",
+    `[State ${S + 10}, done]`, "type = ChangeState", "trigger1 = AnimTime = 0", "value = 0", "ctrl = 1", "",
+  );
+  for (const [state, anim, what] of [[S + 20, S + 20, "held"], [S + 21, S + 21, "lifted"]] as const) {
+    lines.push(
+      `; ${t.name}: the victim, ${what} (these run as the victim, with its own sprites)`,
+      `[Statedef ${state}]`, "type = A", "movetype = H", "physics = N", "velset = 0, 0", "",
+      `[State ${state}, anim]`, "type = ChangeAnim2", "trigger1 = Time = 0", `value = ${anim}`, "",
+      `[State ${state}, let go]`, "type = SelfState", "trigger1 = !GetHitVar(isbound)", "value = 5050", "",
+    );
+  }
+  lines.push(
+    `; ${t.name}: the victim, thrown`,
+    `[Statedef ${S + 22}]`, "type = A", "movetype = H", "physics = N", `velset = ${n(-t.release.x * k)}, ${n(-t.release.y * k)}`, "",
+    `[State ${S + 22}, anim]`, "type = ChangeAnim2", "trigger1 = Time = 0", `value = ${S + 22}`, "",
+    `[State ${S + 22}, gravity]`, "type = VelAdd", "trigger1 = Time > 0", `y = ${n(0.45 * k)}`, "",
+    `[State ${S + 22}, land]`, "type = SelfState", "trigger1 = Vel Y > 0 && Pos Y >= 0", "value = 5100", "",
+  );
   return lines.join("\n");
 }
 
@@ -202,6 +280,7 @@ export function statesFile(spec: TemplateSpec): string {
     "[State 195, done]", "type = ChangeState", "trigger1 = AnimTime = 0", "value = 0", "ctrl = 1", "",
   );
   for (const a of spec.attacks) parts.push(attackState(spec, a));
+  for (const t of spec.throws ?? []) parts.push(throwStates(spec, t));
   return parts.join("\n");
 }
 
@@ -219,10 +298,20 @@ function cond(...parts: string[]): string {
   return parts.filter(Boolean).join(" && ");
 }
 
-export function commandsFile(spec: TemplateSpec): string {
+/**
+ * `reach`: each move's measured reach (templates/reach.ts), used instead of
+ * the spec's hand-set `ai.range` when given.
+ */
+export function commandsFile(spec: TemplateSpec, reach?: ReadonlyMap<number, number>): string {
   const k = unitScale(spec);
+  const rangeOf = (m: { state: number; ai: { range: number } }) => reach?.get(m.state) ?? m.ai.range;
+  // Where to stand: no farther than the longest standing normal reaches, unless
+  // the fighter has a projectile (a zoner wants to stay out).
+  const standingReach = Math.max(0, ...spec.attacks.filter((a) => a.from === "stand" && !a.special && !a.projectile).map(rangeOf));
+  const spacing = reach && standingReach > 0 && !spec.attacks.some((a) => a.projectile) ? Math.min(spec.ai.range, standingReach) : spec.ai.range;
   const used = new Set<Command>(["FF", "BB", "x", "y", "a", "b"]);
   for (const a of spec.attacks) used.add(a.command);
+  for (const t of spec.throws ?? []) if (t.command !== "throw") used.add(t.command);
   const specials = spec.attacks.filter((a) => a.special);
   const normals = spec.attacks.filter((a) => !a.special);
   const ai = spec.ai;
@@ -254,6 +343,11 @@ export function commandsFile(spec: TemplateSpec): string {
 
   // ----- A person playing: the usual inputs (AILevel = 0). -----
   lines.push("; ----- Player input -----", "");
+  const throwable = "P2StateType != A && P2StateType != L && P2MoveType != H";
+  for (const t of spec.throws ?? []) {
+    const input = t.command === "throw" ? ['all:command = "y"', 'all:command = "holdfwd"', `all:${throwable}`, `all:P2BodyDist X <= ${n(rangeOf(t) * k)}`] : [`all:command = "${t.command}"`];
+    change(t.name, t.state, ["all:!AILevel", ...input, "all:StateType != A", "ctrl"]);
+  }
   for (const a of specials) {
     change(a.name, a.state, [`all:!AILevel`, `all:command = "${a.command}"`, `all:${fromState(a)}`, "ctrl", "StateNo = [200, 699] && MoveContact"]);
   }
@@ -287,26 +381,33 @@ export function commandsFile(spec: TemplateSpec): string {
   assert("AI: block low", ["D"], [`${inFight} && InGuardDist && var(50) && P2StateType = C`]);
   // Combos: a normal that connected cancels into a special in range.
   for (const a of specials) {
-    change(`AI: combo into ${a.name}`, a.state, [`all:${inFight}`, "all:StateNo = [200, 499] && MoveHit", `all:${dist(a.ai.range)}`, `Random < ${Math.min(999, ai.aggression * 3)}`]);
+    change(`AI: combo into ${a.name}`, a.state, [`all:${inFight}`, "all:StateNo = [200, 499] && MoveHit", `all:${dist(rangeOf(a))}`, `Random < ${Math.min(999, ai.aggression * 3)}`]);
   }
   // Anti-air: the opponent jumping in.
   for (const a of spec.attacks.filter((x) => x.ai.antiAir)) {
-    change(`AI: anti-air ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", "all:P2StateType = A && P2MoveType != H", `all:${dist(a.ai.range + 15)}`, `all:P2BodyDist Y < ${n(-20 * k)}`, `Random < ${Math.min(999, ai.aggression * 2 * a.ai.weight)}`]);
+    change(`AI: anti-air ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", "all:P2StateType = A && P2MoveType != H", `all:${dist(rangeOf(a) + 15)}`, `all:P2BodyDist Y < ${n(-20 * k)}`, `Random < ${Math.min(999, ai.aggression * 2 * a.ai.weight)}`]);
+  }
+  // Throws when close enough, against someone standing or crouching.
+  for (const t of spec.throws ?? []) {
+    change(`AI: ${t.name}`, t.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${throwable}`, `all:${dist(rangeOf(t))}`, `Random < ${Math.round((ai.aggression * t.ai.weight) / 3)}`]);
   }
   // Attacks in range, specials first, each as likely as its weight.
-  for (const a of [...specials, ...normals].filter((x) => x.from !== "air")) {
-    change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${dist(a.ai.range)}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
+  for (const a of spec.attacks.filter((x) => x.projectile)) {
+    change(`AI: ${a.name} from afar`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:P2BodyDist X > ${n(70 * k)}`, `all:NumProjID(${a.state}) = 0`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
+  }
+  for (const a of [...specials, ...normals].filter((x) => x.from !== "air" && !x.projectile)) {
+    change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${dist(rangeOf(a))}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
   }
   for (const a of normals.filter((x) => x.from === "air")) {
-    change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType = A", `all:${dist(a.ai.range + 10)}`, `all:P2BodyDist Y > ${n(-40 * k)}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 2)}`]);
+    change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType = A", `all:${dist(rangeOf(a) + 10)}`, `all:P2BodyDist Y > ${n(-40 * k)}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 2)}`]);
   }
   // Getting in: run when far, jump in sometimes, walk otherwise; back off a little when crowded.
-  change("AI: run in", 100, [`all:${inFight}`, "all:ctrl && StateType = S", `all:P2BodyDist X > ${n(ai.range * 2.2 * k)}`, `Random < ${ai.run}`]);
-  lines.push("[State -1, AI: stop running]", "type = ChangeState", "value = 0", `trigger1 = AILevel && StateNo = 100 && P2BodyDist X <= ${n(ai.range * 1.1 * k)}`, "");
-  change("AI: jump in", 40, [`all:${inFight}`, "all:ctrl && StateType = S", `all:P2BodyDist X = [${n(ai.range * 1.2 * k)}, ${n(ai.range * 2.5 * k)}]`, `Random < ${ai.jump}`]);
+  change("AI: run in", 100, [`all:${inFight}`, "all:ctrl && StateType = S", `all:P2BodyDist X > ${n(spacing * 2.2 * k)}`, `Random < ${ai.run}`]);
+  lines.push("[State -1, AI: stop running]", "type = ChangeState", "value = 0", `trigger1 = AILevel && StateNo = 100 && P2BodyDist X <= ${n(spacing * 1.1 * k)}`, "");
+  change("AI: jump in", 40, [`all:${inFight}`, "all:ctrl && StateType = S", `all:P2BodyDist X = [${n(spacing * 1.2 * k)}, ${n(spacing * 2.5 * k)}]`, `Random < ${ai.jump}`]);
   assert("AI: jump forward", ["F"], ["AILevel && StateNo = 40"]);
-  assert("AI: walk in", ["F"], [`${inFight} && ctrl && StateType = S && !InGuardDist && P2BodyDist X > ${n(ai.range * k)} && Random < 900`]);
-  assert("AI: back off", ["B"], [`${inFight} && ctrl && StateType = S && !InGuardDist && P2BodyDist X < ${n(ai.range * 0.35 * k)} && Random < 300`]);
+  assert("AI: walk in", ["F"], [`${inFight} && ctrl && StateType = S && !InGuardDist && P2BodyDist X > ${n(spacing * k)} && Random < 900`]);
+  assert("AI: back off", ["B"], [`${inFight} && ctrl && StateType = S && !InGuardDist && P2BodyDist X < ${n(spacing * 0.5 * k)} && Random < ${ai.retreat ?? 300}`]);
   lines.push(
     "[State -1, AI: taunt a fallen opponent]",
     "type = ChangeState",

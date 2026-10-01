@@ -12,6 +12,7 @@ import { MARKER } from "../ikemen/derive.ts";
 import type { Sheet } from "../art/sheet.ts";
 import { buildTemplateArt, type TemplateArt } from "./art.ts";
 import { commandsFile, constantsFile, defFile, statesFile } from "./cns.ts";
+import { measureReach } from "./reach.ts";
 import type { TemplateSpec } from "./spec.ts";
 
 export interface TemplateFiles {
@@ -28,7 +29,7 @@ export function templateFiles(spec: TemplateSpec, sheet: Sheet): TemplateFiles {
     [`${spec.id}.def`, Buffer.from(defFile(spec, spec.palettes.length + 1), "latin1")],
     ["gi.cns", Buffer.from(constantsFile(spec), "latin1")],
     ["gi-states.cns", Buffer.from(statesFile(spec), "latin1")],
-    ["gi.cmd", Buffer.from(commandsFile(spec), "latin1")],
+    ["gi.cmd", Buffer.from(commandsFile(spec, measureReach(spec, art.actions)), "latin1")],
     ["gi.air", Buffer.from(art.air, "latin1")],
     ["gi.sff", art.sff],
   ]);

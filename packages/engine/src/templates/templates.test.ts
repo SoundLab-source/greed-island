@@ -7,10 +7,31 @@ import { commandsFile, constantsFile, statesFile, unitScale } from "./cns.ts";
 import { TEMPLATES } from "./index.ts";
 import { checkSpec, REQUIRED_ACTIONS, type TemplateSpec } from "./spec.ts";
 import { ALL_ROUNDER } from "./all-rounder.ts";
+import { GRAPPLER } from "./grappler.ts";
+import { orb, PROJECTILE_SLOTS } from "./projectile.ts";
+import { ZONER } from "./zoner.ts";
+import { measureReach } from "./reach.ts";
 
 describe("template specs", () => {
   it.each(TEMPLATES.map((t) => [t.id, t] as const))("%s is complete and consistent", (_id, spec) => {
     expect(checkSpec(spec)).toEqual([]);
+  });
+
+  it("one template per archetype, all five", () => {
+    expect(new Set(TEMPLATES.map((t) => t.archetype))).toEqual(new Set(["ALL_ROUNDER", "RUSHDOWN", "HEAVY", "GRAPPLER", "ZONER"]));
+  });
+
+  it("finds throw and projectile problems", () => {
+    const t = GRAPPLER.throws![0]!;
+    const problems = checkSpec({
+      ...GRAPPLER,
+      throws: [{ ...t, catchFrames: [7], release: { ...t.release, frame: 40 } }, { ...t, name: "Again" }],
+      attacks: [...GRAPPLER.attacks, { ...ZONER.attacks.find((a) => a.projectile)!, state: 1500, anim: { ...ZONER.attacks.find((a) => a.projectile)!.anim, action: 1500 }, projectile: { frame: 30, speed: 5, height: 60 } }],
+    });
+    expect(problems.some((p) => p.includes("catch frame 7"))).toBe(true);
+    expect(problems.some((p) => p.includes("release frame 40"))).toBe(true);
+    expect(problems.some((p) => p.includes("Again: state or action 800 is already used"))).toBe(true);
+    expect(problems.some((p) => p.includes("projectile frame 30"))).toBe(true);
   });
 
   it("one template per archetype at most", () => {
@@ -66,6 +87,44 @@ describe("generated character code", () => {
       else expect(b).toContain("triggerall = !AILevel");
     }
     for (const a of spec.attacks.filter((x) => x.special)) expect(cmd).toContain(`name = "${a.command}"`);
+  });
+});
+
+describe("throws and projectiles", () => {
+  it("a throw grabs, holds, damages and throws the victim through our states", () => {
+    const st = statesFile(GRAPPLER);
+    const slam = GRAPPLER.throws![0]!;
+    expect(st).toContain("attr = S, NT");
+    expect(st).toContain("p1stateno = 810");
+    expect(st).toContain("p2stateno = 820");
+    expect(st.match(/\[State 810, hold \d+\]/g)?.length).toBe(slam.release.frame + 1);
+    expect(st).toContain(`value = ${-slam.damage}`);
+    expect(st).toMatch(/\[State 810, throw\]\ntype = TargetState\ntrigger1 = AnimElem = 7\nvalue = 822/);
+    expect(st).toContain("type = ChangeAnim2");
+    expect(st).toMatch(/\[Statedef 822\][\s\S]*?value = 5100/);
+    expect(st).toContain("attr = S, ST"); // the dive grab is a special throw
+    const cmd = commandsFile(GRAPPLER);
+    expect(cmd).toMatch(/\[State -1, Body Slam\][\s\S]*?command = "holdfwd"[\s\S]*?P2BodyDist X <=/);
+    expect(cmd).toContain("[State -1, AI: Dive Grab]");
+  });
+
+  it("a projectile move fires a Projectile with the move's hit instead of a HitDef", () => {
+    const st = statesFile(ZONER);
+    const block = st.slice(st.indexOf("[Statedef 1000]"), st.indexOf("[Statedef", st.indexOf("[Statedef 1000]") + 1));
+    expect(block).toContain("type = Projectile");
+    expect(block).toContain("projanim = 1050");
+    expect(block).toContain("attr = S, SP");
+    expect(block).not.toContain("type = HitDef");
+    expect(commandsFile(ZONER)).toContain("NumProjID(1000) = 0");
+  });
+
+  it("draws the ball in its own palette slots, hollow when it bursts", () => {
+    const ball = orb(10, 1.5);
+    const used = new Set(ball.pixels);
+    used.delete(0);
+    expect([...used].every((v) => (PROJECTILE_SLOTS as readonly number[]).includes(v))).toBe(true);
+    const burst = orb(10, 1, 0.5);
+    expect(burst.pixels[11 * burst.width + 11]).toBe(0); // the middle is clear
   });
 });
 
@@ -127,6 +186,33 @@ describe("template art", () => {
     const spec = tinySpec();
     spec.attacks = [{ ...spec.attacks[0]!, hits: [{ ...spec.attacks[0]!.hits[0]!, frames: [0] }] }];
     expect(() => buildTemplateArt(spec, tinySheet())).toThrow(/nothing reaches out/);
+  });
+
+  it("adds victim animations for throws and projectile sprites and animations", () => {
+    const spec = tinySpec();
+    spec.throws = [{ state: 800, name: "Grab", command: "throw", reach: { action: 800, cells: [0, 1], ticks: [2, 4] }, catchFrames: [1], hold: [{ cell: 0, ticks: 4, victim: [20, 0] }, { cell: 2, ticks: 4, victim: [10, 60], lifted: true }, { cell: 0, ticks: 6, victim: [30, 0] }], release: { frame: 2, x: 2, y: 3 }, damage: 100, ai: { range: 20, weight: 1 } }];
+    spec.attacks = [...spec.attacks, { ...spec.attacks[0]!, state: 1000, name: "Ball", anim: { action: 1000, cells: [0, 1], ticks: [3, 3] }, projectile: { frame: 1, speed: 5, height: 60 } }];
+    const art = buildTemplateArt(spec, tinySheet());
+    expect(art.air).toMatch(/\[Begin Action 820\]\n5010,0, 0,0, -1/);
+    expect(art.air).toContain("[Begin Action 822]");
+    expect(art.air).toContain("[Begin Action 1050]");
+    expect(art.air).toContain("[Begin Action 1052]");
+    expect(art.actions.find((a) => a.action === 800)!.frames[1]!.clsn1).toBeDefined();
+    expect(art.actions.find((a) => a.action === 1000)!.frames.every((f) => !f.clsn1)).toBe(true);
+    expect(readSff(art.sff).sprites.filter((s) => s.group === 1050).length).toBeGreaterThan(5);
+  });
+
+  it("measures each move's reach from its hitboxes and forward movement, for the AI", () => {
+    const spec = tinySpec();
+    spec.constants = { ...spec.constants, width: [0, 0] };
+    spec.attacks = [spec.attacks[0]!, { ...spec.attacks[0]!, state: 210, name: "Lunge", anim: { action: 210, cells: [0, 1, 0], ticks: [2, 4, 3] }, moves: [{ frame: 0, x: 5 }] }];
+    const art = buildTemplateArt(spec, tinySheet());
+    const reach = measureReach(spec, art.actions);
+    // The fist's tip is 18 sheet pixels in front of the axis: 18 / 1.7 = 10.6 units, 90% of it.
+    expect(reach.get(200)).toBe(10);
+    // Plus 2 ticks at 5 units per tick before the hit.
+    expect(reach.get(210)).toBe(19);
+    expect(commandsFile(spec, reach)).toContain(`P2BodyDist X <= ${Math.round(19 * 1.7 * 100) / 100}`);
   });
 
   it("gives the same files and hash for the same spec", () => {

@@ -116,11 +116,11 @@ export const ALL_ROUNDER: TemplateSpec = {
       ai: { range: 80, weight: 1 },
     },
   ],
-  ai: { range: 60, aggression: 90, block: 550, jump: 8, run: 15 },
+  ai: { range: 60, aggression: 110, block: 620, jump: 8, run: 15 },
   palettes: [
     { name: "Red", colors: { 37: "#c24545", 38: "#8f2f2f", 39: "#5e1f1f", 40: "#2f0f0f", 25: "#e0e0e0", 26: "#b0b0b0", 27: "#7a7a7a", 28: "#3d3d3d" } },
     { name: "Black", colors: { 37: "#3a3a44", 38: "#2a2a32", 39: "#1c1c22", 40: "#0e0e11", 25: "#d8c9a0", 26: "#a8996f", 27: "#76694a", 28: "#3b3425" } },
     { name: "Green", colors: { 37: "#4f8f4a", 38: "#3a6b37", 39: "#264724", 40: "#132412", 25: "#f2eed8", 26: "#c9c3a3", 27: "#8f8a70", 28: "#474538" } },
   ],
-  portrait: { cell: 240, box: [150, 55, 214, 119] },
+  portrait: { cell: 240 },
 };

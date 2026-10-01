@@ -11,7 +11,8 @@ import { hitbox, hurtboxes } from "../art/clsn.ts";
 import { readSff, writeSff, type SffPalette, type SffSprite } from "../art/sff.ts";
 import { bounds, cell, cleanStrays, crop, scale, type IndexedImage, type Sheet } from "../art/sheet.ts";
 import { readPng } from "../art/png.ts";
-import { cellList, checkSpec, ticksOf, type AnimSpec, type TemplateSpec } from "./spec.ts";
+import { PROJECTILE_COLORS, PROJECTILE_SLOTS, projectileArt } from "./projectile.ts";
+import { cellList, checkSpec, ticksOf, type AnimSpec, type TemplateSpec, type ThrowSpec } from "./spec.ts";
 
 export interface TemplateArt {
   sff: Buffer;
@@ -46,18 +47,37 @@ function hex(c: string): [number, number, number] {
   return [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)];
 }
 
-export function templatePalettes(spec: TemplateSpec, base: Uint8Array): SffPalette[] {
-  const out: SffPalette[] = [{ group: 1, number: 1, colors: base }];
-  spec.palettes.forEach((p, i) => {
-    const colors = base.slice();
-    for (const [index, color] of Object.entries(p.colors)) colors.set(hex(color), Number(index) * 3);
-    out.push({ group: 1, number: i + 2, colors });
-  });
-  return out;
+export function templatePalettes(spec: TemplateSpec, sheetPalette: Uint8Array): SffPalette[] {
+  const recolor = (from: Uint8Array, colors: Readonly<Record<number, string>>) => {
+    const out = from.slice();
+    for (const [index, color] of Object.entries(colors)) out.set(hex(color), Number(index) * 3);
+    return out;
+  };
+  const projectile = Object.fromEntries(PROJECTILE_SLOTS.map((slot, i) => [slot, PROJECTILE_COLORS[i]!]));
+  const base = recolor(recolor(sheetPalette, projectile), spec.colors ?? {});
+  return [{ group: 1, number: 1, colors: base }, ...spec.palettes.map((p, i) => ({ group: 1, number: i + 2, colors: recolor(base, p.colors) }))];
+}
+
+/** The thrower's two animations of a throw: the reach (action `state`) and the hold (action `state + 10`). */
+export function throwAnims(t: ThrowSpec): AnimSpec[] {
+  return [t.reach, { action: t.state + 10, cells: t.hold.map((h) => h.cell), ticks: t.hold.map((h) => h.ticks), comment: `${t.name}: hold and throw` }];
 }
 
 export function allAnims(spec: TemplateSpec): AnimSpec[] {
-  return [...spec.anims, ...spec.attacks.map((a) => a.anim)];
+  return [...spec.anims, ...spec.attacks.map((a) => a.anim), ...(spec.throws ?? []).flatMap(throwAnims)];
+}
+
+/**
+ * The victim's animations in a throw use the victim's own sprites, by
+ * MUGEN's standard get-hit numbers (every character has them): doubled over
+ * while held, knocked back while lifted and thrown, then falling.
+ */
+export function victimActions(t: ThrowSpec): AirAction[] {
+  return [
+    { action: t.state + 20, frames: [{ group: 5010, number: 0, ticks: -1 }], comment: `${t.name}: victim held (victim's sprites)` },
+    { action: t.state + 21, frames: [{ group: 5030, number: 0, ticks: -1 }], comment: `${t.name}: victim lifted (victim's sprites)` },
+    { action: t.state + 22, frames: [{ group: 5030, number: 0, ticks: 8 }, { group: 5060, number: 0, ticks: -1 }], comment: `${t.name}: victim thrown (victim's sprites)` },
+  ];
 }
 
 export function buildTemplateArt(spec: TemplateSpec, sheet: Sheet): TemplateArt {
@@ -80,10 +100,12 @@ export function buildTemplateArt(spec: TemplateSpec, sheet: Sheet): TemplateArt 
   const hitFrames = new Map<number, Map<number, Box | undefined>>();
   for (const a of spec.attacks) {
     if (a.anim.action !== a.state) throw new Error(`${a.name}: its animation must use action ${a.state}`);
+    if (a.projectile) continue; // the ball hits, not the body
     const frames = new Map<number, Box | undefined>();
     for (const h of a.hits) for (const f of h.frames) frames.set(f, h.box);
     hitFrames.set(a.state, frames);
   }
+  for (const t of spec.throws ?? []) hitFrames.set(t.state, new Map(t.catchFrames.map((f) => [f, undefined])));
 
   const actions: AirAction[] = [];
   const seen = new Set<number>();
@@ -120,7 +142,13 @@ export function buildTemplateArt(spec: TemplateSpec, sheet: Sheet): TemplateArt 
       return frame;
     });
     for (const f of hits?.keys() ?? []) if (f >= list.length) throw new Error(`action ${anim.action}: hit frame ${f} is past the last frame`);
-    actions.push({ action: anim.action, frames, loopStart: anim.loop === false ? undefined : anim.loop, comment: anim.comment ?? spec.attacks.find((a) => a.state === anim.action)?.name });
+    actions.push({ action: anim.action, frames, loopStart: anim.loop === false ? undefined : anim.loop, comment: anim.comment ?? spec.attacks.find((a) => a.state === anim.action)?.name ?? spec.throws?.find((t) => t.state === anim.action)?.name });
+  }
+  const victims = (spec.throws ?? []).flatMap(victimActions);
+  const projectiles = spec.attacks.filter((a) => a.projectile).map((a) => projectileArt(a.state));
+  for (const extra of [...victims, ...projectiles.flatMap((p) => p.actions)]) {
+    if (seen.has(extra.action)) throw new Error(`action ${extra.action} is defined twice`);
+    seen.add(extra.action);
   }
   const sprites: SffSprite[] = [];
   for (const [key, c] of slots) {
@@ -138,14 +166,33 @@ export function buildTemplateArt(spec: TemplateSpec, sheet: Sheet): TemplateArt 
     const b = bounds(img)!;
     sprites.push({ group, number, image: crop(img, b), axisX: axis.x - b.x0, axisY: anchor === "feet" ? b.y1 - b.y0 : axis.y - b.y0, palette: 0 });
   }
-  const [px0, py0, px1, py1] = spec.portrait.box;
-  const face = crop(cellImage(spec.portrait.cell), { x0: px0, y0: py0, x1: px1, y1: py1 });
+  const portraitCell = cellImage(spec.portrait.cell);
+  const [px0, py0, px1, py1] = spec.portrait.box ?? headBox(portraitCell);
+  const face = crop(portraitCell, { x0: px0, y0: py0, x1: px1, y1: py1 });
   sprites.push({ group: 9000, number: 0, image: scale(face, FACE, FACE), axisX: 0, axisY: 0, palette: 0 });
   sprites.push({ group: 9000, number: 1, image: scale(face, LARGE_FACE, LARGE_FACE), axisX: 0, axisY: 0, palette: 0 });
 
   const header = `${spec.name} (${spec.archetype}), a Greed Island fighter template. Generated by pnpm templates:build; do not edit.\n${spec.art.credit}`;
+  for (const p of projectiles) sprites.push(...p.sprites);
   const sff = writeSff(sprites, templatePalettes(spec, sheet.palette));
-  return { sff, air: writeAir(actions, header), actions, slots, sheet };
+  return { sff, air: writeAir([...actions, ...victims, ...projectiles.flatMap((p) => p.actions)], header), actions, slots, sheet };
+}
+
+/**
+ * A square around the head: the top of the drawn pixels, centred on the
+ * middle of the top rows (the head), 64 pixels a side, kept inside the cell.
+ */
+export function headBox(img: IndexedImage, side = 64): [number, number, number, number] {
+  const b = bounds(img);
+  if (!b) throw new Error("empty portrait cell");
+  let sum = 0, count = 0;
+  for (let y = b.y0; y < Math.min(b.y1, b.y0 + 20); y++) {
+    for (let x = 0; x < img.width; x++) if (img.pixels[y * img.width + x] !== 0) { sum += x; count++; }
+  }
+  const cx = Math.round(sum / count);
+  const x0 = Math.max(0, Math.min(img.width - side, cx - side / 2));
+  const y0 = Math.max(0, Math.min(img.height - side, b.y0 - 4));
+  return [x0, y0, x0 + side, y0 + side];
 }
 
 /** Sprites of a built file by slot, for previews. */

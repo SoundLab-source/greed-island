@@ -57,7 +57,8 @@ export interface AnimSpec {
   comment?: string;
 }
 
-export type HitHeight = "high" | "low" | "mid";
+/** high/mid: block standing or crouching; low: block crouching; overhead: block standing. */
+export type HitHeight = "high" | "low" | "mid" | "overhead";
 export type HitWeight = "light" | "medium" | "heavy";
 
 /** One hit of an attack: which animation frames are active and what a hit does. */
@@ -105,8 +106,42 @@ export interface AttackSpec {
   moves?: readonly { frame: number; x: number; y?: number }[];
   /** Special moves cost nothing but can't be cancelled into from normals. */
   special?: boolean;
+  /**
+   * Fires a projectile instead of hitting with the body: it leaves at
+   * animation `frame`, flies at `speed` (320 units per tick) at `height`
+   * above the ground, and hits with the move's first HitSpec (whose `frames`
+   * are then ignored). The ball is drawn by the builder.
+   */
+  projectile?: { frame: number; speed: number; height: number };
   /** AI: how far the hit reaches (320 units), and how much the AI likes it. */
   ai: { range: number; weight: number; antiAir?: boolean };
+}
+
+/**
+ * A throw (docs/PHASE3.md "Fighter templates"). States: `state` reaches for
+ * the opponent (a HitDef that only catches someone standing or crouching and
+ * not already hit), `state + 10` holds and throws them, and the victim goes
+ * through `state + 20` (held), `+ 21` (lifted) and `+ 22` (thrown) in our
+ * code, drawn with its own standard get-hit sprites.
+ */
+export interface ThrowSpec {
+  state: number;
+  name: string;
+  /** "throw": forward + strong punch up close; or a special motion. */
+  command: Command | "throw";
+  special?: boolean;
+  /** The reach, as an animation on action `state`; `catchFrames` are when it can grab. */
+  reach: AnimSpec;
+  catchFrames: readonly number[];
+  /** Forward movement during the reach (320 units per tick), like AttackSpec.moves. */
+  moves?: readonly { frame: number; x: number }[];
+  /** Holding and throwing, frame by frame: the thrower's cell and ticks, and where the victim is held (in front, up; 320 units). */
+  hold: readonly { cell: number; ticks: number; victim: readonly [number, number]; lifted?: boolean }[];
+  /** The hold frame where the victim is thrown, and its speed away and up (320 units per tick). */
+  release: { frame: number; x: number; y: number };
+  damage: number;
+  /** AI: how close it must be (320 units), and how much the AI likes it. */
+  ai: { range: number; weight: number };
 }
 
 export interface Constants {
@@ -129,7 +164,11 @@ export interface Constants {
 }
 
 export interface AiSpec {
-  /** Preferred distance to the opponent (320 units). */
+  /**
+   * Preferred distance to the opponent (320 units, body gap). Fighters
+   * without a projectile stand no farther than their longest standing normal
+   * reaches (measured), so this is a ceiling for them.
+   */
   range: number;
   /** 0-1000 per tick: chance to attack when a move is in range. */
   aggression: number;
@@ -139,6 +178,8 @@ export interface AiSpec {
   jump: number;
   /** 0-1000 per tick: chance to run in instead of walking when far. */
   run: number;
+  /** 0-1000 per tick: chance to walk back when the opponent is inside half its range (default 300). */
+  retreat?: number;
 }
 
 export interface TemplateSpec {
@@ -151,11 +192,14 @@ export interface TemplateSpec {
   /** Movement, guard, get-hit, intro and win animations. */
   anims: readonly AnimSpec[];
   attacks: readonly AttackSpec[];
+  throws?: readonly ThrowSpec[];
   ai: AiSpec;
-  /** Colour ramps to recolour for palettes 2..n: each maps source palette indices to new RGB. */
+  /** This template's own colours (palette 1): source palette index → "#rrggbb", on top of the sheet's. */
+  colors?: Readonly<Record<number, string>>;
+  /** More outfits (palettes 2..n), each recolouring palette 1. */
   palettes: readonly PaletteSpec[];
-  /** Cell used for the portrait (lifebar face), and the box around the head in cell pixels. */
-  portrait: { cell: number; box: readonly [number, number, number, number] };
+  /** Cell used for the portrait (lifebar face); the box around the head is found from the pixels unless given (cell pixels). */
+  portrait: { cell: number; box?: readonly [number, number, number, number] };
 }
 
 export interface PaletteSpec {
@@ -191,10 +235,26 @@ export function checkSpec(spec: TemplateSpec): string[] {
     if (typeof a.loop === "number" && (a.loop < 0 || a.loop >= frames.length)) problems.push(`action ${a.action}: loop start ${a.loop} is outside the animation`);
   }
   for (const r of REQUIRED_ACTIONS) if (!actions.has(r)) problems.push(`required action ${r} is missing`);
+  const states = new Set(spec.attacks.map((a) => a.state));
+  for (const t of spec.throws ?? []) {
+    if (t.reach.action !== t.state) problems.push(`${t.name}: its reach animation should be ${t.state}`);
+    for (const n of [t.state, t.state + 10, t.state + 20, t.state + 21, t.state + 22]) {
+      if (states.has(n) || actions.has(n) && n !== t.state) problems.push(`${t.name}: state or action ${n} is already used`);
+      states.add(n);
+    }
+    const reach = cellList(t.reach.cells).length;
+    for (const f of t.catchFrames) if (f < 0 || f >= reach) problems.push(`${t.name}: catch frame ${f} is outside the reach`);
+    if (t.hold.length === 0) problems.push(`${t.name}: no hold frames`);
+    if (t.release.frame < 0 || t.release.frame >= t.hold.length) problems.push(`${t.name}: release frame ${t.release.frame} is outside the hold`);
+    if (t.damage <= 0) problems.push(`${t.name}: damage must be positive`);
+    if (t.state < 200 || t.state + 22 >= 5000) problems.push(`${t.name}: throw states are 200-4977`);
+  }
   for (const a of spec.attacks) {
     if (a.anim.action !== a.state) problems.push(`${a.name}: animation ${a.anim.action} should be ${a.state}`);
     const length = cellList(a.anim.cells).length;
     if (a.hits.length === 0) problems.push(`${a.name}: no hits`);
+    if (a.projectile && (a.projectile.frame < 0 || a.projectile.frame >= length)) problems.push(`${a.name}: projectile frame ${a.projectile.frame} is outside the animation`);
+    if (a.projectile && a.hits.length !== 1) problems.push(`${a.name}: a projectile has exactly one hit`);
     for (const h of a.hits) {
       if (h.frames.length === 0) problems.push(`${a.name}: a hit with no active frames`);
       for (const f of h.frames) if (f < 0 || f >= length) problems.push(`${a.name}: hit frame ${f} is outside its ${length} frames`);
@@ -203,7 +263,7 @@ export function checkSpec(spec: TemplateSpec): string[] {
     for (const m of a.moves ?? []) if (m.frame < 0 || m.frame >= length) problems.push(`${a.name}: move frame ${m.frame} is outside the animation`);
     if (a.state < 200 || a.state >= 5000) problems.push(`${a.name}: attack states are 200-4999`);
   }
-  for (const p of spec.palettes) for (const [i, c] of Object.entries(p.colors)) {
+  for (const p of [{ name: "main", colors: spec.colors ?? {} }, ...spec.palettes]) for (const [i, c] of Object.entries(p.colors)) {
     if (!/^#[0-9a-f]{6}$/i.test(c) || Number(i) < 1 || Number(i) > 255) problems.push(`palette ${p.name}: bad entry ${i} = ${c}`);
   }
   if (!/^gi-tpl-[a-z-]+$/.test(spec.id)) problems.push(`id ${spec.id} should look like gi-tpl-<archetype>`);
