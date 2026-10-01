@@ -1,50 +1,7 @@
-// Greed Island watch page: plain JS, no build step. The same anonymous player
-// as the dev page (the session token is shared), so balances carry over.
+// Greed Island home page: watch the stream and bet. Uses site.js (GI).
 (() => {
-  const $ = (id) => document.getElementById(id);
-  const TOKEN_KEY = "gi_session";
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  let memoryToken = null;
+  const { $, esc, fmt, api } = GI;
   let fight = null;
-  let me = null;
-
-  const token = () => {
-    try {
-      return localStorage.getItem(TOKEN_KEY) ?? memoryToken;
-    } catch {
-      return memoryToken;
-    }
-  };
-  const setToken = (t) => {
-    memoryToken = t;
-    try {
-      localStorage.setItem(TOKEN_KEY, t);
-    } catch {
-      /* private mode: this page only */
-    }
-  };
-
-  async function api(method, path, body) {
-    const headers = { "content-type": "application/json" };
-    if (token()) headers.authorization = `Bearer ${token()}`;
-    const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-    const data = res.status === 204 ? null : await res.json();
-    if (!res.ok) throw new Error(data?.message ?? `${res.status}`);
-    return data;
-  }
-
-  async function ensureSession() {
-    if (token()) {
-      try {
-        return await api("GET", "/api/me");
-      } catch {
-        /* expired: start a new anonymous player */
-      }
-    }
-    const s = await api("POST", "/api/session", {});
-    setToken(s.token);
-    return s.me;
-  }
 
   // ---- Video and chat ----
   async function setupEmbeds() {
@@ -62,41 +19,22 @@
     }
   }
 
-  // ---- Wallet ----
   const currency = () => (fight && fight.currency === "T-Salt" ? "T-Salt" : "Salt");
   const available = () => {
+    const me = GI.me;
     if (!me) return 0;
     if (currency() === "T-Salt" && me.tournament) return Number(me.tournament.balance);
     return Number(me.balance);
   };
 
-  async function refreshMe() {
-    me = await api("GET", "/api/me");
-    $("me-name").textContent = me.name;
-    $("balance").textContent = Number(me.balance).toLocaleString();
-    const t = me.tournament;
-    $("tsalt").hidden = !t;
-    if (t) $("tsalt").textContent = `${Number(t.balance).toLocaleString()} T-Salt · Tournament #${t.number}`;
-    $("grant").hidden = !me.dailyGrantAvailable;
-    $("bailout").hidden = !me.bailoutAvailable;
-  }
-
   // ---- The current fight ----
-  function plate(s) {
-    const p = s.cosmetics.nameplate;
-    const title = s.cosmetics.title ? `<span class="title">${esc(s.cosmetics.title.label)}</span>` : "";
-    const look = s.cosmetics.look ? `<img class="look" src="${esc(s.cosmetics.look.image)}" alt="">` : "";
-    return `<span class="plate" style="background:${esc(p.background)};border-color:${esc(p.border)};color:${esc(p.text)}">${look}<span class="name">${esc(s.name)}</span>${title}</span>`;
-  }
-  const badges = (s) => `<span class="badges">${s.cosmetics.badges.map((b) => `<span class="badge" style="background:${esc(b.color)}" title="${esc(b.label)}">${esc(b.glyph)}</span>`).join("")}</span>`;
-
   function sideButton(n, s, f) {
     const o = f.odds;
     const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}` : "–";
     const chance = o ? `${o.chancePct[n].toFixed(1)}% to win` : "";
     return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"}</span>
-      <span>${plate(s)}</span>
-      <span>${badges(s)}</span>
+      <span>${GI.plate(s.name, s.cosmetics)}</span>
+      <span>${GI.badges(s.cosmetics)}</span>
       <span class="odds">${odds}</span>
       <span class="sub">${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} · ${chance}</span>`;
   }
@@ -108,12 +46,35 @@
     return `Fight #${f.number} · Matchmaking`;
   }
 
+  const form = (last10) => `<span class="form">${last10.length ? last10.map((r) => `<span class="${r === "W" ? "w" : "l"}">${r}</span>`).join("") : '<span class="muted">new</span>'}</span>`;
+
+  function tape(s, side) {
+    const owner = s.owner.kind === "house" ? "House fighter" : `Owned by <b>${esc(s.owner.name)}</b>`;
+    const st = s.stats;
+    return `<div class="col ${side === 2 ? "b" : ""}">
+      <div><b>${GI.fighterLink(s.characterId ?? s.id, s.name)}</b>${s.firstEdition ? ' <span class="tag gold">First Edition</span>' : ""}</div>
+      <div class="muted">${esc(GI.archetype(s.archetype ?? s.fighter?.archetype))} · ${owner}</div>
+      <div>${s.record.wins}–${s.record.losses}${s.winRate == null ? "" : ` (${s.winRate}%)`} · ${form(s.last10 ?? [])}</div>
+      <div class="muted">Life ${st.lifePct}% · Attack ${st.attackPct}% · Defense ${st.defensePct}%${st.startPower ? ` · Power ${st.startPower}` : ""}</div>
+    </div>`;
+  }
+
+  function renderMatchup(f) {
+    const h = f.headToHead;
+    const pools = f.odds?.locked ? `<div>Pools <b>${fmt(f.odds.pool[1])}</b> / <b>${fmt(f.odds.pool[2])}</b> from ${f.odds.bettors} bettors</div>` : "";
+    $("matchup").innerHTML = `${tape(f.sides[1], 1)}
+      <div class="mid"><div>Head to head</div><b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b><div>${esc(f.stage.displayName)}</div>${pools}</div>
+      ${tape(f.sides[2], 2)}`;
+  }
+
   function renderFight() {
     const f = fight;
     if (!f) {
       $("fight-label").textContent = "Waiting for the first fight";
+      $("matchup").hidden = true;
       return;
     }
+    $("matchup").hidden = false;
     $("fight-label").textContent = label(f);
     $("bet1").innerHTML = sideButton(1, f.sides[1], f);
     $("bet2").innerHTML = sideButton(2, f.sides[2], f);
@@ -124,10 +85,11 @@
     $("bet1").classList.toggle("mine", b?.side === 1);
     $("bet2").classList.toggle("mine", b?.side === 2);
     $("my-bet").innerHTML = b
-      ? `Your bet: <b>${Number(b.stake).toLocaleString()} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${Number(b.returned).toLocaleString()} back` : ""}`}`
+      ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}`
       : open
         ? "Pick a stake, then click a side. You can change it until betting closes."
         : "";
+    renderMatchup(f);
     renderClock();
   }
 
@@ -160,8 +122,8 @@
     try {
       const r = await api("POST", `/api/fights/${fight.id}/bets`, { side, stake: $("stake").value, idempotencyKey: crypto.randomUUID() });
       msg.className = "msg ok";
-      msg.textContent = `Bet placed: ${Number(r.bet.stake).toLocaleString()} ${currency()} on ${side === 1 ? "Red" : "Blue"}.`;
-      await Promise.all([refreshFight(), refreshMe()]);
+      msg.textContent = `Bet placed: ${fmt(r.bet.stake)} ${currency()} on ${side === 1 ? "Red" : "Blue"}.`;
+      await Promise.all([refreshFight(), GI.refreshMe()]);
     } catch (e) {
       msg.className = "msg error";
       msg.textContent = e.message;
@@ -178,8 +140,6 @@
         else input.value = String(Math.max(1, Math.floor(available() * Number(chip.dataset.share))));
       };
     }
-    $("grant").onclick = () => api("POST", "/api/me/daily-grant").then(refreshMe).catch((e) => ($("bet-msg").textContent = e.message));
-    $("bailout").onclick = () => api("POST", "/api/me/bailout").then(refreshMe).catch((e) => ($("bet-msg").textContent = e.message));
   }
 
   // ---- Live feed (shown when there's no Twitch chat) ----
@@ -191,44 +151,34 @@
   }
 
   function connect() {
-    const es = new EventSource("/api/stream");
-    es.addEventListener("hello", () => Promise.all([refreshFight(), refreshMe()]).catch(() => {}));
-    es.addEventListener("fight_state", (e) => {
-      const d = JSON.parse(e.data);
-      refreshFight().catch(() => {});
-      if (d.state === "SETTLED" || d.state === "VOIDED" || d.state === "BETTING_OPEN") refreshMe().catch(() => {});
-      if (d.state === "BETTING_OPEN") feed(`Fight #${d.number}: <b>betting is open</b>`);
-    });
-    for (const type of ["odds_live", "odds_locked"]) es.addEventListener(type, () => refreshFight().catch(() => {}));
-    es.addEventListener("fight_result", async (e) => {
-      const d = JSON.parse(e.data);
-      const f = d.fightId === fight?.id ? fight : await api("GET", `/api/fights/${d.fightId}`).catch(() => null);
-      if (!f) return;
-      feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins` : `Fight #${d.number}: no contest, bets refunded`);
-    });
-    es.addEventListener("title_earned", (e) => {
-      const d = JSON.parse(e.data);
-      feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`);
-    });
-    es.addEventListener("tournament", (e) => {
-      const d = JSON.parse(e.data);
-      if (d.status === "STARTED") feed(`Tournament #${d.number} (${esc(d.tier)} tier, ${d.size} fighters) starts: bets in T-Salt`);
-      if (d.status === "FINISHED") feed(`<b>${esc(d.champion.name)}</b> wins Tournament #${d.number}`);
-      refreshMe().catch(() => {});
-    });
-    es.addEventListener("season", (e) => {
-      const d = JSON.parse(e.data);
-      if (d.status === "STARTED") feed(`<b>Season ${d.number}</b> begins: the leaderboard starts over`);
-      if (d.status === "ENDED") feed(`Season ${d.number} is over${d.champion ? `: champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? `, top bettor <b>${esc(d.topBettor.name)}</b>` : ""}`);
-    });
-    es.addEventListener("release", (e) => {
-      const d = JSON.parse(e.data);
-      feed(`New fighters join the roster: ${d.fighters.map((f) => `<b>${esc(f.name)}</b> from ${esc(f.community)}`).join(", ")}. First Editions are in the shop.`);
-    });
-    es.addEventListener("ballot", (e) => {
-      const d = JSON.parse(e.data);
-      if (d.status === "OPENED") feed(`Voting is open for Season ${d.seasonNumber}: ${d.fighters.map((f) => `<b>${esc(f.name)}</b>`).join(", ")}`);
-      if (d.status === "CLOSED") feed(`Season ${d.seasonNumber} vote: ${d.results.map((r) => `${esc(r.name)} ${r.votes}${r.elected ? " (elected)" : ""}`).join(", ")}`);
+    GI.live({
+      hello: () => refreshFight().catch(() => {}),
+      fight_state: (d) => {
+        refreshFight().catch(() => {});
+        if (d.state === "BETTING_OPEN") feed(`Fight #${d.number}: <b>betting is open</b>`);
+      },
+      odds_live: () => refreshFight().catch(() => {}),
+      odds_locked: () => refreshFight().catch(() => {}),
+      fight_result: async (d) => {
+        const f = d.fightId === fight?.id ? fight : await api("GET", `/api/fights/${d.fightId}`).catch(() => null);
+        if (!f) return;
+        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins` : `Fight #${d.number}: no contest, bets refunded`);
+      },
+      title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),
+      tournament: (d) => {
+        if (d.status === "STARTED") feed(`Tournament #${d.number} (${esc(d.tier)} tier, ${d.size} fighters) starts: bets in T-Salt`);
+        if (d.status === "FINISHED") feed(`<b>${esc(d.champion.name)}</b> wins Tournament #${d.number}`);
+        GI.refreshMe().catch(() => {});
+      },
+      season: (d) => {
+        if (d.status === "STARTED") feed(`<b>Season ${d.number}</b> begins: the leaderboard starts over`);
+        if (d.status === "ENDED") feed(`Season ${d.number} is over${d.champion ? `: champion <b>${esc(d.champion.name)}</b>` : ""}${d.topBettor ? `, top bettor <b>${esc(d.topBettor.name)}</b>` : ""}`);
+      },
+      release: (d) => feed(`New fighters join the roster: ${d.fighters.map((f) => `<b>${esc(f.name)}</b> from ${esc(f.community)}`).join(", ")}. First Editions are in the <a href="/shop.html">shop</a>.`),
+      ballot: (d) => {
+        if (d.status === "OPENED") feed(`<a href="/vote.html">Voting is open</a> for Season ${d.seasonNumber}: ${d.fighters.map((f) => `<b>${esc(f.name)}</b>`).join(", ")}`);
+        if (d.status === "CLOSED") feed(`Season ${d.seasonNumber} vote: ${d.results.map((r) => `${esc(r.name)} ${r.votes}${r.elected ? " (elected)" : ""}`).join(", ")}`);
+      },
     });
   }
 
@@ -238,8 +188,8 @@
 
   (async () => {
     wireControls();
-    me = await ensureSession();
-    await Promise.all([setupEmbeds(), refreshMe(), refreshFight()]);
+    await GI.ready;
+    await Promise.all([setupEmbeds(), refreshFight()]);
     connect();
   })().catch((e) => ($("bet-msg").textContent = `Couldn't load: ${e.message}`));
 })();

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My fighters · Greed Island</title>
+  <link rel="stylesheet" href="site.css">
+  <style>
+    .mine { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; }
+    .mine .pic { height: 210px; width: 150px; object-fit: contain; image-rendering: pixelated; background: radial-gradient(ellipse at 50% 85%, rgba(246, 201, 69, 0.12), transparent 60%), var(--bg); border-radius: 10px; }
+    .mine .pic.none { display: grid; place-items: center; font-size: 56px; color: var(--line); }
+    .mine h3 { margin: 0; }
+    .ups { display: grid; gap: 8px; max-width: 520px; }
+    .ups .stat { grid-template-columns: 70px 1fr 110px; }
+    details { border-top: 1px solid var(--line); padding-top: 10px; }
+    summary { cursor: pointer; font-weight: 700; color: var(--dim); }
+    details[open] summary { color: var(--ink); }
+    details > div { padding-top: 10px; display: grid; gap: 10px; }
+    @media (max-width: 640px) { .mine { grid-template-columns: 1fr; } .mine .pic { width: 100%; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>My fighters</h1>
+    <p class="lead">Upgrades and looks apply from a fighter's next fight. Your fighters are booked into stream fights, tournaments and exhibitions on their own.</p>
+    <div id="mine"></div>
+    <div class="panel">
+      <h2>Challenges</h2>
+      <p class="muted">Challenge another player's fighter to an exhibition. Accepted challenges play in the exhibition part of the cycle, oldest first.</p>
+      <div id="challenge-form" class="row"></div>
+      <div class="scroll" style="margin-top: 10px"><table class="table" id="challenges"></table></div>
+    </div>
+  </main>
+  <script src="site.js"></script>
+  <script src="fighters.js"></script>
+</body>
+</html>

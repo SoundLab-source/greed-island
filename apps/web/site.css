@@ -1,0 +1,166 @@
+/* Greed Island player site: shared look for every page (same palette as the stream overlay). */
+:root {
+  --red: #ff4d5a;
+  --blue: #3f8cff;
+  --gold: #f6c945;
+  --green: #3ddc84;
+  --bg: #07090f;
+  --panel: #10141f;
+  --panel-2: #161b29;
+  --line: rgba(255, 255, 255, 0.09);
+  --ink: #f2f4fa;
+  --dim: #99a2b6;
+  --font: "SF Pro Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 20% -10%, rgba(255, 77, 90, 0.12), transparent 50%), radial-gradient(ellipse at 80% -10%, rgba(63, 140, 255, 0.12), transparent 50%), var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 var(--font);
+  font-variant-numeric: tabular-nums;
+}
+[hidden] { display: none !important; }
+a { color: var(--gold); }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+.muted { color: var(--dim); }
+.red { color: var(--red); }
+.blue { color: var(--blue); }
+.gold { color: var(--gold); }
+.good { color: var(--green); }
+
+/* ---- Header and navigation ---- */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(7, 9, 15, 0.92);
+  backdrop-filter: blur(8px);
+}
+.brand { color: var(--ink); text-decoration: none; font-weight: 900; font-style: italic; letter-spacing: 3px; font-size: 20px; white-space: nowrap; }
+.brand span { color: var(--gold); }
+.nav { display: flex; flex-wrap: wrap; gap: 4px; }
+.nav a { color: var(--dim); text-decoration: none; font-weight: 700; padding: 6px 10px; border-radius: 8px; }
+.nav a:hover { color: var(--ink); background: var(--panel-2); }
+.nav a.here { color: var(--ink); background: var(--panel-2); }
+.wallet { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.balance b { font-size: 18px; }
+.tsalt { color: var(--gold); font-weight: 700; }
+
+/* ---- Buttons and inputs ---- */
+.btn, .ghost {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn { background: var(--gold); color: #1a1400; border: 1px solid var(--gold); }
+.btn:not(:disabled):hover { filter: brightness(1.08); }
+.btn.red { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.blue { background: var(--blue); border-color: var(--blue); color: #fff; }
+.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+.ghost:not(:disabled):hover { border-color: rgba(255, 255, 255, 0.3); }
+.small { padding: 3px 10px; font-size: 13px; }
+input, select, textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid rgba(246, 201, 69, 0.5); outline-offset: 1px; }
+label { color: var(--dim); }
+
+/* ---- Page layout ---- */
+.page { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.page h1 { margin: 4px 0 4px; font-size: 26px; letter-spacing: 0.5px; }
+.page h2 { margin: 0 0 10px; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
+.lead { color: var(--dim); margin: 0 0 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
+.card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; }
+.card h3 { margin: 0; font-size: 17px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.spread { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); }
+.tag.gold { color: var(--gold); border-color: rgba(246, 201, 69, 0.4); }
+.tier { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-weight: 900; font-size: 13px; background: var(--panel-2); border: 1px solid var(--line); }
+.tier.X { color: #ff7ad9; } .tier.S { color: var(--gold); } .tier.A { color: var(--green); } .tier.B { color: var(--blue); } .tier.P { color: var(--dim); }
+.stat { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
+.bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), #ffdf7f); }
+.empty { color: var(--dim); padding: 12px 0; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.fact { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.fact > span { display: block; color: var(--dim); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+.fact b { font-size: 18px; }
+
+/* ---- Tables ---- */
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.table tr:last-child td { border-bottom: 0; }
+.table a { color: var(--ink); text-decoration: none; font-weight: 700; }
+.table a:hover { color: var(--gold); }
+.num { text-align: right; }
+.scroll { overflow-x: auto; }
+
+/* ---- Fighter name plates and badges (as on the stream) ---- */
+.plate { display: inline-block; max-width: 100%; padding: 3px 12px 4px; border: 2px solid; border-radius: 6px; transform: skewX(-8deg); vertical-align: middle; }
+.plate > span { display: block; transform: skewX(8deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plate .name { font-size: 18px; font-weight: 900; }
+.plate .title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.9; }
+.plate .look { height: 1.6em; width: 1.6em; object-fit: cover; border-radius: 0.2em; vertical-align: middle; margin-right: 0.4em; }
+.badges { display: inline-flex; gap: 4px; vertical-align: middle; }
+.badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 5px; font-size: 11px; font-weight: 900; color: #fff; }
+
+/* ---- Messages ---- */
+.msg { min-height: 20px; font-weight: 600; }
+.msg.error { color: var(--red); }
+.msg.ok { color: var(--green); }
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 50;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  font-weight: 600;
+}
+.toast.error { border-color: var(--red); }
+.toast.ok { border-color: var(--green); }
+
+/* ---- Footer ---- */
+.foot { max-width: 1200px; margin: 0 auto; padding: 8px 20px 28px; color: var(--dim); font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; }
+.foot a { color: var(--dim); }
+
+/* ---- Text pages (how to play, terms, privacy) ---- */
+.prose { max-width: 760px; }
+.prose h2 { margin-top: 28px; }
+.prose li { margin: 4px 0; }
+.draft { border: 1px dashed var(--gold); border-radius: 10px; padding: 10px 14px; color: var(--gold); margin-bottom: 18px; }
+
+@media (max-width: 760px) {
+  .top { padding: 8px 12px; }
+  .nav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .page { padding: 14px 12px; }
+  .plate .name { font-size: 16px; }
+}

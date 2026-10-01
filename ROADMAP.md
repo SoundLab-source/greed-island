@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-09-30, after all five fighter templates. Update this file at the end of every build step.*
+*Last updated 2026-10-01, after MVP step 1 (the player website). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps are built, and all five fighter templates exist; next is step 4 (automatic checks). |
-| **Next step** | Step 4, the automatic checks on submissions (smoke test, template check, balance simulation), then a community fighter's own art on its template. To try holders for real: a Solana NFT lookup address in `.env` and a wallet like Phantom. |
-| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, five fighter templates (Brawler, Striker, Bruiser, Wrestler, Sage: one per archetype) built from free CC0 art, with throws, a projectile and their own AI, on the house roster, an API with live updates, a plain dev page, a watch page (video, betting, chat), and a stream overlay for OBS with automatic scene switching |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **Now: the MVP** ([MVP.md](docs/MVP.md)), 1 of 5 steps done: the player website. |
+| **Next step** | MVP step 2: house roster on the templates, then production hardening, running unattended and the deploy guide ([MVP.md](docs/MVP.md)). Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
+| **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, five fighter templates (Brawler, Striker, Bruiser, Wrestler, Sage: one per archetype) built from free CC0 art, with throws, a projectile and their own AI, on the house roster, an API with live updates, a **player website** (watch and bet, shop, my fighters, fighter profiles, rankings, vote, account, how to play, draft terms and privacy), a plain dev page, and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | What needs the templates: automatic checks on submissions, community fighters' own art on a template, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 563 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Health** | 564 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -74,6 +74,9 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - ✅ **First fighter template: the Brawler** (`caad40b`, all-rounder): `pnpm templates:build` turns a sprite sheet and a short spec into a whole IKEMEN character. Our own sprite and animation file writers; hurtboxes and hitboxes worked out from the pixels; the fighter's own AI (walks in, blocks most attacks, anti-airs, attacks with what reaches, combos into specials) instead of the engine's random button presses; four outfits. 13 moves including 3 specials. Real fights: beat Kung Fu Man 2-1 and 2-0, a mirror went 1-2, all by KO. It's on the house roster, and released community fighters of its archetype now play on it. Details: [PHASE3.md](docs/PHASE3.md) "Fighter templates".
 - ✅ **The other four templates** (`14ba7c2`): **Striker** (rushdown: fast, four kicks, spinning-kick specials), **Bruiser** (heavy: 1200 life, an overhead hammer that must be blocked standing, shoulder charge), **Wrestler** (grappler: a body slam and a lunging command grab, which hold, lift and slam the opponent using its own sprites) and **Sage** (zoner: the Energy Palm projectile, drawn by the builder since the art has none, long pokes, backs off when crowded). Each has its own colours and three more outfits. All five are on the house roster. The AI now uses each move's measured reach. Five round robins of sim fights narrowed the gap between the weakest and strongest template from 1 vs 15 wins (out of 16) to 4 vs 12; finer balance waits for step 4's balance tool.
 
+**MVP** (plan: [MVP.md](docs/MVP.md))
+- ✅ **Player website**: a styled site for the whole loop, on phones too. Home is watch and bet (video, Red/Blue betting, a matchup panel with records, recent form and head-to-head, and chat or a live feed); then the shop (with each template fighter's picture), my fighters (upgrades, sidegrades, the look on stream, names, NFT looks, challenges), fighter profiles, rankings (season leaderboard, fighters by tier, the tournament bracket, results, past seasons), the season vote, account (email sign-in, Salt, titles, bet history, wallets), how to play, and draft terms and privacy pages for the lawyer. The plain dev page moved to `/dev.html`.
+
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
 - ✅ **OBS installed and tested with real fights**: OBS 32.2.2 (checksum and Apple notarization verified). `pnpm obs:setup` creates the scenes and picks the screen to capture; scene switching followed every fight, including a real IKEMEN fight (#111); the betting screen and the fight bar render inside OBS over the capture. Known limit: the capture is the whole screen, and the game window opens behind other apps, so capturing only the game window is still open ([obs-notes.md](docs/obs-notes.md)).
@@ -82,10 +85,10 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**Recommended next: step 4, automatic checks on submissions** ([PHASE3.md](docs/PHASE3.md))
-- A balance simulation tool (a few hundred sim fights against the roster, compared with the archetype's template), the smoke test and a template check, with the results on the review page. The same tool keeps the five templates balanced against each other.
-- Then turning a community fighter's submitted sprite sheets into its own art on its template (each template's sprite slots are listed in its preview).
-- The house roster can then move from the Kung Fu Man copies (non-commercial) to template fighters.
+**Recommended next: the rest of the MVP** ([MVP.md](docs/MVP.md))
+- House roster on the five templates (named fighters in different outfits), so the stream doesn't depend on the Kung Fu Man copies.
+- Production hardening (rate limits, security headers, health check, pruning old fight files), running unattended (start on boot, restart after a crash, nightly backups), and a deploy guide.
+- After the MVP: step 4's automatic checks and balance tool, and community fighters' own art on their templates.
 
 **Streaming: where the stream runs, then a private recording**
 - The capture shows the whole screen. With `GI_GAME_TO_FRONT=true` this Mac can stream as long as it isn't used for anything else meanwhile (the game takes focus every fight). For a 24/7 stream, pick a machine where the game is the only thing showing: a home mini PC, a cloud server, or a second screen on this Mac.
@@ -145,6 +148,7 @@ From Terminal instead: `docker compose up -d`, then `ENGINE_MODE=live pnpm dev` 
 | [CLAUDE.md](CLAUDE.md) | Rules, commands and conventions for anyone (or any AI) working on the code |
 | [docs/DESIGN.md](docs/DESIGN.md) | The game design: the source of truth for decisions |
 | [docs/PHASE2.md](docs/PHASE2.md) | Phase 2 build order and every default value |
+| [docs/MVP.md](docs/MVP.md) | The MVP plan: what we build to go public, and what only you can do |
 | [docs/PHASE3.md](docs/PHASE3.md) | Phase 3 build order, your decisions and every default (staff, seasons, submissions, voting) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pieces fit: state machine, ledger, engine, API, upgrades, titles, tournaments, overlay, staff |
 | [docs/SETUP.md](docs/SETUP.md) | Installing, running, adding characters, streaming, troubleshooting |

@@ -41,6 +41,7 @@ import {
   type StaffPermission,
 } from "@greed-island/shared";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { placeFightBet } from "../betting.ts";
@@ -94,8 +95,10 @@ export interface ApiDeps {
   db: Db;
   config: Config;
   bus: FightBus;
-  /** Folder served at / (the dev page). Defaults to apps/web. */
+  /** Folder served at / (the player site). Defaults to apps/web. */
   webRoot?: string;
+  /** IKEMEN install, for fighter pictures (`card.png` next to a generated character). */
+  ikemenDir?: string;
   /** SSE keep-alive interval. */
   heartbeatMs?: number;
   /** Sends sign-in links. Defaults to printing them to the console. */
@@ -583,6 +586,18 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     return send(reply, view);
   });
   app.get("/api/characters", async (_req, reply) => send(reply, await characterRanking(db)));
+  // A fighter's picture for the website: card.png in its own character folder
+  // (written by pnpm templates:build); fighters without one get a 404 and the page shows a placeholder.
+  app.get<{ Params: { id: string } }>("/api/fighters/:id/image", async (req, reply) => {
+    const fighter = await db.fighter.findUnique({ where: { id: z.string().min(1).max(100).parse(req.params.id) }, select: { defPath: true } });
+    if (!fighter || !deps.ikemenDir) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
+    const chars = path.resolve(deps.ikemenDir, "chars");
+    const file = path.resolve(deps.ikemenDir, path.dirname(fighter.defPath), "card.png");
+    if (!file.startsWith(chars + path.sep)) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
+    const bytes = await readFile(file).catch(() => null);
+    if (!bytes) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
+    return reply.type("image/png").header("cache-control", "public, max-age=3600").send(bytes);
+  });
   app.get<{ Params: { id: string } }>("/api/characters/:id", async (req, reply) => {
     const id = uuid.parse(req.params.id);
     if (!(await db.character.findUnique({ where: { id }, select: { id: true } }))) throw new HttpError(404, "NOT_FOUND", "no such character");

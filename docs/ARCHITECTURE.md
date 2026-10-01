@@ -155,7 +155,7 @@ Fastify, same process as the orchestrator (they share the event bus). `GET /api/
 | `GET /api/ballot/current`, `/api/ballots/:season`, `POST /api/ballot/votes`, `DELETE /api/ballot/votes/:submissionId` | The season ballot (§16): fighters, the viewer's eligibility, votes left and votes cast while open, published counts and who was elected once closed; vote `{submissionId}` (again returns the same vote); take a vote back |
 | `GET /api/seasons`, `/api/seasons/current`, `/api/seasons/:number` | Recent seasons (dates, champion, top bettor); one season: the running one with live standings, who'd win if it ended now, and the viewer's rank, or an ended one's final standings |
 
-`apps/web` holds plain pages (no build step): the dev page at `/`, the watch page at `/watch.html` (video, betting and chat for viewers; `GET /api/site` says which Twitch channel to embed, `GI_TWITCH_CHANNEL`), and the stream overlay at `/overlay.html` (§12), which uses only public routes and the SSE stream.
+`apps/web` holds plain pages (no build step). The player site shares `site.css` and `site.js` (session, API calls, the header with navigation and wallet, toasts, one SSE connection per page, sign-in links on any page): home `/` is watch and bet (video, betting, matchup and chat; `GET /api/site` says which Twitch channel to embed, `GI_TWITCH_CHANNEL`), then shop, my fighters, fighter profiles, rankings, the vote, account, how to play, terms and privacy. Fighter pictures come from `GET /api/fighters/:id/image` (the `card.png` that `templates:build` writes next to a character). The plain dev page is at `/dev.html`, and the stream overlay at `/overlay.html` (§12) uses only public routes and the SSE stream.
 
 ## 7. Data model sketch (Prisma)
 

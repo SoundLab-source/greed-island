@@ -10,7 +10,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { MARKER } from "../ikemen/derive.ts";
 import type { Sheet } from "../art/sheet.ts";
-import { buildTemplateArt, type TemplateArt } from "./art.ts";
+import { buildTemplateArt, cardImage, type TemplateArt } from "./art.ts";
 import { commandsFile, constantsFile, defFile, statesFile } from "./cns.ts";
 import { measureReach } from "./reach.ts";
 import type { TemplateSpec } from "./spec.ts";
@@ -32,6 +32,8 @@ export function templateFiles(spec: TemplateSpec, sheet: Sheet): TemplateFiles {
     ["gi.cmd", Buffer.from(commandsFile(spec, measureReach(spec, art.actions)), "latin1")],
     ["gi.air", Buffer.from(art.air, "latin1")],
     ["gi.sff", art.sff],
+    // The website's picture of the fighter (GET /api/fighters/:id/image).
+    ["card.png", cardImage(spec, sheet)],
   ]);
   const h = createHash("sha256");
   for (const [name, bytes] of [...files].sort(([a], [b]) => (a < b ? -1 : 1))) h.update(name).update(bytes);

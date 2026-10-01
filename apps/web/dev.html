@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Greed Island (dev page)</title>
+  <style>
+    /* Layout only: styling is out of scope for phase 1. */
+    body { font-family: system-ui, sans-serif; margin: 16px; max-width: 1100px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .col { flex: 1 1 320px; min-width: 0; }
+    .box { border: 1px solid #999; padding: 8px 12px; margin-bottom: 12px; }
+    #stream { height: 160px; display: flex; align-items: center; justify-content: center; background: #222; color: #ddd; }
+    #log { height: 120px; overflow: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+    table { border-collapse: collapse; } td, th { padding: 2px 8px; text-align: left; }
+    button { margin-right: 6px; }
+    .muted { color: #666; }
+    .plate { display: inline-block; padding: 2px 8px; border: 2px solid; border-radius: 4px; }
+    .badge { display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; color: #fff; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>Greed Island <small class="muted">dev page</small></h1>
+
+  <div id="stream" class="box">Stream goes here (phase 1: the fight runs in the IKEMEN window or the fake engine)</div>
+
+  <div class="box">
+    <strong id="fight-title">No fight yet</strong>
+    <span id="fight-state" class="muted"></span>
+    <span id="countdown"></span>
+    <div id="fight-meta" class="muted"></div>
+    <div id="result"></div>
+  </div>
+
+  <div class="row">
+    <div class="col box" id="side1"></div>
+    <div class="col box" id="side2"></div>
+  </div>
+
+  <div class="row">
+    <div class="col box">
+      <h3>Your bet</h3>
+      <div>Balance: <strong id="balance">…</strong> Salt <span id="in-bets" class="muted"></span></div>
+      <div id="tsalt" class="muted"></div>
+      <div>
+        <label>Stake <input id="stake" type="number" min="1" step="1" value="10" style="width: 8em"> <span id="stake-currency">Salt</span></label>
+        <button id="bet1">Bet Red (P1)</button>
+        <button id="bet2">Bet Blue (P2)</button>
+      </div>
+      <div id="my-bet" class="muted"></div>
+      <div id="bet-error" style="color: #b00"></div>
+      <div style="margin-top: 8px">
+        <span id="account-status" class="muted"></span>
+        <span id="signin-form">
+          <input id="email" type="email" placeholder="you@example.com" style="width: 14em">
+          <button id="send-link">Email me a sign-in link</button>
+        </span>
+        <button id="logout">Sign out</button>
+        <a id="staff-link" href="/staff.html" hidden>Staff page</a>
+        <a href="/submit.html">Submit a fighter</a>
+        <div id="account-msg" class="muted"></div>
+      </div>
+      <div style="margin-top: 8px">
+        <button id="grant">Claim daily grant</button>
+        <button id="bailout">Bailout</button>
+        <span id="player-name" class="muted"></span>
+        <div id="player-titles" class="muted"></div>
+        <div id="season-me" class="muted"></div>
+      </div>
+    </div>
+    <div class="col box">
+      <h3>Live events</h3>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col box">
+      <h3>Shop <small id="shop-rotates" class="muted"></small></h3>
+      <table id="shop"></table>
+      <div id="shop-msg" class="muted"></div>
+    </div>
+    <div class="col box"><h3>My characters</h3><table id="mine"></table></div>
+  </div>
+
+  <div class="row">
+    <div class="col box">
+      <h3>Tournament <small id="tournament-status" class="muted"></small></h3>
+      <div id="tournament-bracket"></div>
+      <div id="tournament-standings" class="muted"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col box">
+      <h3>Exhibition challenges <small class="muted">owner vs owner, played in the exhibition part of the cycle</small></h3>
+      <div id="challenge-form"></div>
+      <table id="challenges"></table>
+      <div id="challenge-msg" class="muted"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col box">
+      <h3>Wallets and NFTs <small class="muted">read-only: signing is free and sends nothing</small></h3>
+      <div id="wallets"></div>
+      <button id="link-wallet">Link a Solana wallet</button>
+      <table id="nfts"></table>
+      <div id="nft-msg" class="muted"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col box">
+      <h3>Season ballot <small id="ballot-status" class="muted"></small></h3>
+      <table id="ballot"></table>
+      <div id="ballot-msg" class="muted"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col box"><h3>Recent results</h3><table id="results"></table></div>
+    <div class="col box"><h3>Season leaderboard <small id="season-status" class="muted"></small></h3><table id="leaderboard"></table></div>
+    <div class="col box"><h3>Characters</h3><table id="characters"></table></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

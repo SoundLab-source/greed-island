@@ -84,7 +84,7 @@ async function refresh() {
   rules = await api("GET", "/api/submissions/rules");
   if (!me || me.kind !== "EMAIL") {
     $("closed").hidden = false;
-    $("closed").innerHTML = `Sign in with your email on the <a href="/">main page</a> first: staff need a way to reach you about your submission.`;
+    $("closed").innerHTML = `Sign in with your email on the <a href="/account.html">account page</a> first: staff need a way to reach you about your submission.`;
     return;
   }
   if (!rules.canSubmit) {

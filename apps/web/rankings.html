@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rankings · Greed Island</title>
+  <link rel="stylesheet" href="site.css">
+  <style>
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .tabs button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-weight: 700; color: var(--dim); }
+    .tabs button.on { color: var(--ink); border-color: var(--gold); }
+    .bracket { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(180px, 1fr); gap: 12px; overflow-x: auto; }
+    .round h3 { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); margin: 0 0 6px; }
+    .match { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; font-size: 14px; }
+    .match div { display: flex; justify-content: space-between; gap: 6px; }
+    .match .won { font-weight: 800; color: var(--gold); }
+    .me-row td { background: rgba(246, 201, 69, 0.08); }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>Rankings</h1>
+    <p class="lead" id="season-line">Loading the season…</p>
+    <div class="cols">
+      <div class="panel">
+        <h2>Top bettors this season</h2>
+        <p class="muted" id="me-line"></p>
+        <div class="scroll"><table class="table" id="players"></table></div>
+      </div>
+      <div class="panel">
+        <h2>Fighters</h2>
+        <div class="tabs" id="tiers"></div>
+        <div class="scroll"><table class="table" id="fighters"></table></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="spread"><h2 id="tournament-title">Tournament</h2><span class="muted" id="tournament-status"></span></div>
+      <div class="bracket" id="bracket"></div>
+      <p class="muted" id="tsalt"></p>
+    </div>
+    <div class="cols">
+      <div class="panel"><h2>Recent results</h2><div class="scroll"><table class="table" id="results"></table></div></div>
+      <div class="panel"><h2>Past seasons</h2><div class="scroll"><table class="table" id="seasons"></table></div><h2 style="margin-top: 16px">Past tournaments</h2><div class="scroll"><table class="table" id="tournaments"></table></div></div>
+    </div>
+  </main>
+  <script src="site.js"></script>
+  <script src="rankings.js"></script>
+</body>
+</html>

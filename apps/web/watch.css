@@ -1,56 +1,4 @@
-/* Greed Island watch page: video, betting and chat on one page. Same palette as the overlay. */
-:root {
-  --red: #ff4d5a;
-  --blue: #3f8cff;
-  --gold: #f6c945;
-  --green: #3ddc84;
-  --bg: #07090f;
-  --panel: #10141f;
-  --panel-2: #161b29;
-  --line: rgba(255, 255, 255, 0.09);
-  --ink: #f2f4fa;
-  --dim: #99a2b6;
-  --font: "SF Pro Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; }
-body {
-  min-height: 100vh;
-  background: radial-gradient(ellipse at 20% -10%, rgba(255, 77, 90, 0.12), transparent 50%), radial-gradient(ellipse at 80% -10%, rgba(63, 140, 255, 0.12), transparent 50%), var(--bg);
-  color: var(--ink);
-  font: 15px/1.4 var(--font);
-  font-variant-numeric: tabular-nums;
-}
-[hidden] { display: none !important; }
-button { font: inherit; color: inherit; cursor: pointer; }
-button:disabled { cursor: not-allowed; }
-.muted { color: var(--dim); }
-
-.top {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 24px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.brand { color: var(--ink); text-decoration: none; font-weight: 900; font-style: italic; letter-spacing: 3px; font-size: 20px; }
-.brand span { color: var(--gold); }
-.wallet { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.balance b { font-size: 18px; }
-.tsalt { color: var(--gold); font-weight: 700; }
-.ghost {
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 6px 14px;
-  color: var(--ink);
-  text-decoration: none;
-  font-weight: 600;
-}
-.ghost:hover { border-color: rgba(255, 255, 255, 0.3); }
-
+/* Greed Island home page (watch and bet): the video, betting and chat. Shared styles are in site.css. */
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -59,7 +7,7 @@ button:disabled { cursor: not-allowed; }
   max-width: 1600px;
   margin: 0 auto;
 }
-.stage { display: grid; gap: 16px; min-width: 0; }
+.stage { display: grid; gap: 16px; min-width: 0; align-content: start; }
 .video { position: relative; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
 .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
@@ -84,51 +32,43 @@ button:disabled { cursor: not-allowed; }
 .side.blue { text-align: right; }
 .side.red { border-left: 6px solid var(--red); }
 .side.blue { border-right: 6px solid var(--blue); }
+.side:disabled { opacity: 0.8; }
 .side:not(:disabled):hover { transform: translateY(-1px); }
 .side.red:not(:disabled):hover, .side.red.mine { border-color: var(--red); }
 .side.blue:not(:disabled):hover, .side.blue.mine { border-color: var(--blue); }
-.side:disabled { opacity: 0.75; }
 .side .cta { font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
 .side.red .cta { color: var(--red); }
 .side.blue .cta { color: var(--blue); }
 .side .odds { font-size: 30px; font-weight: 900; line-height: 1; }
 .side .sub { color: var(--dim); font-size: 13px; }
-.plate { display: inline-block; max-width: 100%; padding: 3px 12px 4px; border: 2px solid; border-radius: 6px; transform: skewX(-8deg); }
-.plate > span { display: block; transform: skewX(8deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.plate .name { font-size: 20px; font-weight: 900; }
-.plate .title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.9; }
-.badges { display: inline-flex; gap: 4px; }
-.badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 5px; font-size: 11px; font-weight: 900; color: #fff; }
+.side .plate .name { font-size: 20px; }
 
 .stakebox { display: grid; gap: 8px; align-content: center; text-align: center; }
 .stakebox label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); }
-.stakebox input {
-  width: 100%;
-  padding: 10px 12px;
-  font: 800 24px var(--font);
-  text-align: center;
-  color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
+.stakebox input { width: 100%; padding: 10px 12px; font: 800 24px var(--font); text-align: center; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .chips button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
 .my-bet { font-size: 13px; color: var(--dim); min-height: 18px; }
 .my-bet b { color: var(--ink); }
-.msg { min-height: 20px; margin-top: 10px; text-align: center; font-weight: 600; }
-.msg.error { color: var(--red); }
-.msg.ok { color: var(--green); }
+.betbox .msg { margin-top: 10px; text-align: center; }
 
-.social { display: grid; min-height: 0; }
-.social iframe { width: 100%; height: 100%; min-height: 520px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-.feed { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-height: 520px; }
+/* The tale of the tape under the bet box. */
+.matchup { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 14px; }
+.matchup .col { display: grid; gap: 4px; }
+.matchup .col.b { text-align: right; }
+.matchup .mid { display: grid; gap: 4px; text-align: center; color: var(--dim); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; align-content: center; }
+.matchup .mid b { color: var(--ink); font-size: 15px; letter-spacing: 0; text-transform: none; }
+.form { letter-spacing: 2px; font-weight: 800; }
+.form .w { color: var(--green); }
+.form .l { color: var(--red); }
+
+.social { display: grid; min-height: 0; align-content: start; }
+.social iframe { width: 100%; height: 100%; min-height: 560px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.feed { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-height: 560px; }
 .feed h2 { margin: 0 0 4px; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; }
 .feed ol { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .feed li { padding: 8px 10px; border-radius: 8px; background: var(--panel-2); font-size: 14px; }
 .feed li time { color: var(--dim); font-size: 12px; margin-right: 6px; }
-
-.fineprint { max-width: 1600px; margin: 0 auto; padding: 0 20px 24px; color: var(--dim); font-size: 12px; }
 
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; padding: 12px; }
@@ -139,9 +79,7 @@ button:disabled { cursor: not-allowed; }
   .stakebox { grid-column: 1 / -1; grid-row: 2; }
   .side { min-height: 110px; padding: 10px 12px; }
   .side .odds { font-size: 24px; }
-  .plate .name { font-size: 16px; }
-  .top { padding: 10px 12px; }
+  .side .plate .name { font-size: 16px; }
+  .matchup { grid-template-columns: 1fr 1fr; }
+  .matchup .mid { grid-column: 1 / -1; grid-row: 1; }
 }
-
-/* An NFT look's portrait before the name (docs/PHASE3.md "NFTs as fighters"). */
-.plate .look { height: 1.6em; width: 1.6em; object-fit: cover; border-radius: 0.2em; vertical-align: middle; margin-right: 0.4em; }

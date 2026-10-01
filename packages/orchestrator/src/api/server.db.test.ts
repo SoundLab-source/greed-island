@@ -679,3 +679,27 @@ describe("live stream", () => {
     expect(view.sides[1].cosmetics.nameplate).toMatchObject({ background: expect.any(String), border: expect.any(String), text: expect.any(String) });
   });
 });
+
+describe("fighter pictures", () => {
+  it("serves card.png from the fighter's own folder, and nothing else", async () => {
+    const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    await mkdir(nodePath.join(ikemen, "chars", "f1"), { recursive: true });
+    await writeFile(nodePath.join(ikemen, "chars", "f1", "card.png"), png(4, 8, 7));
+    await db.fighter.create({ data: { id: "sneaky", displayName: "sneaky", archetype: "ALL_ROUNDER", defPath: "../outside/x.def", licenseNote: "test" } });
+    const srv = await buildServer({ db, config, bus, mailer, ikemenDir: ikemen });
+    try {
+      const ok = await srv.inject({ method: "GET", url: "/api/fighters/f1/image" });
+      expect(ok.statusCode).toBe(200);
+      expect(ok.headers["content-type"]).toBe("image/png");
+      expect(ok.rawPayload.subarray(1, 4).toString()).toBe("PNG");
+      expect((await srv.inject({ method: "GET", url: "/api/fighters/f2/image" })).statusCode).toBe(404); // no picture built
+      expect((await srv.inject({ method: "GET", url: "/api/fighters/sneaky/image" })).statusCode).toBe(404); // outside chars/
+      expect((await srv.inject({ method: "GET", url: "/api/fighters/nobody/image" })).statusCode).toBe(404);
+      expect((await app.inject({ method: "GET", url: "/api/fighters/f1/image" })).statusCode).toBe(404); // no IKEMEN folder configured
+    } finally {
+      await srv.close();
+      await rm(ikemen, { recursive: true, force: true });
+    }
+  });
+});

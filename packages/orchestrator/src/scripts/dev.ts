@@ -45,11 +45,11 @@ for (const a of await reconcile(deps)) console.log(`reconciled fight #${a.number
 const host = process.env["GI_HOST"] ?? "127.0.0.1";
 const port = Number(process.env["GI_PORT"] ?? 3000);
 const publicUrl = process.env["GI_PUBLIC_URL"] ?? `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel() });
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), ikemenDir: engine.ikemenDir });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
-console.log(`Watch page: ${publicUrl}/watch.html · stream overlay for OBS: ${publicUrl}/overlay.html (see docs/SETUP.md §5)`);
+console.log(`Player site: ${publicUrl}/ · stream overlay for OBS: ${publicUrl}/overlay.html (see docs/SETUP.md §5) · dev page: ${publicUrl}/dev.html`);
 
 // Optional: switch OBS scenes between fight and betting (GI_OBS_URL).
 const obsConfig = loadObsConfig();

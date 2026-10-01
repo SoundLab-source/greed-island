@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account · Greed Island</title>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <main class="page">
+    <h1>Account</h1>
+    <div class="cols">
+      <div class="panel">
+        <h2>Sign in</h2>
+        <div id="signed-in" hidden>
+          <p>Signed in as <b id="email"></b>.</p>
+          <button class="ghost" id="logout">Sign out</button>
+          <a class="ghost" id="staff-link" href="/staff.html" hidden>Staff page</a>
+        </div>
+        <div id="signed-out" hidden>
+          <p class="muted">You're playing anonymously: your Salt and fighters live in this browser only. Add your email to keep them on any device. We email you a sign-in link; there's no password.</p>
+          <div class="row"><input id="email-input" type="email" placeholder="you@example.com" autocomplete="email" style="flex: 1 1 220px"><button class="btn" id="send-link">Email me a sign-in link</button></div>
+          <p class="msg" id="link-msg"></p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Your Salt</h2>
+        <div class="facts" id="salt"></div>
+        <p class="muted" id="season"></p>
+        <div id="titles"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Your bets</h2>
+      <div class="scroll"><table class="table" id="bets"></table></div>
+    </div>
+    <div class="panel" id="wallet-panel">
+      <h2>Wallets and NFTs</h2>
+      <p class="muted">Link a Solana wallet by signing a free message: nothing is sent on-chain and no transaction is made. NFTs from approved collections can be submitted as fighters or worn as looks.</p>
+      <div id="wallets"></div>
+      <div class="row" style="margin-top: 10px"><button class="ghost" id="link-wallet">Link a wallet</button></div>
+      <div class="scroll" style="margin-top: 10px"><table class="table" id="nfts"></table></div>
+      <p class="muted" id="nft-msg"></p>
+    </div>
+  </main>
+  <script src="site.js"></script>
+  <script src="account.js"></script>
+</body>
+</html>

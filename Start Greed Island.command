@@ -11,7 +11,7 @@ REAL_FIGHTS=1
 
 cd "${0:A:h}" || exit 1
 export PATH="$HOME/.local/node/bin:$HOME/.docker/bin:$PATH"
-WATCH_URL="http://127.0.0.1:${GI_PORT:-3000}/watch.html"
+WATCH_URL="http://127.0.0.1:${GI_PORT:-3000}/"
 
 pause_and_exit() {
   echo

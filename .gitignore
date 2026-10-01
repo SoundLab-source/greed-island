@@ -47,3 +47,6 @@ looks/
 
 # Downloaded art (sources listed in art/SOURCES.md); never committed
 art/sources/
+
+# Local preview config (machine-specific paths)
+.claude/launch.json

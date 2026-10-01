@@ -10,7 +10,7 @@ import { writeAir, type AirAction, type AirFrame, type Box } from "../art/air.ts
 import { hitbox, hurtboxes } from "../art/clsn.ts";
 import { readSff, writeSff, type SffPalette, type SffSprite } from "../art/sff.ts";
 import { bounds, cell, cleanStrays, crop, scale, type IndexedImage, type Sheet } from "../art/sheet.ts";
-import { readPng } from "../art/png.ts";
+import { readPng, writePng } from "../art/png.ts";
 import { PROJECTILE_COLORS, PROJECTILE_SLOTS, projectileArt } from "./projectile.ts";
 import { cellList, checkSpec, ticksOf, type AnimSpec, type TemplateSpec, type ThrowSpec } from "./spec.ts";
 
@@ -193,6 +193,23 @@ export function headBox(img: IndexedImage, side = 64): [number, number, number, 
   const x0 = Math.max(0, Math.min(img.width - side, cx - side / 2));
   const y0 = Math.max(0, Math.min(img.height - side, b.y0 - 4));
   return [x0, y0, x0 + side, y0 + side];
+}
+
+/**
+ * A picture of the fighter for the website (shop, profiles): its stance,
+ * trimmed, in its main colours, as an RGBA PNG.
+ */
+export function cardImage(spec: TemplateSpec, sheet: Sheet): Buffer {
+  const stand = spec.anims.find((a) => a.action === 0);
+  if (!stand) throw new Error(`${spec.id}: no stand animation`);
+  const img = cleanStrays(cell(sheet, cellList(stand.cells)[0]!), new Set(spec.art.stray));
+  const trimmed = crop(img, bounds(img)!);
+  const pal = templatePalettes(spec, sheet.palette)[0]!.colors;
+  const rgba = new Uint8Array(trimmed.width * trimmed.height * 4);
+  trimmed.pixels.forEach((v, i) => {
+    if (v) rgba.set([pal[v * 3]!, pal[v * 3 + 1]!, pal[v * 3 + 2]!, 255], i * 4);
+  });
+  return writePng({ width: trimmed.width, height: trimmed.height, colorType: 6, pixels: rgba });
 }
 
 /** Sprites of a built file by slot, for previews. */
