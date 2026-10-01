@@ -50,3 +50,6 @@ art/sources/
 
 # Local preview config (machine-specific paths)
 .claude/launch.json
+
+# Database backups (pnpm db:backup)
+backups/

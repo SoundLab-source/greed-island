@@ -36,6 +36,8 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm match:once [--p1 key] [--p2 key] [--stage id] [--sim] [--p1-attack 115 --p2-life 120 ...]`: one real fight from roster.json (no DB), optionally with upgraded stats; artifacts in `runs/<fightId>/`
 - `pnpm roster:smoke [--dry-run]`: run each enabled fighter and stage once in `sim`; disables failures in roster.json
 - `Start Greed Island.command` / `Stop Greed Island.command` (macOS, double-click): start Docker if needed and run `ENGINE_MODE=live GI_GAME_TO_FRONT=true pnpm dev` in a Terminal window and open the watch page; stop it (SIGINT; closing the window sends SIGHUP, also handled)
+- `pnpm service:install` / `service:uninstall` / `service:status` (macOS): run the stream unattended with launchd (starts at login, restarts when it stops) plus a nightly database backup; logs in `~/Library/Logs/GreedIsland/` (docs/DEPLOY.md)
+- `pnpm db:backup`: a compressed database dump in `backups/` (gitignored), keeping the newest 14
 - `pnpm obs:setup`: with OBS open and `GI_OBS_URL`/`GI_OBS_PASSWORD` set, create the Fight and Betting scenes (screen capture + overlay) and reload the overlay; safe to re-run
 - `pnpm staff:role <email> <admin|moderator|player>`: set an account's staff role (the only way to add or remove an admin; the account must have signed in with that email); no arguments lists the staff. Logged in the staff log
 

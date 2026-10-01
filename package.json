@@ -25,6 +25,10 @@
     "obs:setup": "pnpm --filter @greed-island/orchestrator run obs:setup",
     "staff:role": "pnpm --filter @greed-island/orchestrator run staff:role",
     "roster:variants": "pnpm --filter @greed-island/engine run roster:variants",
+    "service:install": "pnpm --filter @greed-island/orchestrator run service install",
+    "service:uninstall": "pnpm --filter @greed-island/orchestrator run service uninstall",
+    "service:status": "pnpm --filter @greed-island/orchestrator run service status",
+    "db:backup": "zsh scripts/backup-db.sh",
     "templates:build": "pnpm --filter @greed-island/engine run templates:build"
   },
   "devDependencies": {
