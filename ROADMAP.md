@@ -2,14 +2,14 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-10-01, after the MVP build (all five steps). Update this file at the end of every build step.*
+*Last updated 2026-10-01, after the first go-live rehearsal (the site through a Cloudflare test tunnel). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **The MVP is built** ([MVP.md](docs/MVP.md)): player website, template house roster, production hardening, running unattended and the deploy guide. Going live is now your steps ([DEPLOY.md](docs/DEPLOY.md)). |
-| **Next step** | Yours, to go live: the stream machine, a domain, an email-sending account and the Twitch channel, then the checklist in [DEPLOY.md](docs/DEPLOY.md) §7. Ours meanwhile: step 4's balance tool, and community fighters' own art. Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
+| **Next step** | Going live, walked through together ("Going live" below). Done: the site reached over a public test address, with the Twitch channel (`greedislandgg`) on the watch page. Waiting on you: buy a domain (at Cloudflare), a Resend account for sign-in emails, the Twitch stream key in OBS, and which machine runs the stream. After we're live: step 4's balance tool. |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, five fighter templates (Brawler, Striker, Bruiser, Wrestler, Sage: one per archetype) built from free CC0 art, with throws, a projectile and their own AI, on the house roster, an API with live updates, a **player website** (watch and bet, shop, my fighters, fighter profiles, rankings, vote, account, how to play, draft terms and privacy), a plain dev page, and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | What needs the templates: automatic checks on submissions, community fighters' own art on a template, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
 | **Health** | 580 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
@@ -82,6 +82,10 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - ✅ **Going public**: [DEPLOY.md](docs/DEPLOY.md) covers preparing the stream machine, the always-on service, backups, putting the website online through a Cloudflare Tunnel (HTTPS on your domain, no open ports; a no-account quick test too), email sign-in through a mail provider, the Twitch channel, the production settings (`GI_ENV=production` checks them at start-up) and a go-live checklist.
 - ✅ **Our own stages**: Dusk Peaks, Neon Harbor and Jade Valley, backgrounds drawn in code (`pnpm stages:build`), so with `GI_COMMERCIAL_ONLY=true` everything on stream is ours or cleared (the bundled stages are switched off too).
 
+**Going live** (walkthrough of [DEPLOY.md](docs/DEPLOY.md), started 2026-10-01)
+- ✅ **First rehearsal: the site over a public test address.** `cloudflared` (Cloudflare's tunnel program) installed in the user folder, checksum and signature checked. Through a temporary Cloudflare address, the pages, betting, the health check, the security headers and the Twitch player and chat (channel `greedislandgg`, set in `.env`) all work, and each visitor's own address reaches the server, so rate limits count per visitor. Two things turned out wrong and are fixed: the test tunnel doesn't pass live updates, so the watch page froze after the first fight (the site now notices a silent stream and checks the current fight every 3 seconds instead); and the guide's install command needed Homebrew, which this Mac doesn't have (it now gives the direct download). The guide also gained what to do when a network blocks the tunnel, and the Resend settings.
+- This MacBook is the rehearsal machine only: it's a laptop in daily use with disk encryption on, so its system settings were left alone. The permanent stream machine is still to choose.
+
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
 - ✅ **OBS installed and tested with real fights**: OBS 32.2.2 (checksum and Apple notarization verified). `pnpm obs:setup` creates the scenes and picks the screen to capture; scene switching followed every fight, including a real IKEMEN fight (#111); the betting screen and the fight bar render inside OBS over the capture. Known limit: the capture is the whole screen, and the game window opens behind other apps, so capturing only the game window is still open ([obs-notes.md](docs/obs-notes.md)).
@@ -90,14 +94,14 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**To go live (your steps; details in [DEPLOY.md](docs/DEPLOY.md))**
-1. Pick the stream machine (a Mac or PC used only for the stream; this Mac works if nothing else runs on it), log it in automatically and keep it awake.
-2. Get a domain and put it on Cloudflare; create the tunnel.
-3. Make an account with an email provider (SMTP) for sign-in links.
-4. Create the Twitch channel; set up OBS (`pnpm obs:setup`).
-5. Fill in the production settings in `.env`, `pnpm service:install`, and go through the checklist (§7).
+**To go live (details in [DEPLOY.md](docs/DEPLOY.md))**
+1. ✅ Rehearsal on this Mac: the site through a Cloudflare test tunnel, with the Twitch channel on the watch page.
+2. **You:** create a Cloudflare account and buy the domain there (Domain Registration → Register Domains), so it's on Cloudflare from the start. **Then us:** `cloudflared tunnel login` (you approve it in the browser), create the tunnel, point `play.<your domain>` at it, and confirm live updates pass through it.
+3. **You:** a Resend account, your domain added and verified there, and an API key pasted into `.env`. **Then us:** a real sign-in email to your phone.
+4. **You:** the Twitch stream key into OBS (Settings → Stream). **Then us:** `pnpm obs:setup` and a short test stream.
+5. **You:** pick the stream machine (a Mac or PC used only for the stream), log it in automatically, keep it awake, Docker at login. **Then us:** the production settings in `.env`, `pnpm service:install`, and the checklist (§7).
 
-**Engineering next (while that happens)**
+**Engineering next (after we're live)**
 - Step 4 of phase 3: the balance tool (hundreds of sim fights per check) and the automatic checks on submissions; it also finishes balancing the five templates.
 - Community fighters' own art on their templates.
 

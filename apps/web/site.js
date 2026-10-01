@@ -171,18 +171,97 @@ window.GI = (() => {
   // ---- Live updates ----
   /** Listen to the server's live events: { fight_state: (data) => …, … } (one connection for the page). */
   let source = null;
-  GI.live = (handlers) => {
-    source ??= new EventSource("/api/stream"); // one connection shared by the whole page
-    for (const [type, fn] of Object.entries(handlers)) {
-      source.addEventListener(type, (e) => {
-        try {
-          fn(e.data ? JSON.parse(e.data) : null);
-        } catch {
-          /* a bad event never breaks the page */
-        }
-      });
+  const liveHandlers = new Map(); // event type -> the page's handlers
+  const emit = (type, data) => {
+    for (const fn of liveHandlers.get(type) ?? []) {
+      try {
+        fn(data);
+      } catch {
+        /* a bad event never breaks the page */
+      }
     }
   };
+  const listen = (type) => {
+    if (liveHandlers.has(type)) return;
+    liveHandlers.set(type, []);
+    source.addEventListener(type, (e) => {
+      let data = null;
+      try {
+        data = e.data ? JSON.parse(e.data) : null;
+      } catch {
+        return;
+      }
+      emit(type, data);
+    });
+  };
+  GI.live = (handlers) => {
+    if (!source) openStream();
+    for (const [type, fn] of Object.entries(handlers)) {
+      listen(type);
+      liveHandlers.get(type).push(fn);
+    }
+  };
+
+  // Some proxies hold the stream back instead of passing events on (Cloudflare's quick tunnels do:
+  // docs/DEPLOY.md §4). The server greets every connection with "hello" at once, so a stream that
+  // opens and stays silent is one of those: the page then asks for the current fight every few
+  // seconds and reports what changed as the same events. Only fights are covered; tournament,
+  // season, ballot and release news shows on the next page load.
+  const HELLO_WAIT_MS = 6000;
+  const POLL_MS = 3000;
+  let helloTimer = null;
+  let pollTimer = null;
+  let seen = null; // the last polled fight: { id, number, state, hasResult, sig }
+  function openStream() {
+    source = new EventSource("/api/stream"); // one connection shared by the whole page
+    const armHelloTimer = () => {
+      clearTimeout(helloTimer);
+      helloTimer = setTimeout(startPolling, HELLO_WAIT_MS);
+    };
+    source.addEventListener("open", armHelloTimer);
+    listen("hello");
+    liveHandlers.get("hello").push(() => {
+      clearTimeout(helloTimer);
+      clearInterval(pollTimer);
+      pollTimer = null;
+      seen = null;
+    });
+    armHelloTimer();
+  }
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(poll, POLL_MS);
+    poll();
+  }
+  async function poll() {
+    if (document.hidden) return;
+    let f;
+    try {
+      f = await GI.api("GET", "/api/fights/current");
+    } catch {
+      return; // try again next time
+    }
+    const now = f ? { id: f.id, number: f.number, state: f.state, hasResult: Boolean(f.result), sig: JSON.stringify([f.odds, f.myBet]) } : null;
+    const before = seen;
+    seen = now;
+    if (!before || !now) {
+      if (now) emit("fight_state", { fightId: now.id, number: now.number, state: now.state });
+      return;
+    }
+    if (now.id !== before.id) {
+      // The last fight ended between two checks: pages reload what a finished fight changes.
+      if (!before.hasResult) emit("fight_state", { fightId: before.id, number: before.number, state: "SETTLED" });
+      emit("fight_state", { fightId: now.id, number: now.number, state: now.state });
+    } else if (now.state !== before.state) {
+      emit("fight_state", { fightId: now.id, number: now.number, state: now.state });
+    } else if (now.sig !== before.sig) {
+      emit("odds_live", { fightId: now.id, odds: f.odds });
+    }
+    if (now.id === before.id && now.hasResult && !before.hasResult) {
+      const r = f.result;
+      emit("fight_result", r.kind === "settled" ? { fightId: now.id, number: now.number, result: "SETTLED", winnerSide: r.winnerSide } : { fightId: now.id, number: now.number, result: "VOIDED" });
+    }
+  }
 
   // A fighter picture that fails to load (fighters without one) becomes a "?" placeholder:
   // <img data-fallback="class names">. Done here because the content policy allows no inline handlers.

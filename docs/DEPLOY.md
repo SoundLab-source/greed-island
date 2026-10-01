@@ -22,7 +22,8 @@ The game needs a real screen, so the machine stays logged in and is used only fo
 ## 1. Prepare the machine (macOS)
 
 - **Log in automatically:** System Settings → Users & Groups → automatic login for the user that runs the stream (it needs FileVault off on that Mac). After a power cut, the machine comes back by itself.
-- **Never sleep:** System Settings → Energy / Displays: prevent automatic sleeping, and keep the display on (the game and OBS draw to it).
+- **Never sleep:** System Settings → Energy / Displays: prevent automatic sleeping, and keep the display on (the game and OBS draw to it). A MacBook also has to stay plugged in with its lid open.
+- **A steady connection, no VPN:** the tunnel (section 4) needs to reach Cloudflare; a VPN or a phone hotspot can block or drop it.
 - **Docker Desktop starts at login:** Docker Desktop → Settings → General → Start Docker Desktop when you sign in.
 - **IKEMEN allowed once:** open the game once and approve it in Privacy & Security ([SETUP.md](SETUP.md)).
 - Build the fighters and copy `.env` as in [SETUP.md](SETUP.md), then check a fight runs: `pnpm match:once`.
@@ -60,10 +61,22 @@ pnpm ledger:audit
 
 The server only listens on `127.0.0.1` (this machine). A tunnel carries HTTPS from your domain to it, so nothing on your router is opened and you don't need a fixed IP address.
 
-**Cloudflare Tunnel** (free). These commands are from Cloudflare's documentation and haven't been run on this machine yet:
+**Cloudflare Tunnel** (free). What's been run for real: installing `cloudflared` and the quick private test below (✅ verified 2026-10-01, cloudflared 2026.9.3 on macOS). The tunnel on your own domain (steps 1, and 2's commands onward) is from Cloudflare's documentation and still UNVERIFIED here: it needs the domain first.
 
-1. Put your domain on Cloudflare (it becomes the domain's DNS).
-2. Install `cloudflared` (`brew install cloudflared`), then sign in and create the tunnel:
+**Install `cloudflared`** ✅. Without Homebrew: download `cloudflared-darwin-arm64.tgz` (Apple silicon; `-amd64` for an Intel Mac) from Cloudflare's [releases page](https://github.com/cloudflare/cloudflared/releases), check it and put the one program inside on your PATH:
+
+```bash
+shasum -a 256 cloudflared-darwin-arm64.tgz     # compare with the sha256 shown on the releases page
+tar -xzf cloudflared-darwin-arm64.tgz
+codesign -dv --verbose=2 cloudflared           # Authority=Developer ID Application: Cloudflare Inc. (68WVV388M8)
+mkdir -p ~/.local/bin && mv cloudflared ~/.local/bin/
+cloudflared --version
+```
+
+With Homebrew, `brew install cloudflared` does the same.
+
+1. Put your domain on Cloudflare (it becomes the domain's DNS). A domain bought at Cloudflare Registrar is already there.
+2. Sign in and create the tunnel:
    ```bash
    cloudflared tunnel login
    cloudflared tunnel create greed-island
@@ -80,9 +93,20 @@ The server only listens on `127.0.0.1` (this machine). A tunnel carries HTTPS fr
    ```
 4. Run it as a service so it starts by itself: `sudo cloudflared service install`, or try it first with `cloudflared tunnel run greed-island`.
 
-The live updates (server-sent events) keep their connection alive every 15 seconds, well inside Cloudflare's idle limit. The server reads the visitor's address from the tunnel (`GI_TRUST_PROXY=loopback`, the default), so rate limits apply per visitor.
+The live updates (server-sent events) keep their connection alive every 15 seconds, well inside Cloudflare's idle limit. The server reads the visitor's address from the tunnel (`GI_TRUST_PROXY=loopback`, the default), so rate limits apply per visitor. ✅ Checked: `cloudflared` connects from `127.0.0.1` and passes the visitor's address in `x-forwarded-for`.
 
-**Quick private test, no account:** `cloudflared tunnel --url http://127.0.0.1:3000` prints a temporary `https://….trycloudflare.com` address. Use it to try the site from a phone; don't share it, and set `GI_PUBLIC_URL` to it while testing sign-in.
+**Quick private test, no account** ✅:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:3000
+```
+
+It prints a temporary `https://….trycloudflare.com` address (a new one each time). Use it to try the site from a phone; don't share it, and set `GI_PUBLIC_URL` to it while testing sign-in. What the test showed:
+
+- Pages, the API, betting, the health check, the security headers and the Twitch player and chat all work through it.
+- **Quick tunnels don't pass live updates** (Cloudflare's stated limit: no server-sent events; the stream opens and stays silent). The site notices a silent stream after 6 seconds and asks for the current fight every 3 seconds instead, so the watch page keeps following fights. Tournament, season, vote and release news then shows on the next page load. A tunnel on your own domain carries live updates (Cloudflare's documentation; to confirm when the domain is set up).
+- Wait for `Registered tunnel connection` in its output before opening the address. Opened too early, the address is "not found", and the device remembers that for a few minutes.
+- `Failed to dial a quic connection`, over and over: that network blocks the tunnel's usual connection (UDP port 7844). Add `--protocol http2` (TCP on the same port): `cloudflared tunnel --protocol http2 --url http://127.0.0.1:3000`. Seen here on a phone hotspot with a VPN on; the stream machine should be on a steady connection without a VPN.
 
 **Instead of a tunnel:** any HTTPS reverse proxy on this machine (Caddy, nginx) in front of `127.0.0.1:3000`, with ports 80 and 443 forwarded to it. Keep `GI_HOST=127.0.0.1` either way.
 
@@ -97,11 +121,17 @@ GI_MAIL_FROM="Greed Island <no-reply@your-domain.com>"
 
 Without a mail server, sign-in links are only printed in the server log, which is fine on a developer's machine and not for the public.
 
+**With Resend** (from its documentation, UNVERIFIED here until the domain exists; free for 3,000 emails a month, 100 a day): add your domain under Domains and create the DNS records it lists in Cloudflare, wait for "Verified", then create an API key with sending access. The SMTP user is always the word `resend` and the password is the API key:
+
+```bash
+GI_SMTP_URL=smtps://resend:YOUR_API_KEY@smtp.resend.com:465
+```
+
 ## 6. The stream on Twitch
 
 1. Create the Twitch channel and put its stream key in OBS (Settings → Stream).
 2. Set up the scenes: `pnpm obs:setup` with `GI_OBS_URL` and `GI_OBS_PASSWORD` in `.env` ([SETUP.md](SETUP.md), [obs-notes.md](obs-notes.md)).
-3. Set `GI_TWITCH_CHANNEL=yourchannel` in `.env`: the home page then shows the Twitch player and chat (Twitch only allows embedding on the page's own domain, which the page fills in itself).
+3. Set `GI_TWITCH_CHANNEL=yourchannel` in `.env`: the home page then shows the Twitch player and chat (Twitch only allows embedding on the page's own domain, which the page fills in itself). ✅ Checked 2026-10-01 over a public HTTPS address: the player (showing the channel as offline) and the chat both load.
 4. Start streaming in OBS (OBS can start streaming at launch: Settings → General).
 
 ## 7. Production settings and go-live checklist
