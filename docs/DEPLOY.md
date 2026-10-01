@@ -56,6 +56,77 @@ gunzip -c backups/greed_island-YYYY-MM-DD-HHMM.sql.gz | docker compose exec -T p
 pnpm ledger:audit
 ```
 
+## 4. Put the website online
+
+The server only listens on `127.0.0.1` (this machine). A tunnel carries HTTPS from your domain to it, so nothing on your router is opened and you don't need a fixed IP address.
+
+**Cloudflare Tunnel** (free). These commands are from Cloudflare's documentation and haven't been run on this machine yet:
+
+1. Put your domain on Cloudflare (it becomes the domain's DNS).
+2. Install `cloudflared` (`brew install cloudflared`), then sign in and create the tunnel:
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create greed-island
+   cloudflared tunnel route dns greed-island play.your-domain.com
+   ```
+3. Write `~/.cloudflared/config.yml` (the tunnel id and credentials file are printed by `create`):
+   ```yaml
+   tunnel: <tunnel id>
+   credentials-file: /Users/<you>/.cloudflared/<tunnel id>.json
+   ingress:
+     - hostname: play.your-domain.com
+       service: http://127.0.0.1:3000
+     - service: http_status:404
+   ```
+4. Run it as a service so it starts by itself: `sudo cloudflared service install`, or try it first with `cloudflared tunnel run greed-island`.
+
+The live updates (server-sent events) keep their connection alive every 15 seconds, well inside Cloudflare's idle limit. The server reads the visitor's address from the tunnel (`GI_TRUST_PROXY=loopback`, the default), so rate limits apply per visitor.
+
+**Quick private test, no account:** `cloudflared tunnel --url http://127.0.0.1:3000` prints a temporary `https://….trycloudflare.com` address. Use it to try the site from a phone; don't share it, and set `GI_PUBLIC_URL` to it while testing sign-in.
+
+**Instead of a tunnel:** any HTTPS reverse proxy on this machine (Caddy, nginx) in front of `127.0.0.1:3000`, with ports 80 and 443 forwarded to it. Keep `GI_HOST=127.0.0.1` either way.
+
+## 5. Email sign-in
+
+Players add their email to keep their account; the server emails a one-time link. Any SMTP provider works (for example Postmark, Resend, Amazon SES, Brevo): create an account, verify your domain with the DNS records it gives you (SPF and DKIM, so the emails aren't marked as spam), and put its SMTP address in `.env`:
+
+```bash
+GI_SMTP_URL=smtps://USER:PASSWORD@smtp.provider.com:465
+GI_MAIL_FROM="Greed Island <no-reply@your-domain.com>"
+```
+
+Without a mail server, sign-in links are only printed in the server log, which is fine on a developer's machine and not for the public.
+
+## 6. The stream on Twitch
+
+1. Create the Twitch channel and put its stream key in OBS (Settings → Stream).
+2. Set up the scenes: `pnpm obs:setup` with `GI_OBS_URL` and `GI_OBS_PASSWORD` in `.env` ([SETUP.md](SETUP.md), [obs-notes.md](obs-notes.md)).
+3. Set `GI_TWITCH_CHANNEL=yourchannel` in `.env`: the home page then shows the Twitch player and chat (Twitch only allows embedding on the page's own domain, which the page fills in itself).
+4. Start streaming in OBS (OBS can start streaming at launch: Settings → General).
+
+## 7. Production settings and go-live checklist
+
+Add to `.env` on the stream machine:
+
+```bash
+GI_ENV=production                         # refuses to start if any of the below is missing or unsafe
+GI_PUBLIC_URL=https://play.your-domain.com
+GI_SMTP_URL=smtps://…
+GI_MAIL_FROM="Greed Island <no-reply@your-domain.com>"
+GI_TWITCH_CHANNEL=yourchannel
+# GI_COMMERCIAL_ONLY=true                 # only fighters cleared for commercial use (the five templates)
+```
+
+Before telling anyone the address:
+
+- [ ] `pnpm service:status` shows the stream running and the health check at 200.
+- [ ] Sign in with your email from a phone over the public address, and make yourself admin: `pnpm staff:role you@your-domain.com admin`.
+- [ ] Place a bet, watch it settle, check the ledger: `pnpm ledger:audit`.
+- [ ] An uptime monitor on `https://play.your-domain.com/api/health`.
+- [ ] Backups copied off the machine (section 3).
+- [ ] Fighter submissions stay closed (`GI_SUBMISSIONS_OPEN` unset) until the terms are ready; the terms and privacy pages are drafts for the lawyer.
+- [ ] Decide about `GI_COMMERCIAL_ONLY` and the stages (their licences are unclear: [ikemen-notes.md](ikemen-notes.md) §6).
+
 ## Linux (systemd)
 
 The same jobs as user units, with the screen session logged in automatically (and Xvfb untested: see [ikemen-notes.md](ikemen-notes.md)). In `~/.config/systemd/user/greed-island.service`:

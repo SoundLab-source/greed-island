@@ -2,14 +2,14 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-10-01, after MVP step 1 (the player website). Update this file at the end of every build step.*
+*Last updated 2026-10-01, after the MVP build (all five steps). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **Now: the MVP** ([MVP.md](docs/MVP.md)), 4 of 5 steps done: the player website, the house roster on the templates, production hardening and running unattended. |
-| **Next step** | MVP step 5: going public (the HTTPS tunnel, email sign-in and Twitch), in [DEPLOY.md](docs/DEPLOY.md). Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **The MVP is built** ([MVP.md](docs/MVP.md)): player website, template house roster, production hardening, running unattended and the deploy guide. Going live is now your steps ([DEPLOY.md](docs/DEPLOY.md)). |
+| **Next step** | Yours, to go live: the stream machine, a domain, an email-sending account and the Twitch channel, then the checklist in [DEPLOY.md](docs/DEPLOY.md) §7. Ours meanwhile: our own stages, step 4's balance tool, and community fighters' own art. Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, five fighter templates (Brawler, Striker, Bruiser, Wrestler, Sage: one per archetype) built from free CC0 art, with throws, a projectile and their own AI, on the house roster, an API with live updates, a **player website** (watch and bet, shop, my fighters, fighter profiles, rankings, vote, account, how to play, draft terms and privacy), a plain dev page, and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | What needs the templates: automatic checks on submissions, community fighters' own art on a template, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
 | **Health** | 575 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
@@ -78,7 +78,8 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - ✅ **Player website** (`25291c1`): a styled site for the whole loop, on phones too. Home is watch and bet (video, Red/Blue betting, a matchup panel with records, recent form and head-to-head, and chat or a live feed); then the shop (with each template fighter's picture), my fighters (upgrades, sidegrades, the look on stream, names, NFT looks, challenges), fighter profiles, rankings (season leaderboard, fighters by tier, the tournament bracket, results, past seasons), the season vote, account (email sign-in, Salt, titles, bet history, wallets), how to play, and draft terms and privacy pages for the lawyer. The plain dev page moved to `/dev.html`.
 - ✅ **House roster on the templates** (`b90760d`): 20 house fighters on the five templates, each template in its four outfits under its own name. `GI_COMMERCIAL_ONLY=true` switches off the Kung Fu Man copies (fighters whose licence isn't cleared for commercial use), leaving only the templates on stream.
 - ✅ **Production hardening** (`e09b6c8`): rate limits per client address (new players, sign-in emails, bets, the API, live connections), security headers with a strict content policy, correct client addresses behind a tunnel or proxy, a health check (`/api/health`), start-up checks for a public deployment (`GI_ENV=production`), pruning old fight artifacts, the database port closed to the network, and a clean exit (instead of a crash) when the database goes away.
-- ✅ **Running unattended**: `pnpm service:install` (macOS) makes the stream start at login and restart whenever it stops, and backs the database up every night (restores checked against the live data); `pnpm service:status`, logs in `~/Library/Logs/GreedIsland/`, `pnpm db:backup`. How to prepare the machine and restore a backup: [DEPLOY.md](docs/DEPLOY.md). Not installed on this Mac yet: that's your call (it starts the stream at every login).
+- ✅ **Running unattended** (`83e5178`): `pnpm service:install` (macOS) makes the stream start at login and restart whenever it stops, and backs the database up every night (restores checked against the live data); `pnpm service:status`, logs in `~/Library/Logs/GreedIsland/`, `pnpm db:backup`. How to prepare the machine and restore a backup: [DEPLOY.md](docs/DEPLOY.md). Not installed on this Mac yet: that's your call (it starts the stream at every login).
+- ✅ **Going public**: [DEPLOY.md](docs/DEPLOY.md) covers preparing the stream machine, the always-on service, backups, putting the website online through a Cloudflare Tunnel (HTTPS on your domain, no open ports; a no-account quick test too), email sign-in through a mail provider, the Twitch channel, the production settings (`GI_ENV=production` checks them at start-up) and a go-live checklist.
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
@@ -88,9 +89,17 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
-**Recommended next: the rest of the MVP** ([MVP.md](docs/MVP.md))
-- Going public: the HTTPS tunnel, email sign-in through a mail provider, and the Twitch channel ([DEPLOY.md](docs/DEPLOY.md)).
-- After the MVP: step 4's automatic checks and balance tool, and community fighters' own art on their templates.
+**To go live (your steps; details in [DEPLOY.md](docs/DEPLOY.md))**
+1. Pick the stream machine (a Mac or PC used only for the stream; this Mac works if nothing else runs on it), log it in automatically and keep it awake.
+2. Get a domain and put it on Cloudflare; create the tunnel.
+3. Make an account with an email provider (SMTP) for sign-in links.
+4. Create the Twitch channel; set up OBS (`pnpm obs:setup`).
+5. Fill in the production settings in `.env`, `pnpm service:install`, and go through the checklist (§7).
+
+**Engineering next (while that happens)**
+- Our own stages: the three bundled ones have unclear licences, and with `GI_COMMERCIAL_ONLY=true` the fighters are already all ours.
+- Step 4 of phase 3: the balance tool (hundreds of sim fights per check) and the automatic checks on submissions; it also finishes balancing the five templates.
+- Community fighters' own art on their templates.
 
 **Streaming: where the stream runs, then a private recording**
 - The capture shows the whole screen. With `GI_GAME_TO_FRONT=true` this Mac can stream as long as it isn't used for anything else meanwhile (the game takes focus every fight). For a 24/7 stream, pick a machine where the game is the only thing showing: a home mini PC, a cloud server, or a second screen on this Mac.
