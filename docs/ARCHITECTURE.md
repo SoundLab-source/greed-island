@@ -316,6 +316,15 @@ shop: fighters released this season are always offered first (First Editions: th
 - **Roster sync** leaves community fighters and their house characters alone (they aren't in roster.json).
 - **Guards.** A submission becomes RELEASED only with its release row; releases are kept and only get their debut tournament, once (`release_guard`).
 
+## 20. Running in public (MVP)
+
+- **Rate limits** (`api/security.ts`, on unless `GI_RATE_LIMITS=off`), per client address, in memory: 20 new anonymous players and 10 sign-in emails an hour, 60 bets and 600 API calls a minute, 10 open live-update connections. Over a limit: 429 with `Retry-After`.
+- **Client addresses** come from `X-Forwarded-For` only when the request arrives through a trusted proxy (`GI_TRUST_PROXY`, default `loopback`: a tunnel or proxy on the same machine).
+- **Security headers** on every response: a content policy that allows only our own scripts (no inline scripts or handlers anywhere in `apps/web`) and the Twitch player and chat in frames, `nosniff`, a referrer policy, and HSTS when the public address is https.
+- **Health check**: `GET /api/health` answers 200 while the database works and fights keep moving, 503 when the database is down or nothing has happened for 20 minutes.
+- **Production start-up** (`GI_ENV=production`, `production.ts`): refuses to start without an https `GI_PUBLIC_URL`, a mail server, `ENGINE_MODE=live`, `IKEMEN_DIR`, rate limits, a local-only `GI_HOST`, and a strong database password when the database is on another machine.
+- **Housekeeping**: fight artifacts in `runs/` older than `GI_RUNS_KEEP_DAYS` (default 7) are pruned at start-up and hourly. The database port is open only to this machine. Losing the database connection that holds the orchestrator lock ends the process cleanly (a supervisor restarts it, and start-up reconciliation refunds the interrupted fight).
+
 ## 19. Fighter templates (phase 3)
 
 ```

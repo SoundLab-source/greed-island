@@ -42,6 +42,7 @@ import {
 } from "@greed-island/shared";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { readFile } from "node:fs/promises";
+import { installRateLimits, installSecurityHeaders, type RateLimitConfig } from "./security.ts";
 import path from "node:path";
 import { z } from "zod";
 import { placeFightBet } from "../betting.ts";
@@ -99,6 +100,12 @@ export interface ApiDeps {
   webRoot?: string;
   /** IKEMEN install, for fighter pictures (`card.png` next to a generated character). */
   ikemenDir?: string;
+  /** Rate limits per client address; null or missing turns them off (tests). Production uses loadRateLimits(). */
+  rateLimits?: RateLimitConfig | null;
+  /** Which proxies to believe about the client's address (Fastify trustProxy). Default "loopback": a tunnel or proxy on this machine. */
+  trustProxy?: boolean | string | string[];
+  /** The health check reports "stalled" when no fight has changed state for this long (default 20 minutes). */
+  stallAfterMs?: number;
   /** SSE keep-alive interval. */
   heartbeatMs?: number;
   /** Sends sign-in links. Defaults to printing them to the console. */
@@ -204,7 +211,10 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   const nftSource = deps.nftSource === undefined ? loadNftSource() : deps.nftSource;
   const images = deps.images ?? imageFetcher(config.submissions.maxFileBytes);
   const looks = deps.lookStore ?? loadLookStore();
-  const app = Fastify({ logger: deps.logger ?? false });
+  const app = Fastify({ logger: deps.logger ?? false, trustProxy: deps.trustProxy ?? "loopback" });
+  if (deps.rateLimits) installRateLimits(app, deps.rateLimits);
+  installSecurityHeaders(app, { https: publicUrl.startsWith("https://") });
+  const startedAt = Date.now();
   // Submission images arrive as the raw PNG body (checked in pngInfo; the content type isn't trusted).
   app.addContentTypeParser(["image/png", "application/octet-stream"], { parseAs: "buffer", bodyLimit: config.submissions.maxFileBytes + 1024 }, (_req, body, done) => done(null, body));
 
@@ -602,6 +612,18 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const id = uuid.parse(req.params.id);
     if (!(await db.character.findUnique({ where: { id }, select: { id: true } }))) throw new HttpError(404, "NOT_FOUND", "no such character");
     return send(reply, await characterProfile(db, id));
+  });
+
+  // For uptime monitors: the database answers, and fights are still moving.
+  app.get("/api/health", async (_req, reply) => {
+    try {
+      await db.$queryRaw`select 1`;
+    } catch {
+      return reply.status(503).send({ ok: false, db: false });
+    }
+    const last = await db.fightTransition.findFirst({ orderBy: { id: "desc" }, select: { createdAt: true } });
+    const stalled = last !== null && Date.now() - last.createdAt.getTime() > (deps.stallAfterMs ?? 20 * 60_000);
+    return reply.status(stalled ? 503 : 200).send({ ok: !stalled, db: true, stalled, lastFightActivity: last?.createdAt ?? null, uptimeSec: Math.round((Date.now() - startedAt) / 1000) });
   });
 
   // Live updates: state changes, odds, engine events and results.

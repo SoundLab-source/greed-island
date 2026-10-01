@@ -184,6 +184,21 @@ window.GI = (() => {
     }
   };
 
+  // A fighter picture that fails to load (fighters without one) becomes a "?" placeholder:
+  // <img data-fallback="class names">. Done here because the content policy allows no inline handlers.
+  document.addEventListener(
+    "error",
+    (e) => {
+      const img = e.target;
+      if (!(img instanceof HTMLImageElement) || img.dataset.fallback === undefined) return;
+      const box = document.createElement("div");
+      box.className = img.dataset.fallback;
+      box.textContent = "?";
+      img.replaceWith(box);
+    },
+    true,
+  );
+
   renderHeader();
   GI.ready = (async () => {
     await redeemLogin();

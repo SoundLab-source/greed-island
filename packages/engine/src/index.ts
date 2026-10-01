@@ -14,3 +14,4 @@ export { parseLuaDump, outcomeFromDump, outcomeFromLog } from "./ikemen/log.ts";
 export { loadEngineConfig, type EngineConfig } from "./config.ts";
 export { buildVariant, loadVariants, variantDefPath, VariantRecipe, VARIANTS_PATH, type Variant } from "./roster/variants.ts";
 export { deriveCharacter, pruneDerived, readConstants, type BaseConstants, type DeriveSpec } from "./ikemen/derive.ts";
+export { pruneRuns, runsKeepMs } from "./ikemen/prune-runs.ts";

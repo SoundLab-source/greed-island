@@ -11,7 +11,7 @@
   let nfts = [];
 
   function picture(c) {
-    return `<img class="pic" src="/api/fighters/${encodeURIComponent(c.fighter.id)}/image" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'pic none', textContent: '?' }))">`;
+    return `<img class="pic" src="/api/fighters/${encodeURIComponent(c.fighter.id)}/image" alt="" data-fallback="pic none">`;
   }
 
   function upgrades(c) {
