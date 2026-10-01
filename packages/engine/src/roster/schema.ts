@@ -19,6 +19,8 @@ export const FighterEntry = z.object({
   def: defPath,
   /** Who made it and what the license allows. Required: never stream unlicensed art. */
   license: z.string().min(1),
+  /** The license allows commercial use (false unless known). GI_COMMERCIAL_ONLY=true keeps only these on stream. */
+  commercialUse: z.boolean().default(false),
   enabled: z.boolean().default(true),
   notes: z.string().optional(),
 });
@@ -71,6 +73,18 @@ export type FighterEntry = z.infer<typeof FighterEntry>;
 export type StageEntry = z.infer<typeof StageEntry>;
 export type CharacterEntry = z.infer<typeof CharacterEntry>;
 export type Roster = z.infer<typeof RosterFile>;
+
+/**
+ * GI_COMMERCIAL_ONLY: fighters whose license doesn't allow commercial use are
+ * disabled, so only commercially usable fighters fight on stream. (Stages
+ * aren't filtered yet: none of the bundled ones is cleared, and fights need a stage.)
+ */
+export function commercialOnly(roster: Roster): Roster {
+  return {
+    ...roster,
+    fighters: roster.fighters.map((f) => (f.commercialUse || !f.enabled ? f : { ...f, enabled: false, notes: "license doesn't allow commercial use (GI_COMMERCIAL_ONLY=true)" })),
+  };
+}
 
 export class RosterError extends Error {
   override name = "RosterError";

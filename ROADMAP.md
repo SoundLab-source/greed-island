@@ -8,11 +8,11 @@ The one page to read first: what the project is for, what's been built, what's n
 
 | | |
 |---|---|
-| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **Now: the MVP** ([MVP.md](docs/MVP.md)), 1 of 5 steps done: the player website. |
-| **Next step** | MVP step 2: house roster on the templates, then production hardening, running unattended and the deploy guide ([MVP.md](docs/MVP.md)). Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
+| **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **Now: the MVP** ([MVP.md](docs/MVP.md)), 2 of 5 steps done: the player website and the house roster on the templates. |
+| **Next step** | MVP step 3: production hardening, then running unattended and the deploy guide ([MVP.md](docs/MVP.md)). Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, five fighter templates (Brawler, Striker, Bruiser, Wrestler, Sage: one per archetype) built from free CC0 art, with throws, a projectile and their own AI, on the house roster, an API with live updates, a **player website** (watch and bet, shop, my fighters, fighter profiles, rankings, vote, account, how to play, draft terms and privacy), a plain dev page, and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | What needs the templates: automatic checks on submissions, community fighters' own art on a template, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 564 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Health** | 565 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -75,7 +75,8 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - ✅ **The other four templates** (`14ba7c2`): **Striker** (rushdown: fast, four kicks, spinning-kick specials), **Bruiser** (heavy: 1200 life, an overhead hammer that must be blocked standing, shoulder charge), **Wrestler** (grappler: a body slam and a lunging command grab, which hold, lift and slam the opponent using its own sprites) and **Sage** (zoner: the Energy Palm projectile, drawn by the builder since the art has none, long pokes, backs off when crowded). Each has its own colours and three more outfits. All five are on the house roster. The AI now uses each move's measured reach. Five round robins of sim fights narrowed the gap between the weakest and strongest template from 1 vs 15 wins (out of 16) to 4 vs 12; finer balance waits for step 4's balance tool.
 
 **MVP** (plan: [MVP.md](docs/MVP.md))
-- ✅ **Player website**: a styled site for the whole loop, on phones too. Home is watch and bet (video, Red/Blue betting, a matchup panel with records, recent form and head-to-head, and chat or a live feed); then the shop (with each template fighter's picture), my fighters (upgrades, sidegrades, the look on stream, names, NFT looks, challenges), fighter profiles, rankings (season leaderboard, fighters by tier, the tournament bracket, results, past seasons), the season vote, account (email sign-in, Salt, titles, bet history, wallets), how to play, and draft terms and privacy pages for the lawyer. The plain dev page moved to `/dev.html`.
+- ✅ **Player website** (`25291c1`): a styled site for the whole loop, on phones too. Home is watch and bet (video, Red/Blue betting, a matchup panel with records, recent form and head-to-head, and chat or a live feed); then the shop (with each template fighter's picture), my fighters (upgrades, sidegrades, the look on stream, names, NFT looks, challenges), fighter profiles, rankings (season leaderboard, fighters by tier, the tournament bracket, results, past seasons), the season vote, account (email sign-in, Salt, titles, bet history, wallets), how to play, and draft terms and privacy pages for the lawyer. The plain dev page moved to `/dev.html`.
+- ✅ **House roster on the templates**: 20 house fighters on the five templates, each template in its four outfits under its own name. `GI_COMMERCIAL_ONLY=true` switches off the Kung Fu Man copies (fighters whose licence isn't cleared for commercial use), leaving only the templates on stream.
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
@@ -86,7 +87,6 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 ## What's next
 
 **Recommended next: the rest of the MVP** ([MVP.md](docs/MVP.md))
-- House roster on the five templates (named fighters in different outfits), so the stream doesn't depend on the Kung Fu Man copies.
 - Production hardening (rate limits, security headers, health check, pruning old fight files), running unattended (start on boot, restart after a crash, nightly backups), and a deploy guide.
 - After the MVP: step 4's automatic checks and balance tool, and community fighters' own art on their templates.
 

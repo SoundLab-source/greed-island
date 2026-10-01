@@ -29,7 +29,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts, escrow = open stakes, owner rewards, and that each tournament's T-Salt book is closed
 - `pnpm titles:backfill`: award titles for fights settled before titles existed (replays frozen loadouts; safe to re-run)
 - `pnpm roster:scan`: draft entries from `$IKEMEN_DIR/chars` and `stages` into `packages/engine/roster.draft.json` (gitignored) for review
-- `pnpm roster:sync`: load `packages/engine/roster.json` into the DB (creates/updates/disables; never resets ratings or records)
+- `pnpm roster:sync`: load `packages/engine/roster.json` into the DB (creates/updates/disables; never resets ratings or records); with `GI_COMMERCIAL_ONLY=true` it switches off fighters whose `commercialUse` isn't true (the Kung Fu Man copies)
 - `pnpm roster:variants`: build the house characters in `packages/engine/variants.json` (Kung Fu Man with different stats, size and palette) into `$IKEMEN_DIR/chars/gi-*`; only the recipe is committed, and it never overwrites a folder it didn't create
 - `pnpm templates:build [--preview] [id...]`: build the fighter templates (`packages/engine/src/templates/`, one per archetype) from the CC0 sprite sheets in `art/sources/` (not in git; `art/SOURCES.md` says where to get them) into `$IKEMEN_DIR/chars/gi-tpl-*`; `--preview` also writes contact sheets of every animation with its boxes to `runs/templates/<id>/`
 - `pnpm ikemen:install-mod`: copy `ikemen/mods/salty_events.lua` into `$IKEMEN_DIR/external/mods/` (the runner refuses to launch if it's missing or outdated)

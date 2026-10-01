@@ -80,6 +80,8 @@ async function scanCharacter(charsDir: string, folder: string, warnings: string[
       rarity: "COMMON",
       def: `chars/${folder}/${def.name}`,
       license: license ? `By ${author}. ${license}` : `By ${author}. ${UNKNOWN_LICENSE}`,
+      // Never assumed: set it to true by hand once the license is checked.
+      commercialUse: false,
       enabled: license !== null,
       notes: "Drafted by roster:scan. Archetype is a guess: set it by hand.",
     };
