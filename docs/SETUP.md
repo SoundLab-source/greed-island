@@ -32,6 +32,7 @@ pnpm db:migrate               # create the tables
 pnpm roster:sync              # load packages/engine/roster.json into the database
 pnpm roster:variants          # build the 8 house characters derived from Kung Fu Man (needs IKEMEN_DIR)
 pnpm templates:build          # build the fighter templates (needs IKEMEN_DIR and the sheets in art/sources/, see art/SOURCES.md)
+pnpm stages:build             # draw our own stages into IKEMEN_DIR/stages
 pnpm ikemen:install-mod       # copy the event mod into IKEMEN (needed for real fights)
 pnpm test                     # everything should pass
 ```

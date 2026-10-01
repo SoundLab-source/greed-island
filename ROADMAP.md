@@ -9,10 +9,10 @@ The one page to read first: what the project is for, what's been built, what's n
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **The MVP is built** ([MVP.md](docs/MVP.md)): player website, template house roster, production hardening, running unattended and the deploy guide. Going live is now your steps ([DEPLOY.md](docs/DEPLOY.md)). |
-| **Next step** | Yours, to go live: the stream machine, a domain, an email-sending account and the Twitch channel, then the checklist in [DEPLOY.md](docs/DEPLOY.md) §7. Ours meanwhile: our own stages, step 4's balance tool, and community fighters' own art. Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
+| **Next step** | Yours, to go live: the stream machine, a domain, an email-sending account and the Twitch channel, then the checklist in [DEPLOY.md](docs/DEPLOY.md) §7. Ours meanwhile: step 4's balance tool, and community fighters' own art. Waiting on you for going public: a machine for the stream, a Twitch channel, a domain and an email-sending account. |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, five fighter templates (Brawler, Striker, Bruiser, Wrestler, Sage: one per archetype) built from free CC0 art, with throws, a projectile and their own AI, on the house roster, an API with live updates, a **player website** (watch and bet, shop, my fighters, fighter profiles, rankings, vote, account, how to play, draft terms and privacy), a plain dev page, and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | What needs the templates: automatic checks on submissions, community fighters' own art on a template, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 575 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Health** | 580 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -80,6 +80,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - ✅ **Production hardening** (`e09b6c8`): rate limits per client address (new players, sign-in emails, bets, the API, live connections), security headers with a strict content policy, correct client addresses behind a tunnel or proxy, a health check (`/api/health`), start-up checks for a public deployment (`GI_ENV=production`), pruning old fight artifacts, the database port closed to the network, and a clean exit (instead of a crash) when the database goes away.
 - ✅ **Running unattended** (`83e5178`): `pnpm service:install` (macOS) makes the stream start at login and restart whenever it stops, and backs the database up every night (restores checked against the live data); `pnpm service:status`, logs in `~/Library/Logs/GreedIsland/`, `pnpm db:backup`. How to prepare the machine and restore a backup: [DEPLOY.md](docs/DEPLOY.md). Not installed on this Mac yet: that's your call (it starts the stream at every login).
 - ✅ **Going public**: [DEPLOY.md](docs/DEPLOY.md) covers preparing the stream machine, the always-on service, backups, putting the website online through a Cloudflare Tunnel (HTTPS on your domain, no open ports; a no-account quick test too), email sign-in through a mail provider, the Twitch channel, the production settings (`GI_ENV=production` checks them at start-up) and a go-live checklist.
+- ✅ **Our own stages**: Dusk Peaks, Neon Harbor and Jade Valley, backgrounds drawn in code (`pnpm stages:build`), so with `GI_COMMERCIAL_ONLY=true` everything on stream is ours or cleared (the bundled stages are switched off too).
 
 **Streaming**
 - ✅ **Stream overlay and OBS scene switching**: a web page for OBS with a full betting screen between fights (both fighters' name plates, titles and badges, odds, countdown, pools, the result) and a transparent bar along the bottom during fights (round markers, odds). `pnpm dev` can switch OBS between a "Fight" and a "Betting" scene automatically.
@@ -97,7 +98,6 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 5. Fill in the production settings in `.env`, `pnpm service:install`, and go through the checklist (§7).
 
 **Engineering next (while that happens)**
-- Our own stages: the three bundled ones have unclear licences, and with `GI_COMMERCIAL_ONLY=true` the fighters are already all ours.
 - Step 4 of phase 3: the balance tool (hundreds of sim fights per check) and the automatic checks on submissions; it also finishes balancing the five templates.
 - Community fighters' own art on their templates.
 

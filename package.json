@@ -29,7 +29,8 @@
     "service:uninstall": "pnpm --filter @greed-island/orchestrator run service uninstall",
     "service:status": "pnpm --filter @greed-island/orchestrator run service status",
     "db:backup": "zsh scripts/backup-db.sh",
-    "templates:build": "pnpm --filter @greed-island/engine run templates:build"
+    "templates:build": "pnpm --filter @greed-island/engine run templates:build",
+    "stages:build": "pnpm --filter @greed-island/engine run stages:build"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

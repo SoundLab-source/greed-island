@@ -48,6 +48,8 @@ describe("commercialOnly (GI_COMMERCIAL_ONLY)", () => {
     expect(only.fighters.map((f) => [f.id, f.enabled])).toEqual([["kfm", false], ["gi-tpl-zoner", true], ["off", false]]);
     expect(only.fighters[0]!.notes).toMatch(/commercial/);
     expect(only.fighters[2]!.notes).toBe("broken");
-    expect(only.stages[0]!.enabled).toBe(true);
+    expect(only.stages[0]!.enabled).toBe(true); // the only stage stays: fights need one
+    const withOurs = commercialOnly({ ...roster, stages: [...roster.stages, { id: "ours", displayName: "Ours", def: "stages/ours.def", license: "ours", commercialUse: true, enabled: true }] });
+    expect(withOurs.stages.map((s) => [s.id, s.enabled])).toEqual([["s", false], ["ours", true]]);
   });
 });

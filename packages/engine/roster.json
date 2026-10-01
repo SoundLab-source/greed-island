@@ -181,6 +181,30 @@
       "def": "stages/stage1.def",
       "license": "By Gacel, bundled with the IKEMEN GO v1.0.0 release. License not stated in the stage files (UNVERIFIED). Check before public streaming.",
       "enabled": true
+    },
+    {
+      "id": "gi-dusk-peaks",
+      "displayName": "Dusk Peaks",
+      "def": "stages/gi-dusk-peaks.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
+      "id": "gi-neon-harbor",
+      "displayName": "Neon Harbor",
+      "def": "stages/gi-neon-harbor.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
+      "id": "gi-jade-valley",
+      "displayName": "Jade Valley",
+      "def": "stages/gi-jade-valley.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
     }
   ],
   "characters": [

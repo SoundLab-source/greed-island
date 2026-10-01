@@ -13,7 +13,8 @@
     "match:once": "tsx src/scripts/match-once.ts",
     "roster:smoke": "tsx src/scripts/roster-smoke.ts",
     "roster:variants": "tsx src/scripts/roster-variants.ts",
-    "templates:build": "tsx src/scripts/templates-build.ts"
+    "templates:build": "tsx src/scripts/templates-build.ts",
+    "stages:build": "tsx src/scripts/stages-build.ts"
   },
   "dependencies": {
     "@greed-island/db": "workspace:*",

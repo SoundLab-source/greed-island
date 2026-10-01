@@ -101,6 +101,7 @@ async function scanStage(stagesDir: string, file: string): Promise<StageEntry | 
     displayName: name,
     def: `stages/${file}`,
     license: `By ${author}. ${UNKNOWN_LICENSE}`,
+    commercialUse: false,
     enabled: false,
     notes: "Drafted by roster:scan. Stages rarely state a license: confirm it, then enable.",
   };

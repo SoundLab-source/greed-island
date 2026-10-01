@@ -30,6 +30,8 @@ export const StageEntry = z.object({
   displayName: z.string().min(1),
   def: defPath,
   license: z.string().min(1),
+  /** The license allows commercial use (false unless known). */
+  commercialUse: z.boolean().default(false),
   enabled: z.boolean().default(true),
   notes: z.string().optional(),
 });
@@ -75,15 +77,15 @@ export type CharacterEntry = z.infer<typeof CharacterEntry>;
 export type Roster = z.infer<typeof RosterFile>;
 
 /**
- * GI_COMMERCIAL_ONLY: fighters whose license doesn't allow commercial use are
- * disabled, so only commercially usable fighters fight on stream. (Stages
- * aren't filtered yet: none of the bundled ones is cleared, and fights need a stage.)
+ * GI_COMMERCIAL_ONLY: fighters and stages whose license doesn't allow
+ * commercial use are disabled, so only cleared content is on stream. Stages
+ * are only filtered when at least one cleared stage is left (fights need one).
  */
 export function commercialOnly(roster: Roster): Roster {
-  return {
-    ...roster,
-    fighters: roster.fighters.map((f) => (f.commercialUse || !f.enabled ? f : { ...f, enabled: false, notes: "license doesn't allow commercial use (GI_COMMERCIAL_ONLY=true)" })),
-  };
+  const note = "license doesn't allow commercial use (GI_COMMERCIAL_ONLY=true)";
+  const off = <T extends { commercialUse: boolean; enabled: boolean }>(x: T): T => (x.commercialUse || !x.enabled ? x : { ...x, enabled: false, notes: note });
+  const clearedStage = roster.stages.some((s) => s.commercialUse && s.enabled);
+  return { ...roster, fighters: roster.fighters.map(off), stages: clearedStage ? roster.stages.map(off) : roster.stages };
 }
 
 export class RosterError extends Error {
