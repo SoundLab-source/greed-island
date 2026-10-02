@@ -1,7 +1,7 @@
 /**
  * Balance checks: the report `pnpm templates:balance` prints. Pure.
  */
-import { winRate, type BalanceSummary } from "./stats.ts";
+import { winRate, type BalanceSummary, type SideSummary } from "./stats.ts";
 
 /** Below this many fights, a pairing's win rate says too little to call it lopsided. */
 const MIN_PAIR_FIGHTS = 10;
@@ -12,6 +12,21 @@ const pct = (share: number, digits = 0) => `${(share * 100).toFixed(digits)}%`;
 function table(rows: readonly (readonly string[])[], left: readonly number[] = []): string[] {
   const widths = rows[0]!.map((_, c) => Math.max(...rows.map((r) => r[c]!.length)));
   return rows.map((r) => r.map((cell, c) => (c === 0 || left.includes(c) ? cell.padEnd(widths[c]!) : cell.padStart(widths[c]!))).join("  ").trimEnd());
+}
+
+/** The report of a side check (`--sides`): the player 1 side's win rate in mirror fights. */
+export function formatSides(s: SideSummary, names: Readonly<Record<string, string>> = {}): string {
+  const row = (label: string, l: SideSummary["overall"]) => [label, String(l.fights), String(l.wins), String(l.losses), String(l.draws), pct(l.winRate, 1), `${pct(l.low)}–${pct(l.high)}`];
+  const lines = [
+    `${s.overall.fights} mirror fights finished${s.failed.length ? `, ${s.failed.length} FAILED (crashed or timed out; not counted)` : ""}.`,
+    "",
+    ...table([["Fighter (both sides)", "Fights", "P1 won", "P2 won", "Drawn", "P1 win rate", "Likely range"], ...s.fighters.map((f) => row(names[f.id] ?? f.id, f)), row("All", s.overall)]),
+    "",
+    s.fair
+      ? "The sides look even: the likely range of the player 1 win rate includes 50%."
+      : `The ${s.overall.winRate > 0.5 ? "player 1" : "player 2"} side has an edge: the likely range of the player 1 win rate excludes 50%.`,
+  ];
+  return lines.join("\n");
 }
 
 /** `names` maps fighter ids to what to call them; ids without a name are shown as they are. */

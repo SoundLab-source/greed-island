@@ -12,7 +12,7 @@ export const RUSHDOWN: TemplateSpec = {
   archetype: "RUSHDOWN",
   art: UNIVERSAL_PROTOTYPE,
   constants: {
-    life: 900,
+    life: 890,
     attack: 100,
     defence: 95,
     walkFwd: 2.9,
@@ -99,7 +99,7 @@ export const RUSHDOWN: TemplateSpec = {
       anim: { action: 1000, cells: [1388, 1389, 1390, 1391, 1392, 1393, 1394, 1395], ticks: [2, 3, 3, 4, 5, 4, 4, 4] },
       hits: [{ frames: [4, 5], damage: 75, chip: 7, height: "mid", weight: "heavy", hitStun: 20, blockStun: 15, push: 8, knockdown: true, launch: [4.5, -4.5] }],
       moves: [{ frame: 1, x: 5 }, { frame: 5, x: 0 }],
-      ai: { range: 120, weight: 1 },
+      ai: { range: 120, weight: 0.5 },
     },
     {
       state: 1100, name: "Rising Kick", from: "stand", command: "DP_a", special: true,
@@ -112,10 +112,10 @@ export const RUSHDOWN: TemplateSpec = {
       anim: { action: 1200, cells: [1400, 1401, 1402, 1403, 1404, 1405, 1406], ticks: [2, 3, 3, 4, 5, 4, 4] },
       hits: [{ frames: [3, 4], damage: 80, chip: 8, height: "high", weight: "heavy", hitStun: 20, blockStun: 16, push: 9, knockdown: true, launch: [5, -4] }],
       moves: [{ frame: 1, x: 2.5 }, { frame: 5, x: 0 }],
-      ai: { range: 80, weight: 1 },
+      ai: { range: 80, weight: 0.7 },
     },
   ],
-  ai: { range: 45, aggression: 115, block: 560, jump: 14, run: 45 },
+  ai: { range: 45, aggression: 115, block: 560, jump: 14, run: 35 },
   colors: {
     25: "#f0f0ec", 26: "#c9c9c4", 27: "#8f8f8a", 28: "#484845",
     37: "#3c3c46", 38: "#2a2a32", 39: "#1c1c22", 40: "#0c0c10",

@@ -164,6 +164,12 @@ function attackState(spec: TemplateSpec, a: AttackSpec): string {
   for (const m of a.moves ?? []) {
     lines.push(`[State ${a.state}, move]`, "type = VelSet", `trigger1 = AnimElem = ${m.frame + 1}`, `x = ${n(m.x * k)}`, ...(m.y !== undefined ? [`y = ${n(m.y * k)}`] : []), "");
   }
+  if (a.throughProjectiles) {
+    // NotHitBy with only the projectile attributes, renewed every tick. The stance part stays
+    // empty: NotHitBy blocks a hit when either part matches, so "SCA" would stop every attack
+    // (vendor/Ikemen-GO src/char.go:10535-10555, src/compiler.go:760-772).
+    lines.push(`[State ${a.state}, through projectiles]`, "type = NotHitBy", "trigger1 = 1", "value = , NP, SP, HP", "time = 1", "");
+  }
   if (a.projectile) lines.push(projectileDef(spec, a), "");
   else a.hits.forEach((h, i) => lines.push(hitDef(spec, a, h, i), ""));
   if (t === "A") {
@@ -241,6 +247,15 @@ export function statesFile(spec: TemplateSpec): string {
     "flag2 = NoAICheat",
     "ignorehitpause = 1",
     "",
+    "; The engine runs player 1 before player 2 each tick, so player 2 always decides knowing what",
+    "; player 1 just did. The two AIs take turns going first instead: player 2 on even ticks, player 1",
+    "; on odd ones (RunFirst sets the next tick's order: vendor/Ikemen-GO src/char.go:13322-13374).",
+    "[State -2, AI: take turns going first]",
+    "type = AssertSpecial",
+    "trigger1 = AILevel > 0 && (GameTime % 2) = (TeamSide - 1)",
+    "flag = RunFirst",
+    "ignorehitpause = 1",
+    "",
     "; Intro: anim 190 (the engine's pre-intro state 190 moves here).",
     "[Statedef 191]",
     "type = S",
@@ -305,9 +320,11 @@ function cond(...parts: string[]): string {
 export function commandsFile(spec: TemplateSpec, reach?: ReadonlyMap<number, number>): string {
   const k = unitScale(spec);
   const rangeOf = (m: { state: number; ai: { range: number } }) => reach?.get(m.state) ?? m.ai.range;
-  // Where to stand: no farther than the longest standing normal reaches, unless
-  // the fighter has a projectile (a zoner wants to stay out).
-  const standingReach = Math.max(0, ...spec.attacks.filter((a) => a.from === "stand" && !a.special && !a.projectile).map(rangeOf));
+  // Where to stand: close enough for all but the shortest standing normal to reach (at the
+  // longest one's reach, only that move would ever connect), unless the fighter has a
+  // projectile (a zoner wants to stay out).
+  const standingReaches = spec.attacks.filter((a) => a.from === "stand" && !a.special && !a.projectile).map(rangeOf).sort((a, b) => a - b);
+  const standingReach = standingReaches[Math.min(1, standingReaches.length - 1)] ?? 0;
   const spacing = reach && standingReach > 0 && !spec.attacks.some((a) => a.projectile) ? Math.min(spec.ai.range, standingReach) : spec.ai.range;
   const used = new Set<Command>(["FF", "BB", "x", "y", "a", "b"]);
   for (const a of spec.attacks) used.add(a.command);
@@ -362,49 +379,77 @@ export function commandsFile(spec: TemplateSpec, reach?: ReadonlyMap<number, num
   // ----- The computer playing: this archetype's AI. -----
   const dist = (range: number) => `P2BodyDist X <= ${n(range * k)} && P2BodyDist X >= ${n(-10 * k)}`;
   const inFight = "AILevel && RoundState = 2 && P2Life > 0";
+  // An attack on its way (the engine works this out once a tick for both fighters, char.go:13484).
+  const threat = "InGuardDist";
+  // Guarding keeps control (the engine's guard states don't take it away), so an AI that has
+  // decided to block must also hold its own attacks back, or it swings straight out of its guard.
+  const notBlocking = `!(${threat} && var(50))`;
   lines.push(
     "; ----- AI -----",
-    "; var(50): 1 if this AI decided to block the attack coming now; var(51): was an attack coming last tick.",
+    "; var(50): 1 if this AI decided to block the attack coming now; var(52): was a projectile coming",
+    "; last tick; var(53): was an attack coming last tick.",
     "",
     "[State -1, AI: decide to block]",
     "type = VarSet",
-    `trigger1 = ${inFight} && InGuardDist && !var(51)`,
+    `trigger1 = ${inFight} && ${threat} && !var(53)`,
     `var(50) = Random < ${ai.block}`,
     "",
-    "[State -1, AI: attack coming]",
+    "; A projectile is slow and seen from far away: decide again when it's on its way, and block most of them.",
+    "[State -1, AI: decide to block a projectile]",
+    "type = VarSet",
+    `trigger1 = ${inFight} && ${threat} && (EnemyNear, NumProj) > 0 && !var(52)`,
+    `var(50) = Random < ${ai.blockProjectile ?? 800}`,
+    "",
+    "; Reacting: an attack already on its way can still be blocked, so slow moves are blocked more than quick ones.",
+    "[State -1, AI: react and block]",
+    "type = VarSet",
+    `trigger1 = ${inFight} && ${threat} && !var(50) && P2MoveType = A && Random < ${ai.react ?? 35}`,
+    "var(50) = 1",
+    "",
+    "[State -1, AI: projectile coming]",
     "type = VarSet",
     "trigger1 = AILevel",
-    "var(51) = InGuardDist",
+    `var(52) = ${threat} && (EnemyNear, NumProj) > 0`,
     "",
+    "[State -1, AI: attack seen]",
+    "type = VarSet",
+    "trigger1 = AILevel",
+    `var(53) = ${threat}`,
+    "",
+
   );
-  assert("AI: block", ["B"], [`${inFight} && InGuardDist && var(50)`]);
-  assert("AI: block low", ["D"], [`${inFight} && InGuardDist && var(50) && P2StateType = C`]);
+  // A move that goes through projectiles answers one that's on its way (before deciding to block it).
+  for (const a of spec.attacks.filter((x) => x.throughProjectiles)) {
+    change(`AI: ${a.name} through a projectile`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${threat} && (EnemyNear, NumProj) > 0`, `all:P2BodyDist X <= ${n((rangeOf(a) + 40) * k)}`, `Random < ${ai.throughProjectiles ?? 12}`]);
+  }
+  assert("AI: block", ["B"], [`${inFight} && ${threat} && var(50)`]);
+  assert("AI: block low", ["D"], [`${inFight} && ${threat} && var(50) && P2StateType = C`]);
   // Combos: a normal that connected cancels into a special in range.
   for (const a of specials) {
     change(`AI: combo into ${a.name}`, a.state, [`all:${inFight}`, "all:StateNo = [200, 499] && MoveHit", `all:${dist(rangeOf(a))}`, `Random < ${Math.min(999, ai.aggression * 3)}`]);
   }
   // Anti-air: the opponent jumping in.
   for (const a of spec.attacks.filter((x) => x.ai.antiAir)) {
-    change(`AI: anti-air ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", "all:P2StateType = A && P2MoveType != H", `all:${dist(rangeOf(a) + 15)}`, `all:P2BodyDist Y < ${n(-20 * k)}`, `Random < ${Math.min(999, ai.aggression * 2 * a.ai.weight)}`]);
+    change(`AI: anti-air ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${notBlocking}`, "all:P2StateType = A && P2MoveType != H", `all:${dist(rangeOf(a) + 15)}`, `all:P2BodyDist Y < ${n(-20 * k)}`, `Random < ${Math.min(999, ai.aggression * 2 * a.ai.weight)}`]);
   }
   // Throws when close enough, against someone standing or crouching.
   for (const t of spec.throws ?? []) {
-    change(`AI: ${t.name}`, t.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${throwable}`, `all:${dist(rangeOf(t))}`, `Random < ${Math.round((ai.aggression * t.ai.weight) / 3)}`]);
+    change(`AI: ${t.name}`, t.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${notBlocking}`, `all:${throwable}`, `all:${dist(rangeOf(t))}`, `Random < ${Math.round((ai.aggression * t.ai.weight) / 3)}`]);
   }
   // Attacks in range, specials first, each as likely as its weight.
   for (const a of spec.attacks.filter((x) => x.projectile)) {
-    change(`AI: ${a.name} from afar`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:P2BodyDist X > ${n(70 * k)}`, `all:NumProjID(${a.state}) = 0`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
+    change(`AI: ${a.name} from afar`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${notBlocking}`, `all:P2BodyDist X > ${n(70 * k)}`, `all:NumProjID(${a.state}) = 0`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
   }
   for (const a of [...specials, ...normals].filter((x) => x.from !== "air" && !x.projectile)) {
-    change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${dist(rangeOf(a))}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
+    change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${notBlocking}`, `all:${dist(rangeOf(a))}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
   }
   for (const a of normals.filter((x) => x.from === "air")) {
     change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType = A", `all:${dist(rangeOf(a) + 10)}`, `all:P2BodyDist Y > ${n(-40 * k)}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 2)}`]);
   }
   // Getting in: run when far, jump in sometimes, walk otherwise; back off a little when crowded.
-  change("AI: run in", 100, [`all:${inFight}`, "all:ctrl && StateType = S", `all:P2BodyDist X > ${n(spacing * 2.2 * k)}`, `Random < ${ai.run}`]);
+  change("AI: run in", 100, [`all:${inFight}`, "all:ctrl && StateType = S", `all:${notBlocking}`, `all:P2BodyDist X > ${n(spacing * 2.2 * k)}`, `Random < ${ai.run}`]);
   lines.push("[State -1, AI: stop running]", "type = ChangeState", "value = 0", `trigger1 = AILevel && StateNo = 100 && P2BodyDist X <= ${n(spacing * 1.1 * k)}`, "");
-  change("AI: jump in", 40, [`all:${inFight}`, "all:ctrl && StateType = S", `all:P2BodyDist X = [${n(spacing * 1.2 * k)}, ${n(spacing * 2.5 * k)}]`, `Random < ${ai.jump}`]);
+  change("AI: jump in", 40, [`all:${inFight}`, "all:ctrl && StateType = S", `all:${notBlocking}`, `all:P2BodyDist X = [${n(spacing * 1.2 * k)}, ${n(spacing * 2.5 * k)}]`, `Random < ${ai.jump}`]);
   assert("AI: jump forward", ["F"], ["AILevel && StateNo = 40"]);
   assert("AI: walk in", ["F"], [`${inFight} && ctrl && StateType = S && !InGuardDist && P2BodyDist X > ${n(spacing * k)} && Random < 900`]);
   assert("AI: back off", ["B"], [`${inFight} && ctrl && StateType = S && !InGuardDist && P2BodyDist X < ${n(spacing * 0.5 * k)} && Random < ${ai.retreat ?? 300}`]);

@@ -12,7 +12,7 @@ export const GRAPPLER: TemplateSpec = {
   archetype: "GRAPPLER",
   art: UNIVERSAL_PROTOTYPE,
   constants: {
-    life: 1050,
+    life: 975,
     attack: 100,
     defence: 100,
     walkFwd: 2.1,
@@ -36,8 +36,8 @@ export const GRAPPLER: TemplateSpec = {
   attacks: [
     {
       state: 200, name: "Jab", from: "stand", command: "x",
-      anim: { action: 200, cells: [251, 252, 253, 254, 255, 256], ticks: [2, 4, 3, 3, 3, 3] },
-      hits: [{ frames: [1], damage: 25, height: "high", weight: "light", hitStun: 11, blockStun: 9, push: 4 }],
+      anim: { action: 200, cells: [251, 252, 253, 254, 255, 256], ticks: [2, 4, 2, 2, 2, 2] },
+      hits: [{ frames: [1], damage: 25, height: "high", weight: "light", hitStun: 13, blockStun: 10, push: 4 }],
       ai: { range: 45, weight: 2 },
     },
     {
@@ -48,8 +48,8 @@ export const GRAPPLER: TemplateSpec = {
     },
     {
       state: 230, name: "Mid Kick", from: "stand", command: "a",
-      anim: { action: 230, cells: [389, 390, 391, 392, 393, 394, 395], ticks: [2, 3, 3, 4, 3, 3, 3] },
-      hits: [{ frames: [2, 3], damage: 32, height: "mid", weight: "light", hitStun: 12, blockStun: 10, push: 5 }],
+      anim: { action: 230, cells: [389, 390, 391, 392, 393, 394, 395], ticks: [2, 3, 3, 4, 2, 2, 2] },
+      hits: [{ frames: [2, 3], damage: 32, height: "mid", weight: "light", hitStun: 14, blockStun: 11, push: 5 }],
       ai: { range: 60, weight: 2 },
     },
     {
@@ -61,7 +61,7 @@ export const GRAPPLER: TemplateSpec = {
     {
       state: 400, name: "Crouching Jab", from: "crouch", command: "x",
       anim: { action: 400, cells: [2275, 2276, 2277, 2278, 2279], ticks: [2, 3, 3, 3, 3] },
-      hits: [{ frames: [1, 2], damage: 22, height: "low", weight: "light", hitStun: 10, blockStun: 8, push: 4 }],
+      hits: [{ frames: [1, 2], damage: 22, height: "low", weight: "light", hitStun: 13, blockStun: 10, push: 4 }],
       ai: { range: 45, weight: 1 },
     },
     {
@@ -73,7 +73,7 @@ export const GRAPPLER: TemplateSpec = {
     {
       state: 430, name: "Low Kick", from: "crouch", command: "a",
       anim: { action: 430, cells: [726, 727, 728, 729, 730, 731], ticks: [2, 3, 4, 4, 3, 3] },
-      hits: [{ frames: [2, 3], damage: 28, height: "low", weight: "light", hitStun: 12, blockStun: 10, push: 5 }],
+      hits: [{ frames: [2, 3], damage: 28, height: "low", weight: "light", hitStun: 15, blockStun: 12, push: 5 }],
       ai: { range: 60, weight: 1 },
     },
     {
@@ -95,18 +95,18 @@ export const GRAPPLER: TemplateSpec = {
       ai: { range: 65, weight: 2 },
     },
     {
-      state: 1000, name: "Bull Rush", from: "stand", command: "QCF_x", special: true,
+      state: 1000, name: "Bull Rush", from: "stand", command: "QCF_x", special: true, throughProjectiles: true,
       anim: { action: 1000, cells: [2552, 2553, 2554, 2555, 2556, 2557, 2558], ticks: [3, 5, 5, 4, 4, 4, 4] },
-      hits: [{ frames: [1, 2], damage: 85, chip: 8, height: "high", weight: "heavy", hitStun: 20, blockStun: 16, push: 8, knockdown: true, launch: [4, -5] }],
+      hits: [{ frames: [1, 2], damage: 75, chip: 8, height: "high", weight: "heavy", hitStun: 20, blockStun: 16, push: 8, knockdown: true, launch: [4, -5] }],
       moves: [{ frame: 0, x: 5 }, { frame: 3, x: 0 }],
-      ai: { range: 110, weight: 1 },
+      ai: { range: 110, weight: 0.4 },
     },
     {
       state: 1100, name: "Dropkick", from: "stand", command: "QCB_b", special: true,
       anim: { action: 1100, cells: [516, 517, 518, 519, 520, 521, 522, 523, 524, 527, 530, 531, 532, 533, 534], ticks: [3, 4, 8, 4, 4, 4, 4, 6, 6, 6, 6, 5, 5, 5, 5] },
       hits: [{ frames: [2], damage: 95, chip: 9, height: "high", weight: "heavy", hitStun: 22, blockStun: 18, push: 10, knockdown: true, launch: [5, -5] }],
       moves: [{ frame: 1, x: 4.5 }, { frame: 4, x: 0 }],
-      ai: { range: 100, weight: 1 },
+      ai: { range: 100, weight: 0.3 },
     },
   ],
   throws: [
@@ -129,7 +129,7 @@ export const GRAPPLER: TemplateSpec = {
         { cell: 1041, ticks: 5, victim: [45, 0] },
       ],
       release: { frame: 6, x: 2.5, y: 3 },
-      damage: 95,
+      damage: 70,
       ai: { range: 22, weight: 2 },
     },
     {
@@ -148,11 +148,11 @@ export const GRAPPLER: TemplateSpec = {
         { cell: 980, ticks: 6, victim: [35, 0] },
       ],
       release: { frame: 4, x: 1.5, y: 5 },
-      damage: 130,
-      ai: { range: 70, weight: 1 },
+      damage: 90,
+      ai: { range: 70, weight: 0.5 },
     },
   ],
-  ai: { range: 35, aggression: 85, block: 580, jump: 5, run: 25 },
+  ai: { range: 35, aggression: 78, block: 580, jump: 5, run: 25 },
   colors: {
     25: "#6a3a8a", 26: "#502c68", 27: "#361d45", 28: "#1b0f23",
     37: "#303030", 38: "#232323", 39: "#171717", 40: "#0b0b0b",

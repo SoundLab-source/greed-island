@@ -1,10 +1,10 @@
 import type { EngineOutcome, WinnerSide } from "@greed-island/shared";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { roundRobin, type PlannedFight } from "./plan.ts";
-import { formatSummary } from "./report.ts";
+import { mirrors, roundRobin, type PlannedFight } from "./plan.ts";
+import { formatSides, formatSummary } from "./report.ts";
 import { runSeries, type FightResult } from "./series.ts";
-import { DEFAULT_TARGETS, summarize, verdict, wilson, winRate } from "./stats.ts";
+import { DEFAULT_TARGETS, summarize, summarizeSides, verdict, wilson, winRate } from "./stats.ts";
 
 const IDS = ["a", "b", "c", "d", "e"];
 const STAGES = ["s1", "s2", "s3"];
@@ -234,5 +234,35 @@ describe("formatSummary", () => {
     const text = formatSummary(summarize(few, ["a", "b", "c"]));
     expect(text).toContain("6 fights finished, 1 FAILED");
     expect(text).toContain("Too few fights per pairing to judge matchups");
+  });
+});
+
+describe("side check (mirror fights)", () => {
+  it("plans each fighter against itself, rotating stages", () => {
+    const plan = mirrors(["a", "b"], 3, STAGES);
+    expect(plan.map((f) => `${f.p1}${f.p2}@${f.stageId}`)).toEqual(["aa@s1", "bb@s2", "aa@s2", "bb@s3", "aa@s3", "bb@s1"]);
+    expect(plan.map((f) => f.index)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(() => mirrors([], 1, STAGES)).toThrow(/at least one fighter/);
+    expect(() => mirrors(["a"], 0, STAGES)).toThrow(/whole number/);
+    expect(() => mirrors(["a"], 1, [])).toThrow(/stage/);
+  });
+
+  it("counts wins for the player 1 side per fighter and overall", () => {
+    const plan = mirrors(["a", "b"], 100, ["s1"]);
+    // a: player 1 wins half; b: player 1 wins a quarter.
+    const results = plan.map((f) => result(f.p1, f.p2, finished(f.p1 === "a" ? (f.index % 4 < 2 ? 1 : 2) : f.index % 8 < 2 ? 1 : 2), f.index));
+    const s = summarizeSides([...results, result("a", "a", { kind: "engine_crash", detail: "boom" })], ["a", "b"]);
+    expect(s.failed).toHaveLength(1);
+    expect(s.fighters.map((f) => [f.id, f.fights, f.wins, f.losses])).toEqual([["a", 100, 50, 50], ["b", 100, 25, 75]]);
+    expect(s.overall).toMatchObject({ fights: 200, wins: 75, losses: 125, winRate: 0.375 });
+    expect(s.fair).toBe(false);
+    const text = formatSides(s, { a: "Alpha" });
+    expect(text).toContain("200 mirror fights finished, 1 FAILED");
+    expect(text).toMatch(/Alpha\s+100\s+50\s+50\s+0\s+50\.0%/);
+    expect(text).toContain("The player 2 side has an edge");
+
+    const even = summarizeSides(results.filter((r) => r.fight.p1 === "a"), ["a"]);
+    expect(even.fair).toBe(true);
+    expect(formatSides(even)).toContain("The sides look even");
   });
 });

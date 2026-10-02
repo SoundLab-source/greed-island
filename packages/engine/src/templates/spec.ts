@@ -107,6 +107,12 @@ export interface AttackSpec {
   /** Special moves cost nothing but can't be cancelled into from normals. */
   special?: boolean;
   /**
+   * Projectiles pass through the fighter for the whole move (a heavy's or a
+   * grappler's way in against a zoner). The AI uses it when a projectile is
+   * on its way and the opponent is near enough to charge at.
+   */
+  throughProjectiles?: boolean;
+  /**
    * Fires a projectile instead of hitting with the body: it leaves at
    * animation `frame`, flies at `speed` (320 units per tick) at `height`
    * above the ground, and hits with the move's first HitSpec (whose `frames`
@@ -174,6 +180,12 @@ export interface AiSpec {
   aggression: number;
   /** 0-1000: chance to block an incoming attack. */
   block: number;
+  /** 0-1000: chance to block an incoming projectile (default 800: it's seen coming from far away). */
+  blockProjectile?: number;
+  /** 0-1000 per tick: chance to answer an incoming projectile with a move that goes through it, when it has one (default 12). */
+  throughProjectiles?: number;
+  /** 0-1000 per tick: chance to start blocking an attack that's already on its way (default 35), so slow moves are blocked more than quick ones. */
+  react?: number;
   /** 0-1000 per tick: chance to jump in when far. */
   jump: number;
   /** 0-1000 per tick: chance to run in instead of walking when far. */

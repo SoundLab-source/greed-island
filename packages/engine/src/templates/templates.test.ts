@@ -8,6 +8,7 @@ import { TEMPLATES } from "./index.ts";
 import { checkSpec, REQUIRED_ACTIONS, type TemplateSpec } from "./spec.ts";
 import { ALL_ROUNDER } from "./all-rounder.ts";
 import { GRAPPLER } from "./grappler.ts";
+import { HEAVY } from "./heavy.ts";
 import { orb, PROJECTILE_SLOTS } from "./projectile.ts";
 import { ZONER } from "./zoner.ts";
 import { measureReach } from "./reach.ts";
@@ -62,7 +63,7 @@ describe("generated character code", () => {
   it("scales speeds and sizes to the character's own units", () => {
     const cns = constantsFile(spec);
     expect(cns).toContain(`walk.fwd = ${Math.round(spec.constants.walkFwd * k * 100) / 100}`);
-    expect(cns).toContain("[Data]\nlife = 1000\nattack = 100\ndefence = 100");
+    expect(cns).toContain(`[Data]\nlife = ${spec.constants.life}\nattack = ${spec.constants.attack}\ndefence = ${spec.constants.defence}`);
     expect(cns).toContain(`yaccel = ${Math.round(spec.constants.gravity * k * 100) / 100}`);
   });
 
@@ -87,6 +88,35 @@ describe("generated character code", () => {
       else expect(b).toContain("triggerall = !AILevel");
     }
     for (const a of spec.attacks.filter((x) => x.special)) expect(cmd).toContain(`name = "${a.command}"`);
+  });
+
+  const aiBlock = (cmd: string, title: string) => cmd.split("\n\n").find((b) => b.includes(`[State -1, ${title}]`)) ?? "";
+
+  it("holds its attacks back while it blocks, reacts to slow moves and blocks most projectiles", () => {
+    const cmd = commandsFile(spec);
+    expect(aiBlock(cmd, "AI: decide to block")).toContain(`var(50) = Random < ${spec.ai.block}`);
+    expect(aiBlock(cmd, "AI: decide to block a projectile")).toContain("InGuardDist && (EnemyNear, NumProj) > 0 && !var(52)");
+    expect(aiBlock(cmd, "AI: decide to block a projectile")).toContain("var(50) = Random < 800");
+    expect(aiBlock(cmd, "AI: react and block")).toContain("!var(50) && P2MoveType = A && Random < 35");
+    const ground = spec.attacks.filter((a) => a.from !== "air");
+    expect(ground.length).toBeGreaterThan(8);
+    for (const a of ground) expect(aiBlock(cmd, `AI: ${a.name}`)).toContain("triggerall = !(InGuardDist && var(50))");
+    for (const title of ["AI: run in", "AI: jump in"]) expect(aiBlock(cmd, title)).toContain("triggerall = !(InGuardDist && var(50))");
+    // Combos carry on: a normal that hit still cancels into a special.
+    expect(aiBlock(cmd, "AI: combo into Spin Kick")).not.toContain("var(50)");
+  });
+
+  it("walks in until all but its shortest standing normal reach", () => {
+    const reach = new Map([[200, 30], [210, 40], [230, 45], [240, 39]]);
+    expect(aiBlock(commandsFile(spec, reach), "AI: walk in")).toContain(`P2BodyDist X > ${Math.round(39 * k * 100) / 100} `);
+    // Never farther than the spec's own preferred range.
+    const close = { ...spec, ai: { ...spec.ai, range: 25 } };
+    expect(aiBlock(commandsFile(close, reach), "AI: walk in")).toContain(`P2BodyDist X > ${Math.round(25 * k * 100) / 100} `);
+  });
+
+  it("has the two AIs take turns acting first, so neither side of the screen has an edge", () => {
+    const st = statesFile(spec);
+    expect(st).toMatch(/\[State -2, AI: take turns going first\]\ntype = AssertSpecial\ntrigger1 = AILevel > 0 && \(GameTime % 2\) = \(TeamSide - 1\)\nflag = RunFirst/);
   });
 });
 
@@ -116,6 +146,23 @@ describe("throws and projectiles", () => {
     expect(block).toContain("attr = S, SP");
     expect(block).not.toContain("type = HitDef");
     expect(commandsFile(ZONER)).toContain("NumProjID(1000) = 0");
+  });
+
+  it("a move that goes through projectiles is immune to them only, and the AI answers projectiles with it", () => {
+    const charge = HEAVY.attacks.find((a) => a.throughProjectiles)!;
+    const st = statesFile(HEAVY);
+    const block = st.slice(st.indexOf(`[Statedef ${charge.state}]`), st.indexOf("[Statedef", st.indexOf(`[Statedef ${charge.state}]`) + 1));
+    // An empty stance part: "SCA" there would stop every attack, not just projectiles.
+    expect(block).toMatch(/type = NotHitBy\ntrigger1 = 1\nvalue = , NP, SP, HP\ntime = 1/);
+    expect(st.match(/type = NotHitBy/g)?.length).toBe(1);
+    const cmd = commandsFile(HEAVY);
+    const rule = cmd.split("\n\n").find((b) => b.startsWith(`[State -1, AI: ${charge.name} through a projectile]`))!;
+    expect(rule).toContain("triggerall = InGuardDist && (EnemyNear, NumProj) > 0");
+    expect(rule).toContain("trigger1 = Random < 12");
+    expect(cmd.indexOf(rule)).toBeLessThan(cmd.indexOf("[State -1, AI: block]"));
+    expect(GRAPPLER.attacks.some((a) => a.throughProjectiles)).toBe(true);
+    expect(statesFile(ALL_ROUNDER)).not.toContain("NotHitBy");
+    expect(commandsFile(ALL_ROUNDER)).not.toContain("through a projectile");
   });
 
   it("draws the ball in its own palette slots, hollow when it bursts", () => {
@@ -213,6 +260,16 @@ describe("template art", () => {
     // Plus 2 ticks at 5 units per tick before the hit.
     expect(reach.get(210)).toBe(19);
     expect(commandsFile(spec, reach)).toContain(`P2BodyDist X <= ${Math.round(19 * 1.7 * 100) / 100}`);
+  });
+
+  it("counts a charge's travel up to its last active frame", () => {
+    const spec = tinySpec();
+    spec.constants = { ...spec.constants, width: [0, 0] };
+    const base = spec.attacks[0]!;
+    spec.attacks = [base, { ...base, state: 220, name: "Charge", anim: { action: 220, cells: [0, 1, 1, 0], ticks: [2, 4, 3, 3] }, hits: [{ ...base.hits[0]!, frames: [1, 2] }], moves: [{ frame: 0, x: 5 }, { frame: 3, x: 0 }] }];
+    const reach = measureReach(spec, buildTemplateArt(spec, tinySheet()).actions);
+    // 2 + 4 ticks at 5 units per tick before the last active frame, plus the fist: (30 + 10.6) x 90%.
+    expect(reach.get(220)).toBe(37);
   });
 
   it("gives the same files and hash for the same spec", () => {

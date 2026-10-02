@@ -70,7 +70,49 @@ export interface BalanceSummary {
   targets: BalanceTargets;
 }
 
+export interface SideLine extends Tally {
+  id: string;
+  /** The player 1 side's win rate (draws count half) and its likely range. */
+  winRate: number;
+  low: number;
+  high: number;
+}
+
+export interface SideSummary {
+  /** One line per fighter, from the player 1 side's view. */
+  fighters: SideLine[];
+  overall: SideLine;
+  failed: FightResult[];
+  /** The likely range of the overall player 1 win rate includes 50%. */
+  fair: boolean;
+}
+
 const emptyTally = (): Tally => ({ fights: 0, wins: 0, losses: 0, draws: 0 });
+
+/** Mirror fights (plan.ts `mirrors`): how often the player 1 side wins, per fighter and overall. */
+export function summarizeSides(results: readonly FightResult[], ids: readonly string[]): SideSummary {
+  const tallies = new Map(ids.map((id) => [id, emptyTally()]));
+  const all = emptyTally();
+  const failed: FightResult[] = [];
+  for (const r of results) {
+    if (r.outcome.kind !== "finished") {
+      failed.push(r);
+      continue;
+    }
+    const key = r.outcome.winnerSide === 0 ? "draws" : r.outcome.winnerSide === 1 ? "wins" : "losses";
+    for (const t of [tallies.get(r.fight.p1), all]) {
+      if (!t) continue;
+      t.fights++;
+      t[key]++;
+    }
+  }
+  const line = (id: string, t: Tally): SideLine => {
+    const rate = winRate(t);
+    return { id, ...t, winRate: rate, ...wilson(rate, t.fights) };
+  };
+  const overall = line("all", all);
+  return { fighters: ids.map((id) => line(id, tallies.get(id)!)), overall, failed, fair: overall.low <= 0.5 && overall.high >= 0.5 };
+}
 
 export function winRate(t: Tally): number {
   return t.fights === 0 ? 0.5 : (t.wins + t.draws / 2) / t.fights;

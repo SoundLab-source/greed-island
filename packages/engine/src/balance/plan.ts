@@ -16,6 +16,22 @@ export interface RoundRobinOptions {
 }
 
 /**
+ * Each fighter against itself, `fightsEach` times, rotating stages: with the
+ * same fighter on both sides, only the side can decide who wins, so the
+ * player 1 side should win about half.
+ */
+export function mirrors(ids: readonly string[], fightsEach: number, stageIds: readonly string[]): PlannedFight[] {
+  if (ids.length < 1) throw new Error("a side check needs at least one fighter");
+  if (!Number.isInteger(fightsEach) || fightsEach < 1) throw new Error(`fights per fighter must be a whole number, 1 or more (got ${fightsEach})`);
+  if (stageIds.length < 1) throw new Error("a side check needs at least one stage");
+  const fights: PlannedFight[] = [];
+  for (let pass = 0; pass < fightsEach; pass++) {
+    for (const [n, id] of ids.entries()) fights.push({ index: fights.length, p1: id, p2: id, stageId: stageIds[(pass + n) % stageIds.length]! });
+  }
+  return fights;
+}
+
+/**
  * Every pair of fighters meets `fightsPerPair` times. Each pair swaps sides
  * every fight and plays both sides on a stage before moving to the next one,
  * so neither the side nor the stage favours anyone. Fights are ordered pass by

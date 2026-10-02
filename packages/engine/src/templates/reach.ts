@@ -1,8 +1,8 @@
 /**
  * How far each attack and throw really reaches, measured from the built
  * hitboxes: the furthest hitbox edge on its active frames, plus how far the
- * move carries the fighter forward before it hits, minus the fighter's own
- * front width. That is the gap between the two bodies (`P2BodyDist X`) at
+ * move carries the fighter forward up to its last active frame (a charge hits
+ * whenever it arrives while still active), minus the fighter's own front width. That is the gap between the two bodies (`P2BodyDist X`) at
  * which the move connects, which is what the AI checks before using it.
  */
 import type { AirAction } from "../art/air.ts";
@@ -23,14 +23,14 @@ export function measureReach(spec: TemplateSpec, actions: readonly AirAction[]):
   for (const m of moves) {
     const action = byAction.get(m.state);
     if (!action) continue;
-    const first = Math.min(...m.active);
+    const last = Math.max(...m.active);
     let tip = -Infinity;
     for (const f of m.active) for (const b of action.frames[f]?.clsn1 ?? []) tip = Math.max(tip, b[2]);
     if (!Number.isFinite(tip)) continue;
-    // Forward travel before the first active frame: each VelSet holds until the next one.
+    // Forward travel before the last active frame: each VelSet holds until the next one.
     let travel = 0;
     const sorted = [...m.moves].sort((a, b) => a.frame - b.frame);
-    for (let f = 0; f < first; f++) {
+    for (let f = 0; f < last; f++) {
       const speed = sorted.filter((x) => x.frame <= f).at(-1)?.x ?? 0;
       travel += speed * ticksOf(m.anim, f);
     }

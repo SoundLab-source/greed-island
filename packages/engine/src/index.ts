@@ -11,10 +11,10 @@ export { createIkemenSource, type IkemenSourceOptions } from "./ikemen/runner.ts
 export { buildArgs, statArgs, runConfigIni } from "./ikemen/args.ts";
 export { findIkemenBinary, installMod, isModInstalled, MOD_SOURCE } from "./ikemen/install.ts";
 export { parseLuaDump, outcomeFromDump, outcomeFromLog, matchDetailFromDump, matchDetailFromLog, type MatchDetail, type RoundDetail } from "./ikemen/log.ts";
-export { roundRobin, type PlannedFight, type RoundRobinOptions } from "./balance/plan.ts";
+export { mirrors, roundRobin, type PlannedFight, type RoundRobinOptions } from "./balance/plan.ts";
 export { runSeries, type FightResult, type SeriesOptions } from "./balance/series.ts";
-export { summarize, wilson, winRate, verdict, DEFAULT_TARGETS, type BalanceSummary, type BalanceTargets, type FighterLine, type Lopsided, type Tally, type Verdict } from "./balance/stats.ts";
-export { formatSummary } from "./balance/report.ts";
+export { summarize, summarizeSides, type SideLine, type SideSummary, wilson, winRate, verdict, DEFAULT_TARGETS, type BalanceSummary, type BalanceTargets, type FighterLine, type Lopsided, type Tally, type Verdict } from "./balance/stats.ts";
+export { formatSides, formatSummary } from "./balance/report.ts";
 export { loadEngineConfig, type EngineConfig } from "./config.ts";
 export { buildVariant, loadVariants, variantDefPath, VariantRecipe, VARIANTS_PATH, type Variant } from "./roster/variants.ts";
 export { deriveCharacter, pruneDerived, readConstants, type BaseConstants, type DeriveSpec } from "./ikemen/derive.ts";

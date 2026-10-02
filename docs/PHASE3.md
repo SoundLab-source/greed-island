@@ -30,7 +30,7 @@ Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 1. ✅ **Staff roles and a review queue.** Admin and moderator roles, a staff page (`/staff.html`), and a log of every staff action. Needed first, because submissions, names and art all need a human to approve them. The first thing through the queue: custom character names (automatic since phase 2). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §13.
 2. ✅ **Seasons.** A season table and a season clock. At each season's end: champion titles ("Season 1 Champion", DESIGN §8), a leaderboard snapshot, and a leaderboard reset. Balances never reset (DESIGN §9). Nothing here depends on the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §14.
 3. ✅ **Submissions.** A form for a community to submit a fighter: the template it's built on, sprite sheets following that template, name, palettes, intro and win pose, and a proof-of-rights statement. Files are stored outside git (like IKEMEN content today) and reviewed in the admin queue. Built staff-only (`GI_SUBMISSIONS_OPEN` opens it once the terms are ready). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §15.
-4. **Automatic checks** (✅ the balance tool, `pnpm templates:balance`: see "Balance tool" below; the checks on submissions are next). For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
+4. **Automatic checks** (✅ the balance tool, `pnpm templates:balance`, and ✅ the five templates balanced with it: see "Balance tool" below; the checks on submissions are next). For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
 5. ✅ **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts. Built before step 4, which needs the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §16.
 6. ✅ **Seasonal release** (with stand-in engine characters until the templates exist; details: [ARCHITECTURE.md](ARCHITECTURE.md) §18). The ballot's winners join the roster when the next season starts, with a debut tournament and a First Edition supply in the shop (both already exist from phase 2).
 7. **Holder verification and perks** (built: wallets, approved collections, submitting from an NFT, NFT looks with portrait and name plate colours; sprite recolouring and trait kits wait for the templates). Verify that a player holds an NFT from a partner collection (read-only: a signed message, then reading the wallet's holdings), for **perks, never power** (DESIGN §11): early shop access, **submitting a fighter from an NFT**, and **NFT looks** for their community's fighter (see "NFTs as fighters"). The looks need the archetype templates.
@@ -42,15 +42,15 @@ Built from 2026-09-30. One template per archetype, each a real IKEMEN character 
 | Archetype | Template | Moves | Status |
 |---|---|---|---|
 | All-rounder | **Brawler** (`gi-tpl-all-rounder`) | Jab, lunge punch, mid and high kicks, crouching jab, straight, low kick and sweep, jumping punch, flying kick. Specials: Rushing Straight (↓↘→ + light punch), Rising Uppercut (→↓↘ + strong punch, anti-air), Spin Kick (↓↙← + strong kick) | ✅ |
-| Rushdown | **Striker** (`gi-tpl-rushdown`) | Fast walk and run, four standing kicks (quick, side, snap, roundhouse), air kicks. Specials: Spinning Side Kick (↓↘→ + strong kick, rushes in), Rising Kick (→↓↘ + light kick, anti-air), Tornado Kick (↓↙← + strong kick). 900 life | ✅ |
-| Heavy | **Bruiser** (`gi-tpl-heavy`) | Slow, low jump, 1200 life. Heavy jab, Hammer Smash (an overhead: must be blocked standing), mid kick, Big Boot. Specials: Shoulder Charge (↓↘→ + light punch), Heavy Uppercut (→↓↘ + strong punch), Hammer Drop (↓↙← + strong punch) | ✅ |
-| Grappler | **Wrestler** (`gi-tpl-grappler`) | Jab, Double Palm, mid kick, Clothesline. Specials: Bull Rush (↓↘→ + light punch), Dropkick (↓↙← + strong kick, long recovery). Throws: Body Slam (forward + strong punch up close) and Dive Grab (↓↘→ + strong punch, a lunging command throw that beats blocking) | ✅ |
-| Zoner | **Sage** (`gi-tpl-zoner`) | Jab, straight, long front and side kicks. Specials: Energy Palm (↓↘→ + light punch, a projectile), Rising Uppercut (anti-air), Spin Kick. Keeps its distance and backs off when crowded. 950 life | ✅ |
+| Rushdown | **Striker** (`gi-tpl-rushdown`) | Fast walk and run, four standing kicks (quick, side, snap, roundhouse), air kicks. Specials: Spinning Side Kick (↓↘→ + strong kick, rushes in), Rising Kick (→↓↘ + light kick, anti-air), Tornado Kick (↓↙← + strong kick). 890 life | ✅ |
+| Heavy | **Bruiser** (`gi-tpl-heavy`) | Slow, low jump, 1100 life. Heavy jab, Hammer Smash (an overhead: must be blocked standing), mid kick, Big Boot. Specials: Shoulder Charge (↓↘→ + light punch, goes through projectiles), Heavy Uppercut (→↓↘ + strong punch), Hammer Drop (↓↙← + strong punch) | ✅ |
+| Grappler | **Wrestler** (`gi-tpl-grappler`) | Jab, Double Palm, mid kick, Clothesline. Specials: Bull Rush (↓↘→ + light punch, goes through projectiles), Dropkick (↓↙← + strong kick, long recovery). Throws: Body Slam (forward + strong punch up close) and Dive Grab (↓↘→ + strong punch, a lunging command throw that beats blocking) | ✅ |
+| Zoner | **Sage** (`gi-tpl-zoner`) | Jab, straight, long front and side kicks. Specials: Energy Palm (↓↘→ + light punch, a projectile), Rising Uppercut (anti-air), Spin Kick. Keeps its distance and backs off when crowded. 1050 life | ✅ |
 
 **How a template works**
 - **Frames.** The Universal Prototype is one fighter model in 3,194 frames on a 40 x 80 grid, all rendered with the same camera, so every frame shares one ground point. A template lists which cells make each animation (about 60 animations the engine needs, plus its attacks); the catalogue of what's where is at the top of `universal-prototype.ts`.
 - **Boxes from the pixels.** Hurtboxes follow each frame's drawn pixels; an attack's hitbox is the part of its active frame that reaches past its starting pose. So boxes always match the art, including a community fighter's own art later.
-- **Its own AI.** The engine's built-in computer player only presses random buttons (that's how Kung Fu Man fights). Templates switch that off and decide for themselves: walk in to their preferred range, block most attacks, anti-air, attack with what reaches, combo a normal into a special, run or jump in from far away. Each archetype's personality is a handful of numbers (range, aggression, block, jump and run chances).
+- **Its own AI.** The engine's built-in computer player only presses random buttons (that's how Kung Fu Man fights). Templates switch that off and decide for themselves: walk in until all but their shortest standing move reach, block most attacks (and hold their own attacks back while they block), react to slow moves, block most projectiles, anti-air, attack with what reaches, combo a normal into a special, run or jump in from far away. Each archetype's personality is a handful of numbers (range, aggression, block, jump and run chances). The two fighters take turns acting first each tick, so neither side of the screen has an edge.
 - **Throws.** A throw reaches out (it only catches someone standing or crouching who isn't already being hit), then holds the opponent frame by frame, lifts and slams them. The victim is drawn with its own standard "getting hit" sprites (every MUGEN-style character has them), so throws work on any opponent.
 - **Projectiles.** The sheet has no projectile art, so the builder draws the energy ball itself (flying, bursting, fading) in six spare palette slots; each outfit can recolour it (the Sage's Flame outfit throws an orange one).
 - **Colours.** The sheet's palette comes in ramps (skin, hair, shirt, jeans, shoes...), so each template has its own main colours and three more outfits, each a recolour of a few ramps.
@@ -60,7 +60,7 @@ Built from 2026-09-30. One template per archetype, each a real IKEMEN character 
 **Defaults** (settings in each spec)
 - Size: the 2x sheet at localcoord 544, which stands about as tall as Kung Fu Man.
 - Numbers for each template are in its spec (`packages/engine/src/templates/<archetype>.ts`): life, attack, defence, speeds, every move's damage and stun, and its AI (preferred range, aggression, block, jump, run and retreat chances).
-- Brawler numbers: 1000 life, attack and defence 100, Kung Fu Man's walking, running and jumping speeds; jab 25 damage up to specials at 80-90; AI range 60, aggression 90, blocks 55% of attacks.
+- Numbers after balancing (2026-10-02; life / attack / defence): Brawler 1050 / 101 / 102, Striker 890 / 100 / 95, Bruiser 1100 / 105 / 105, Wrestler 975 / 100 / 100, Sage 1050 / 100 / 100. The Brawler walks and runs a little faster than Kung Fu Man (2.7 and 5.6); jab 25 damage up to specials at 80-90.
 - First checks, 2026-09-30: Brawler vs Kung Fu Man won 2-1 (sim) and 2-0 (live); a Brawler mirror went 1-2, all by KO, rounds of 36-50 seconds (Kung Fu Man mirrors average about 80). Templates beat Kung Fu Man-based fighters, whose AI only mashes buttons; ratings price that into the odds, and the house roster can move to templates as they're built.
 - **Balance so far** (2026-09-30): five round robins of 40 sim fights (each template 16 fights a run). Wins out of 16 went from 1-15 between the weakest and strongest template to 4-12 after two fixes and some number changes:
 
@@ -80,7 +80,7 @@ Built 2026-10-02 (step 4, first part). `pnpm templates:balance` runs a round rob
 
 - **Fast enough to use.** Fights run at 100× speed, six at a time: 200 fights take about a minute on the M4 Max (the round robins above took 40 fights a run). Checked that speed doesn't change results: 200 fights at 16× and 200 at 100× gave the same ranking, every win rate within 4 points, and the same average fight length.
 - **Fair by construction.** Each pair swaps sides every fight and plays both sides on a stage before moving to the next (our three stages), so neither side nor stage favours anyone. The report shows how often the player 1 side won, as a check.
-- **Options.** `--fights 50` for more fights per pairing (narrower ranges), `--only bruiser` for one fighter's pairings while tuning it, `--fighters a,b,c` for any roster fighters.
+- **Options.** `--fights 50` for more fights per pairing (narrower ranges), `--only bruiser` for one fighter's pairings while tuning it, `--fighters a,b,c` for any roster fighters, `--sides` for the side check (each fighter against itself: the player 1 side should win about half).
 - **What it records.** Wins, rounds, rounds decided by the clock, average fight length, and how much life winners keep, in `runs/balance/<time>/summary.json`. A failed fight (crash or timeout) keeps its artifacts there and makes the command exit with an error.
 
 **Defaults** (in `packages/engine/src/balance/stats.ts` and the script)
@@ -96,6 +96,31 @@ Built 2026-10-02 (step 4, first part). `pnpm templates:balance` runs a round rob
 | Run at 100× | 70.0% | 61.3% | 58.8% | 33.8% | 26.3% |
 
 The Sage beat the Bruiser in all 40 of their fights; the Striker beat the Sage in 34 of 40. No rounds were decided by the clock; an average fight is 105 seconds of game time.
+
+**Balanced, 2026-10-02.** After the changes below, over 2,000 fights (800 per fighter, 200 per pairing):
+
+| | Brawler | Bruiser | Striker | Sage | Wrestler |
+|---|---|---|---|---|---|
+| Win rate | 54.9% | 49.6% | 49.3% | 49.0% | 47.3% |
+| Likely range | 51–58% | 46–53% | 46–53% | 46–52% | 44–51% |
+
+No lopsided matchup: the widest is the Brawler over the Striker, 61–39. An average fight lasts 133 seconds of game time, and 17 of 4,995 rounds were decided by the clock.
+
+What changed, in the order the tool pointed to it:
+
+1. **Blocking that means it.** A guarding fighter still has control in the engine, so the AI used to swing straight out of its own block. It now holds its attacks while it blocks. That made throws matter (they beat blocking) and fast pressure matter.
+2. **Where to stand.** Each fighter stopped walking in at the reach of its *longest* move, so most of its moves never connected (worst for the Bruiser). It now walks in until all but its shortest standing move reach.
+3. **True reach of charges.** A charging move's reach now counts how far it carries up to its last active frame (the Shoulder Charge reaches 80, not 44). Rushing specials are used from far away less often (lower weights), so they stay a surprise rather than the default approach.
+4. **Reacting.** An attack already on its way can still be blocked (a small chance each tick), so slow moves are blocked more than quick ones.
+5. **Projectiles.** Every AI blocks most projectiles (80%). The Bruiser's Shoulder Charge and the Wrestler's Bull Rush go through projectiles, and their AIs sometimes answer one that way: before, the Sage beat both slow fighters 85-100% of the time.
+6. **Recovery times.** The Brawler, Bruiser, Wrestler and Sage recovered from their own hits later than the opponent did, so landing a hit gave the initiative away; only the Striker didn't. Their normals now leave them a tick or two ahead on a hit and a few behind when blocked.
+7. **Numbers.** Life, attack and defence (above), throw damage (Body Slam 70, Dive Grab 90), the Sage's Energy Palm (52 damage, 12 when blocked, faster to throw) and knockdown moves up close, a quicker Brawler (what it lacked against the Sage), and each AI's aggression.
+
+**No edge for either side of the screen.** The side check (`pnpm templates:balance --sides`: each fighter against itself) found that player 2 was winning about 55% once the AI reacted to its opponent, because the engine lets player 1 act first every tick and player 2 always decides knowing what player 1 just did. The two AIs now take turns acting first. After the fix: player 1 won 606 of 1,200 mirror fights (50.5%).
+
+**Things tried that made it worse** (not kept): jumping over projectiles (the Brawler won 6-10% against the Sage: it gets knocked out of the air), and immunity written as `SCA, NP, SP, HP`, which the engine reads as immune to everything ([ikemen-notes.md](ikemen-notes.md) §7).
+
+Win rates are sensitive: 5% of life or attack moves a fighter by several points, so check with `--fights 100` or more before trusting a change.
 
 ## NFTs as fighters
 

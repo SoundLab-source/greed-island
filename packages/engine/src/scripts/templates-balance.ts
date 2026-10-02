@@ -3,16 +3,18 @@
 // rates per fighter and per matchup (docs/PHASE3.md step 4). --fights is per pairing: 20 with the five
 // templates is 200 fights, a couple of minutes. --only runs just one fighter's pairings. The results
 // are saved in runs/balance/; failed fights keep their artifacts there (--keep keeps every fight's).
+// --sides instead runs each fighter against itself (--fights each, default 60) to check that
+// neither side of the screen has an edge.
 import { loadRepoEnv, REPO_ROOT } from "@greed-island/db";
 import { DEFAULT_STATS } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { roundRobin } from "../balance/plan.ts";
-import { formatSummary } from "../balance/report.ts";
+import { mirrors, roundRobin } from "../balance/plan.ts";
+import { formatSides, formatSummary } from "../balance/report.ts";
 import { runSeries } from "../balance/series.ts";
-import { summarize } from "../balance/stats.ts";
+import { summarize, summarizeSides } from "../balance/stats.ts";
 import { loadEngineConfig } from "../config.ts";
 import { matchDetailFromLog } from "../ikemen/log.ts";
 import { createIkemenSource } from "../ikemen/runner.ts";
@@ -23,7 +25,8 @@ import type { FightSpec } from "../types.ts";
 loadRepoEnv();
 const { values } = parseArgs({
   options: {
-    fights: { type: "string", default: "20" },
+    fights: { type: "string" },
+    sides: { type: "boolean" },
     only: { type: "string" },
     fighters: { type: "string" },
     stages: { type: "string" },
@@ -41,7 +44,7 @@ const whole = (flag: string, raw: string, max: number) => {
   if (!Number.isInteger(n) || n < 1 || n > max) fail(`--${flag} must be a whole number from 1 to ${max} (got "${raw}")`);
   return n;
 };
-const fightsPerPair = whole("fights", values.fights, 1000);
+const fightsPerPair = whole("fights", values.fights ?? (values.sides ? "60" : "20"), 1000);
 const speed = whole("speed", values.speed, 100);
 const parallel = whole("parallel", values.parallel, 16);
 
@@ -64,7 +67,8 @@ const only = values.only ? findFighter(values.only).id : undefined;
 const ids = fighters.map((f) => f.id);
 const plan = (() => {
   try {
-    return roundRobin(ids, fightsPerPair, stages.map((s) => s.id), only ? { only } : {});
+    const stageIds = stages.map((s) => s.id);
+    return values.sides ? mirrors(only ? [only] : ids, fightsPerPair, stageIds) : roundRobin(ids, fightsPerPair, stageIds, only ? { only } : {});
   } catch (e) {
     return fail((e as Error).message);
   }
@@ -76,8 +80,8 @@ const outDir = path.join(cfg.runsDir, "balance", stamp);
 await mkdir(outDir, { recursive: true });
 const source = createIkemenSource({ mode: "sim", ikemenDir, runsDir: outDir, timeoutMs: cfg.simTimeoutMs, aiLevel: cfg.aiLevel, simSpeed: speed, extraArgs: cfg.extraArgs });
 
-console.log(`Balance check: ${fighters.map((f) => f.displayName).join(", ")}${only ? ` (only ${names[only]}'s pairings)` : ""}`);
-console.log(`${plan.length} fights (${fightsPerPair} per pairing) on ${stages.map((s) => s.displayName).join(", ")}; ${speed}x speed, ${parallel} at a time. Game windows open behind your other apps.`);
+console.log(values.sides ? `Side check: ${(only ? [names[only]] : fighters.map((f) => f.displayName)).join(", ")}, each against itself` : `Balance check: ${fighters.map((f) => f.displayName).join(", ")}${only ? ` (only ${names[only]}'s pairings)` : ""}`);
+console.log(`${plan.length} fights (${fightsPerPair} per ${values.sides ? "fighter" : "pairing"}) on ${stages.map((s) => s.displayName).join(", ")}; ${speed}x speed, ${parallel} at a time. Game windows open behind your other apps.`);
 
 const abort = new AbortController();
 process.once("SIGINT", () => {
@@ -113,10 +117,10 @@ const results = await runSeries(
 
 // Fights cut short by Ctrl+C aren't failures.
 const counted = abort.signal.aborted ? results.filter((r) => r.outcome.kind === "finished") : results;
-const summary = summarize(counted, ids);
+const summary = values.sides ? summarizeSides(counted, only ? [only] : ids) : summarize(counted, ids);
 console.log("");
-console.log(formatSummary(summary, names));
+console.log("fighters" in summary && "overall" in summary ? formatSides(summary, names) : formatSummary(summary, names));
 const file = path.join(outDir, "summary.json");
-await writeFile(file, JSON.stringify({ at: new Date().toISOString(), fightsPerPair, speed, parallel, only: only ?? null, stages: stages.map((s) => s.id), names, summary, results: counted }, null, 2) + "\n");
+await writeFile(file, JSON.stringify({ at: new Date().toISOString(), kind: values.sides ? "sides" : "round-robin", fightsPerPair, speed, parallel, only: only ?? null, stages: stages.map((s) => s.id), names, summary, results: counted }, null, 2) + "\n");
 console.log(`\nSaved: ${path.relative(REPO_ROOT, file)}`);
 if (summary.failed.length > 0) process.exitCode = 1;
