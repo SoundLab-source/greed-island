@@ -2,7 +2,7 @@ import { parseEngineEventLine } from "@greed-island/shared";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { OutcomeTracker } from "../outcome.ts";
-import { outcomeFromDump, parseLuaDump } from "./log.ts";
+import { matchDetailFromDump, outcomeFromDump, parseLuaDump } from "./log.ts";
 
 // Captured from a real IKEMEN GO v1.0.0 run (macOS arm64, sim mode):
 // Kung Fu Man (P1) vs Kung Fu Man 720 (P2), P2 won 2-1.
@@ -22,6 +22,18 @@ describe("real -log output", () => {
 
   it("yields P2 as the winner (WinSide is 0-based)", async () => {
     expect(outcomeFromDump(parseLuaDump(await fixture("match.log")), 2)).toMatchObject({ kind: "finished", winnerSide: 2 });
+  });
+
+  it("gives each round's winner, length and remaining life (for balance checks)", async () => {
+    const detail = matchDetailFromDump(parseLuaDump(await fixture("match.log")));
+    expect(detail).toEqual({
+      ticks: 14349,
+      rounds: [
+        { winnerSide: 1, ticks: 5085, lifeLeft: { 1: 0.425, 2: 0 }, byTime: false },
+        { winnerSide: 2, ticks: 4083, lifeLeft: { 1: 0, 2: 0.181 }, byTime: false },
+        { winnerSide: 2, ticks: 5181, lifeLeft: { 1: 0, 2: 0.044 }, byTime: false },
+      ],
+    });
   });
 });
 
@@ -59,5 +71,10 @@ describe("outcomeFromDump edge cases", () => {
 
   it("returns null when the fields are missing", () => {
     expect(outcomeFromDump(parseLuaDump("table: 0x1 {\n}\n"), 2)).toBeNull();
+  });
+
+  it("has no round detail without MatchTime and Rounds", () => {
+    expect(matchDetailFromDump(parseLuaDump("table: 0x1 {\n}\n"))).toBeNull();
+    expect(matchDetailFromDump(dump(0, 2, 0))).toBeNull();
   });
 });

@@ -30,7 +30,7 @@ Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 1. ✅ **Staff roles and a review queue.** Admin and moderator roles, a staff page (`/staff.html`), and a log of every staff action. Needed first, because submissions, names and art all need a human to approve them. The first thing through the queue: custom character names (automatic since phase 2). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §13.
 2. ✅ **Seasons.** A season table and a season clock. At each season's end: champion titles ("Season 1 Champion", DESIGN §8), a leaderboard snapshot, and a leaderboard reset. Balances never reset (DESIGN §9). Nothing here depends on the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §14.
 3. ✅ **Submissions.** A form for a community to submit a fighter: the template it's built on, sprite sheets following that template, name, palettes, intro and win pose, and a proof-of-rights statement. Files are stored outside git (like IKEMEN content today) and reviewed in the admin queue. Built staff-only (`GI_SUBMISSIONS_OPEN` opens it once the terms are ready). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §15.
-4. **Automatic checks** (needs the archetype templates, which are now being built: see "Fighter templates"). For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
+4. **Automatic checks** (✅ the balance tool, `pnpm templates:balance`: see "Balance tool" below; the checks on submissions are next). For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
 5. ✅ **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts. Built before step 4, which needs the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §16.
 6. ✅ **Seasonal release** (with stand-in engine characters until the templates exist; details: [ARCHITECTURE.md](ARCHITECTURE.md) §18). The ballot's winners join the roster when the next season starts, with a debut tournament and a First Edition supply in the shop (both already exist from phase 2).
 7. **Holder verification and perks** (built: wallets, approved collections, submitting from an NFT, NFT looks with portrait and name plate colours; sprite recolouring and trait kits wait for the templates). Verify that a player holds an NFT from a partner collection (read-only: a signed message, then reading the wallet's holdings), for **perks, never power** (DESIGN §11): early shop access, **submitting a fighter from an NFT**, and **NFT looks** for their community's fighter (see "NFTs as fighters"). The looks need the archetype templates.
@@ -73,6 +73,29 @@ Built from 2026-09-30. One template per archetype, each a real IKEMEN character 
   | 5 | 4 | 10 | 5 | 12 | 9 | Bruiser back to 1200 life and 110 attack/defence, more aggressive and quicker big moves; Striker 900 life |
 
   Four fights per pairing swing a lot from run to run, so finer tuning waits for step 4's balance tool (hundreds of fights per check). How often each AI attacks matters most; toughness and throws next.
+
+## Balance tool
+
+Built 2026-10-02 (step 4, first part). `pnpm templates:balance` runs a round robin of sim fights between the five templates and prints each one's win rate, the range the true rate is likely in, every matchup, and a verdict.
+
+- **Fast enough to use.** Fights run at 100× speed, six at a time: 200 fights take about a minute on the M4 Max (the round robins above took 40 fights a run). Checked that speed doesn't change results: 200 fights at 16× and 200 at 100× gave the same ranking, every win rate within 4 points, and the same average fight length.
+- **Fair by construction.** Each pair swaps sides every fight and plays both sides on a stage before moving to the next (our three stages), so neither side nor stage favours anyone. The report shows how often the player 1 side won, as a check.
+- **Options.** `--fights 50` for more fights per pairing (narrower ranges), `--only bruiser` for one fighter's pairings while tuning it, `--fighters a,b,c` for any roster fighters.
+- **What it records.** Wins, rounds, rounds decided by the clock, average fight length, and how much life winners keep, in `runs/balance/<time>/summary.json`. A failed fight (crash or timeout) keeps its artifacts there and makes the command exit with an error.
+
+**Defaults** (in `packages/engine/src/balance/stats.ts` and the script)
+- A fighter is fine at 45–55% overall. Outside that it's "too strong" or "too weak" when the likely range excludes 50%, and "leaning" when more fights are needed to be sure.
+- A matchup is called lopsided outside 35–65% (with at least 10 fights in the pairing): some rock-paper-scissors between archetypes is wanted, a matchup one side can't win isn't.
+- 20 fights per pairing, 100× speed, 6 fights at a time.
+
+**Baseline, 2026-10-02** (before any tuning with the tool; two runs of 200 fights, 80 per fighter each):
+
+| | Striker | Sage | Wrestler | Bruiser | Brawler |
+|---|---|---|---|---|---|
+| Run at 16× | 68.8% | 58.8% | 56.3% | 36.3% | 30.0% |
+| Run at 100× | 70.0% | 61.3% | 58.8% | 33.8% | 26.3% |
+
+The Sage beat the Bruiser in all 40 of their fights; the Striker beat the Sage in 34 of 40. No rounds were decided by the clock; an average fight is 105 seconds of game time.
 
 ## NFTs as fighters
 
@@ -121,6 +144,7 @@ Same approach as phase 2: each number is a setting, flagged in the commit that a
 - A character carries one NFT look at a time; changing it (with another NFT the player holds) replaces it, and the old one goes back to being available.
 
 **Balance check**
+- Templates: see "Balance tool" (45–55% overall, matchups within 35–65%).
 - 200 sim fights against a spread of the roster, per submission.
 - It passes if its win rate is within 10 percentage points of its archetype's reference fighter against the same opponents.
 

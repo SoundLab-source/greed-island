@@ -2,17 +2,17 @@
 
 The one page to read first: what the project is for, what's been built, what's next, and how to pick up the work. Details live in the linked docs.
 
-*Last updated 2026-10-01, after the first go-live rehearsal (the site through a Cloudflare test tunnel). Update this file at the end of every build step.*
+*Last updated 2026-10-02, after the balance tool (phase 3 step 4, first part). Update this file at the end of every build step.*
 
 ## Where things stand
 
 | | |
 |---|---|
 | **Phase** | Phases 1 and 2 are done. Phase 3 (community roster): 6 of 7 steps built and all five fighter templates exist. **The MVP is built** ([MVP.md](docs/MVP.md)): player website, template house roster, production hardening, running unattended and the deploy guide. Going live is now your steps ([DEPLOY.md](docs/DEPLOY.md)). |
-| **Next step** | Going live, walked through together ("Going live" below). Done: the site reached over a public test address, with the Twitch channel (`greedislandgg`) on the watch page. Waiting on you: buy a domain (at Cloudflare), a Resend account for sign-in emails, the Twitch stream key in OBS, and which machine runs the stream. After we're live: step 4's balance tool. |
+| **Next step** | Going live, walked through together ("Going live" below). Done: the site reached over a public test address, with the Twitch channel (`greedislandgg`) on the watch page. Waiting on you: buy a domain (at Cloudflare), a Resend account for sign-in emails, the Twitch stream key in OBS, and which machine runs the stream. Meanwhile, ours: finishing the templates' balance with the new balance tool, then the automatic checks on submissions. |
 | **Works today** | A continuous cycle of AI-vs-AI fights (real IKEMEN GO fights or a fake engine): matchmaking, tournaments with their own T-Salt balance, and owner-vs-owner exhibitions. Betting with Salt, rating-based odds, ratings and tiers, email sign-in, a character shop, upgrades, titles and cosmetics, owner rewards, 8-week seasons with champion titles and a season leaderboard, a staff page with admin and moderator roles, custom character names approved by staff, a fighter submission pipeline (staff-only until the terms are ready), a season vote on submitted fighters, linking Solana wallets (read-only), submitting a fighter from an NFT, NFT looks on characters, elected community fighters joining the roster with a debut tournament, five fighter templates (Brawler, Striker, Bruiser, Wrestler, Sage: one per archetype) built from free CC0 art, with throws, a projectile and their own AI, on the house roster, an API with live updates, a **player website** (watch and bet, shop, my fighters, fighter profiles, rankings, vote, account, how to play, draft terms and privacy), a plain dev page, and a stream overlay for OBS with automatic scene switching |
 | **Not built yet** | What needs the templates: automatic checks on submissions, community fighters' own art on a template, recoloured NFT looks. Anything on-chain (minting is phase 4). Not yet working: capturing only the game window. Not yet tried: a real stream |
-| **Health** | 580 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
+| **Health** | 599 automated tests passing; ledger audit passing; verified with real IKEMEN fights on macOS |
 | **Code** | https://github.com/SoundLab-source/greed-island (branch `main`) |
 
 ## Mission
@@ -33,7 +33,7 @@ What we hold to (from [DESIGN.md](docs/DESIGN.md) §2):
 |---|---|---|
 | **1. Stream MVP** | House characters, match cycle, Salt ledger, betting, odds, ratings and tiers, fight stats, API with live updates | ✅ Done |
 | **2. Ownership** | Accounts, shop, owned characters, upgrades, titles and cosmetics, owner rewards, exhibitions, tournaments | ✅ Done |
-| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks, fighter templates | 6 of 7 steps; all 5 templates |
+| **3. Community roster** | Staff and review, seasons, fighter submissions, voting, seasonal releases, holder perks, fighter templates | 6 of 7 steps; all 5 templates; step 4's balance tool built |
 | **4. On-chain** | Legal review first, then characters as Solana NFTs, trading, crowd-blended odds | Not started |
 
 ## What's been done
@@ -73,6 +73,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - ✅ **Art downloaded** (`813f0bc`, `d08efb3`): the CC0 Universal Prototype (3,194 frames of one fighter model) and Martial Hero 1-3 sheets, kept outside git with their sources and checksums in `art/SOURCES.md`.
 - ✅ **First fighter template: the Brawler** (`caad40b`, all-rounder): `pnpm templates:build` turns a sprite sheet and a short spec into a whole IKEMEN character. Our own sprite and animation file writers; hurtboxes and hitboxes worked out from the pixels; the fighter's own AI (walks in, blocks most attacks, anti-airs, attacks with what reaches, combos into specials) instead of the engine's random button presses; four outfits. 13 moves including 3 specials. Real fights: beat Kung Fu Man 2-1 and 2-0, a mirror went 1-2, all by KO. It's on the house roster, and released community fighters of its archetype now play on it. Details: [PHASE3.md](docs/PHASE3.md) "Fighter templates".
 - ✅ **The other four templates** (`14ba7c2`): **Striker** (rushdown: fast, four kicks, spinning-kick specials), **Bruiser** (heavy: 1200 life, an overhead hammer that must be blocked standing, shoulder charge), **Wrestler** (grappler: a body slam and a lunging command grab, which hold, lift and slam the opponent using its own sprites) and **Sage** (zoner: the Energy Palm projectile, drawn by the builder since the art has none, long pokes, backs off when crowded). Each has its own colours and three more outfits. All five are on the house roster. The AI now uses each move's measured reach. Five round robins of sim fights narrowed the gap between the weakest and strongest template from 1 vs 15 wins (out of 16) to 4 vs 12; finer balance waits for step 4's balance tool.
+- ✅ **Balance tool** (step 4, first part): `pnpm templates:balance` runs hundreds of simulated fights between the five templates in about a minute (fights at 100× speed, six at a time; checked that fast fights give the same results as slow ones) and reports each template's win rate, the range it's likely in, every matchup and a verdict against the targets (45–55% overall; no matchup outside 35–65%). The first proper measurement, over 400 fights: Striker about 70%, Sage 60%, Wrestler 57%, Bruiser 35%, Brawler 28%, and the Sage beats the Bruiser every time. Details: [PHASE3.md](docs/PHASE3.md) "Balance tool".
 
 **MVP** (plan: [MVP.md](docs/MVP.md))
 - ✅ **Player website** (`25291c1`): a styled site for the whole loop, on phones too. Home is watch and bet (video, Red/Blue betting, a matchup panel with records, recent form and head-to-head, and chat or a live feed); then the shop (with each template fighter's picture), my fighters (upgrades, sidegrades, the look on stream, names, NFT looks, challenges), fighter profiles, rankings (season leaderboard, fighters by tier, the tournament bracket, results, past seasons), the season vote, account (email sign-in, Salt, titles, bet history, wallets), how to play, and draft terms and privacy pages for the lawyer. The plain dev page moved to `/dev.html`.
@@ -101,8 +102,9 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 4. **You:** the Twitch stream key into OBS (Settings → Stream). **Then us:** `pnpm obs:setup` and a short test stream.
 5. **You:** pick the stream machine (a Mac or PC used only for the stream), log it in automatically, keep it awake, Docker at login. **Then us:** the production settings in `.env`, `pnpm service:install`, and the checklist (§7).
 
-**Engineering next (after we're live)**
-- Step 4 of phase 3: the balance tool (hundreds of sim fights per check) and the automatic checks on submissions; it also finishes balancing the five templates.
+**Engineering next (while the go-live steps wait on you)**
+- Finish balancing the five templates with the balance tool (target: everyone at 45–55%).
+- The rest of step 4: the smoke test, template check and balance simulation for submitted fighters, with results on the staff review page.
 - Community fighters' own art on their templates.
 
 **Streaming: where the stream runs, then a private recording**
