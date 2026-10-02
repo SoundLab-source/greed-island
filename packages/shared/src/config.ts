@@ -6,6 +6,7 @@ import { DEFAULT_SEASONS, type SeasonConfig } from "./seasons.ts";
 import { DEFAULT_SHOP, type ShopConfig } from "./shop.ts";
 import { DEFAULT_STAFF, type StaffConfig } from "./staff.ts";
 import { DEFAULT_SUBMISSIONS, type SubmissionConfig } from "./submissions.ts";
+import { DEFAULT_CHECKS, validateChecks, type CheckSettings } from "./checks.ts";
 import { DEFAULT_VOTING, type VotingConfig } from "./voting.ts";
 import { DEFAULT_NFT, type NftConfig } from "./nft.ts";
 import { DEFAULT_UPGRADES, type UpgradeConfig } from "./upgrades.ts";
@@ -43,6 +44,8 @@ export interface Config {
   staff: StaffConfig;
   seasons: SeasonConfig;
   submissions: SubmissionConfig;
+  /** The automatic checks on submissions; `enabled` queues a run whenever one is sent for review. */
+  checks: CheckSettings & { enabled: boolean };
   voting: VotingConfig;
   nft: NftConfig;
 }
@@ -235,6 +238,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         electedPerSeason: numberFromEnv(env, "GI_ELECTED_PER_SEASON", DEFAULT_VOTING.electedPerSeason),
       },
     ),
+    checks: {
+      enabled: booleanFromEnv(env, "GI_SUBMISSION_CHECKS", true),
+      ...validateChecks({
+        fights: numberFromEnv(env, "GI_CHECK_FIGHTS", DEFAULT_CHECKS.fights),
+        tolerance: numberFromEnv(env, "GI_CHECK_TOLERANCE_PCT", DEFAULT_CHECKS.tolerance * 100) / 100,
+      }),
+    },
     submissions: validateSubmissions({
       ...DEFAULT_SUBMISSIONS,
       open: booleanFromEnv(env, "GI_SUBMISSIONS_OPEN", DEFAULT_SUBMISSIONS.open),

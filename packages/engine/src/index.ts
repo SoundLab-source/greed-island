@@ -11,7 +11,9 @@ export { createIkemenSource, type IkemenSourceOptions } from "./ikemen/runner.ts
 export { buildArgs, statArgs, runConfigIni } from "./ikemen/args.ts";
 export { findIkemenBinary, installMod, isModInstalled, MOD_SOURCE } from "./ikemen/install.ts";
 export { parseLuaDump, outcomeFromDump, outcomeFromLog, matchDetailFromDump, matchDetailFromLog, type MatchDetail, type RoundDetail } from "./ikemen/log.ts";
-export { mirrors, roundRobin, type PlannedFight, type RoundRobinOptions } from "./balance/plan.ts";
+export { mirrors, roundRobin, versus, type PlannedFight, type RoundRobinOptions } from "./balance/plan.ts";
+export { checkFighter, CheckError, type CheckFighter, type FighterCheckDeps, type FighterCheckInput } from "./balance/check.ts";
+export { fighterNumbers, templateFindings, DEFAULT_LIMITS, type FighterNumbers, type MoveNumbers, type TemplateLimits } from "./templates/limits.ts";
 export { runSeries, type FightResult, type SeriesOptions } from "./balance/series.ts";
 export { summarize, summarizeSides, type SideLine, type SideSummary, wilson, winRate, verdict, DEFAULT_TARGETS, type BalanceSummary, type BalanceTargets, type FighterLine, type Lopsided, type Tally, type Verdict } from "./balance/stats.ts";
 export { formatSides, formatSummary } from "./balance/report.ts";

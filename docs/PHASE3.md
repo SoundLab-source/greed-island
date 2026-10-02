@@ -30,7 +30,7 @@ Each step is committed with tests green, like phases 1 and 2. ✅ = built.
 1. ✅ **Staff roles and a review queue.** Admin and moderator roles, a staff page (`/staff.html`), and a log of every staff action. Needed first, because submissions, names and art all need a human to approve them. The first thing through the queue: custom character names (automatic since phase 2). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §13.
 2. ✅ **Seasons.** A season table and a season clock. At each season's end: champion titles ("Season 1 Champion", DESIGN §8), a leaderboard snapshot, and a leaderboard reset. Balances never reset (DESIGN §9). Nothing here depends on the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §14.
 3. ✅ **Submissions.** A form for a community to submit a fighter: the template it's built on, sprite sheets following that template, name, palettes, intro and win pose, and a proof-of-rights statement. Files are stored outside git (like IKEMEN content today) and reviewed in the admin queue. Built staff-only (`GI_SUBMISSIONS_OPEN` opens it once the terms are ready). Details: [ARCHITECTURE.md](ARCHITECTURE.md) §15.
-4. **Automatic checks** (✅ the balance tool, `pnpm templates:balance`, and ✅ the five templates balanced with it: see "Balance tool" below; the checks on submissions are next). For each submission: a technical smoke test (the existing `roster:smoke`, sim mode), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the roster, where it has to win about as often as its archetype's reference (defaults below). The results go on the review page.
+4. ✅ **Automatic checks.** For each submission sent for review: a technical smoke test (a full sim fight), a **template check** (its moves and numbers stay within its archetype's limits), and a **balance simulation**: a few hundred sim fights against the other templates, where it has to win about as often as its archetype's reference (defaults below). The results are on the staff review page, and staff can run them again. Built with the balance tool (`pnpm templates:balance`), which also balanced the five templates. Details: "Balance tool" and "Automatic checks on submissions" below, and [ARCHITECTURE.md](ARCHITECTURE.md) §15.
 5. ✅ **Voting.** Only submissions that passed review reach the season ballot. One account, one ballot, with eligibility rules against fake accounts (defaults below). Results are published with vote counts. Built before step 4, which needs the templates. Details: [ARCHITECTURE.md](ARCHITECTURE.md) §16.
 6. ✅ **Seasonal release** (with stand-in engine characters until the templates exist; details: [ARCHITECTURE.md](ARCHITECTURE.md) §18). The ballot's winners join the roster when the next season starts, with a debut tournament and a First Edition supply in the shop (both already exist from phase 2).
 7. **Holder verification and perks** (built: wallets, approved collections, submitting from an NFT, NFT looks with portrait and name plate colours; sprite recolouring and trait kits wait for the templates). Verify that a player holds an NFT from a partner collection (read-only: a signed message, then reading the wallet's holdings), for **perks, never power** (DESIGN §11): early shop access, **submitting a fighter from an NFT**, and **NFT looks** for their community's fighter (see "NFTs as fighters"). The looks need the archetype templates.
@@ -121,6 +121,31 @@ What changed, in the order the tool pointed to it:
 **Things tried that made it worse** (not kept): jumping over projectiles (the Brawler won 6-10% against the Sage: it gets knocked out of the air), and immunity written as `SCA, NP, SP, HP`, which the engine reads as immune to everything ([ikemen-notes.md](ikemen-notes.md) §7).
 
 Win rates are sensitive: 5% of life or attack moves a fighter by several points, so check with `--fights 100` or more before trusting a change.
+
+## Automatic checks on submissions
+
+Built 2026-10-02 (step 4, last part). Sending a submission for review queues a run; a background worker on the server does one run at a time and the staff page shows what it found, next to the submission. Staff can run them again with a button. A failed check doesn't block approving: it's information for the reviewer.
+
+**What a run checks.** The engine character the fighter will fight as. Today that is its archetype's template with the template's own art, because building a character from a community's own sprite sheets isn't built yet (the next piece of work). So today a run confirms:
+
+- **Smoke test:** that character plays a whole sim fight on one of our stages without crashing or hanging.
+- **Template check:** its archetype has a template on the roster (otherwise it would play as someone else's character, which fails), and its numbers are the template's.
+- **Balance simulation:** the template's own record against the other templates over 200 sim fights, shown to the reviewer. A fighter that plays the reference character itself passes by definition.
+
+**What they'll check once fighters are built from their own art** (the code and its tests are already there):
+
+- **Template check:** life, attack, defence and speeds equal to the template's; the same moves with the same damage and timing; and each move's reach within 10% (or 3 units) of the template's. Reach is the one thing art can change, because collision boxes follow the drawn pixels: a fighter drawn with longer arms would hit from farther away.
+- **Balance simulation:** the fighter's own 200 fights against the same opponents as its template, passing if its win rate is within 10 points of the template's. The template's record is fought once per server start and reused, so two fighters of one archetype are measured against the same number.
+
+**Where it runs.** On the server, as fast sim fights (100x speed) two at a time, whatever engine the stream itself uses. A server without IKEMEN reports "couldn't run" instead. On the stream machine that means sim fights run in the background during the stream: not yet tried during a live stream, and `GI_SUBMISSION_CHECKS=false` switches the checks off.
+
+**Defaults** (settings in `.env`)
+- `GI_SUBMISSION_CHECKS=true`: queue a run when a submission is sent for review.
+- `GI_CHECK_FIGHTS=200`: sim fights per balance simulation, spread evenly over the opponents.
+- `GI_CHECK_TOLERANCE_PCT=10`: how far from its reference's win rate a fighter may be.
+- `GI_CHECK_PARALLEL=2`: sim fights at a time.
+- Opponents: up to 4 other templates on the roster (any other enabled roster fighters if there are no templates). Stages: up to 3 of our own (`gi-*`), else any enabled.
+- Reach limit: 10% of the template's reach, or 3 units if that's more (`DEFAULT_LIMITS` in `packages/engine/src/templates/limits.ts`).
 
 ## NFTs as fighters
 

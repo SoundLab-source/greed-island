@@ -154,7 +154,7 @@ Before telling anyone the address:
 - [ ] Place a bet, watch it settle, check the ledger: `pnpm ledger:audit`.
 - [ ] An uptime monitor on `https://play.your-domain.com/api/health`.
 - [ ] Backups copied off the machine (section 3).
-- [ ] Fighter submissions stay closed (`GI_SUBMISSIONS_OPEN` unset) until the terms are ready; the terms and privacy pages are drafts for the lawyer.
+- [ ] Fighter submissions stay closed (`GI_SUBMISSIONS_OPEN` unset) until the terms are ready; the terms and privacy pages are drafts for the lawyer. (When a submission is sent for review, the server runs its automatic checks as fast background fights, two at a time. That hasn't been tried during a live stream yet: if it makes the stream stutter, set `GI_SUBMISSION_CHECKS=false`.)
 - [ ] Decide about `GI_COMMERCIAL_ONLY` and the stages (their licences are unclear: [ikemen-notes.md](ikemen-notes.md) §6).
 
 ## Linux (systemd)

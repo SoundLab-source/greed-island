@@ -2,7 +2,8 @@
  * Fighter submissions (docs/PHASE3.md step 3), the submitter's side: create a
  * draft, edit its details, add and remove images, send it for review (again,
  * after changes were asked for), or withdraw it. Staff decide in the review
- * queue (staff.ts). Until the terms are ready (GI_SUBMISSIONS_OPEN), only
+ * queue (staff.ts); sending it also queues the automatic checks
+ * (submission-checks.ts). Until the terms are ready (GI_SUBMISSIONS_OPEN), only
  * staff can submit, to test the pipeline.
  */
 import { NotFoundError, withRetry, type Db, type Tx } from "@greed-island/db";
@@ -24,6 +25,7 @@ import {
   type SubmissionDetails,
 } from "@greed-island/shared";
 import { ForbiddenError, lockName, nameTaken } from "./staff.ts";
+import { queueSubmissionCheck } from "./submission-checks.ts";
 import type { SubmissionStore } from "./submission-store.ts";
 
 type SubmissionRow = Awaited<ReturnType<Tx["submission"]["findUniqueOrThrow"]>>;
@@ -165,6 +167,8 @@ export async function sendForReview(db: Db, config: Config, input: { userId: str
     if (!input.confirmRights) refuse("confirm the rights statement: you have the right to let Greed Island use this art");
     const updated = await tx.submission.update({ where: { id: sub.id }, data: { status: "SUBMITTED", submittedAt: now, rightsConfirmedAt: now, updatedAt: now } });
     await tx.reviewItem.create({ data: { kind: "FIGHTER_SUBMISSION", submittedByUserId: input.userId, submissionId: sub.id, createdAt: now } });
+    // The automatic checks (step 4) run in the background; staff see the results next to the review.
+    if (config.checks.enabled) await queueSubmissionCheck(tx, sub.id, null, now);
     return updated;
   });
 }

@@ -3,7 +3,7 @@
 Always-on AI-vs-AI fighting-game stream (IKEMEN GO engine) with free play-money betting (Salt), owned characters, and a community-voted roster. The full game design is in @docs/DESIGN.md. Read it before making any design decision; if code and the design disagree, ask rather than guess.
 
 ## Current phase
-Phase 3: Community roster (see DESIGN.md §13) is in progress. Its plan and the owner's decisions are in `docs/PHASE3.md` (agreed 2026-09-29): build the next unchecked step. Phases 1 and 2 are complete (`docs/PHASE2.md`). No trading, no payments, nothing written on-chain; the only blockchain-related code allowed is step 7's read-only holder verification. `ROADMAP.md` is the project overview: status, history, what's next and how to pick up the work.
+Phase 3: Community roster (see DESIGN.md §13): all seven steps of its plan are built (`docs/PHASE3.md`, agreed 2026-09-29, with the owner's decisions). What's left before community fighters are real is building a character from a community's own art on its template; going live is in progress (`docs/DEPLOY.md`). Phases 1 and 2 are complete (`docs/PHASE2.md`). No trading, no payments, nothing written on-chain; the only blockchain-related code allowed is step 7's read-only holder verification. `ROADMAP.md` is the project overview: status, history, what's next and how to pick up the work.
 
 ## Stack
 - TypeScript on Node (current LTS), pnpm workspaces, Postgres via Prisma, Fastify, Vitest.

@@ -9,7 +9,7 @@ type ReviewWithRefs = Prisma.ReviewItemGetPayload<{
   include: { submittedBy: true; decidedBy: true; character: { include: { fighter: true; owner: true } }; submission: true };
 }>;
 
-function reviewView(r: ReviewWithRefs) {
+function reviewView(r: ReviewWithRefs, checks?: ReadonlyMap<string, string>) {
   const c = r.character;
   return {
     id: r.id,
@@ -32,7 +32,16 @@ function reviewView(r: ReviewWithRefs) {
     previousName: r.previousName,
     /** FIGHTER_SUBMISSION: open it with GET /api/submissions/:id for the details and images. */
     submission: r.submission
-      ? { id: r.submission.id, number: r.submission.number, status: r.submission.status, community: r.submission.community, fighterName: r.submission.fighterName, archetype: r.submission.archetype }
+      ? {
+          id: r.submission.id,
+          number: r.submission.number,
+          status: r.submission.status,
+          community: r.submission.community,
+          fighterName: r.submission.fighterName,
+          archetype: r.submission.archetype,
+          /** The latest automatic checks' status (QUEUED, RUNNING, PASSED, FAILED, ERROR), or null if none were run. */
+          checks: checks?.get(r.submission.id) ?? null,
+        }
       : null,
     createdAt: r.createdAt,
     decidedAt: r.decidedAt,
@@ -49,7 +58,13 @@ export async function reviewQueue(db: Db, take = 50) {
     db.reviewItem.findMany({ where: { status: "PENDING" }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take, include: reviewInclude }),
     db.reviewItem.findMany({ where: { status: { not: "PENDING" } }, orderBy: [{ decidedAt: "desc" }, { id: "desc" }], take: 20, include: reviewInclude }),
   ]);
-  return { pending: pending.map(reviewView), recent: decided.map(reviewView) };
+  // The latest automatic check of each waiting submission, for a badge in the queue.
+  const submissionIds = pending.flatMap((r) => (r.submissionId ? [r.submissionId] : []));
+  const latest = submissionIds.length
+    ? await db.submissionCheck.findMany({ where: { submissionId: { in: submissionIds } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], distinct: ["submissionId"], select: { submissionId: true, status: true } })
+    : [];
+  const checks = new Map(latest.map((c) => [c.submissionId, c.status]));
+  return { pending: pending.map((r) => reviewView(r, checks)), recent: decided.map((r) => reviewView(r)) };
 }
 
 /** The staff log, newest first. */

@@ -6,6 +6,7 @@
 import type { Db, Prisma } from "@greed-island/db";
 import {
   ARCHETYPES,
+  describeChecks,
   EDITABLE_SUBMISSION_STATUSES,
   FILE_ROLE_RULES,
   FILE_ROLES,
@@ -13,6 +14,7 @@ import {
   playerName,
   RIGHTS_BASES,
   RIGHTS_LABELS,
+  type CheckResults,
   type Config,
   type FileRole,
 } from "@greed-island/shared";
@@ -56,11 +58,36 @@ export async function mySubmissions(db: Db, userId: string) {
   return subs.map(submissionView);
 }
 
-/** One submission for its submitter or staff (null if missing or not theirs). */
+type CheckWithRequester = Prisma.SubmissionCheckGetPayload<{ include: { requestedBy: true } }>;
+
+/** One run of the automatic checks (docs/PHASE3.md step 4), with a line per check for the staff page. */
+export function checkView(c: CheckWithRequester) {
+  const results = c.results as unknown as CheckResults | null;
+  return {
+    id: c.id,
+    status: c.status,
+    /** Who asked for it; null when sending the submission for review did. */
+    requestedBy: c.requestedBy ? playerName(c.requestedBy) : null,
+    createdAt: c.createdAt,
+    startedAt: c.startedAt,
+    finishedAt: c.finishedAt,
+    error: c.error,
+    results,
+    lines: results ? describeChecks(results) : [],
+  };
+}
+
+/** The latest run of the automatic checks on a submission, or null if there has been none. */
+export async function latestCheck(db: Db, submissionId: string) {
+  const c = await db.submissionCheck.findFirst({ where: { submissionId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], include: { requestedBy: true } });
+  return c ? checkView(c) : null;
+}
+
+/** One submission for its submitter or staff (null if missing or not theirs). Staff also get the automatic checks. */
 export async function submissionDetail(db: Db, submissionId: string, viewer: { id: string; staff: boolean }) {
   const s = await db.submission.findUnique({ where: { id: submissionId }, include: fullInclude });
   if (!s || (!viewer.staff && s.submittedByUserId !== viewer.id)) return null;
-  return submissionView(s);
+  return viewer.staff ? { ...submissionView(s), checks: await latestCheck(db, s.id) } : submissionView(s);
 }
 
 /** What the submission form needs to know. */

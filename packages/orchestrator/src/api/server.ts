@@ -53,6 +53,7 @@ import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { buyCharacter, currentShop } from "../shop.ts";
 import { loadSubmissionStore, type SubmissionStore } from "../submission-store.ts";
 import { addSubmissionFile, createSubmission, readSubmissionFile, removeSubmissionFile, sendForReview, updateSubmission, withdrawSubmission } from "../submissions.ts";
+import { requestSubmissionCheck } from "../submission-checks.ts";
 import { decideReview, ForbiddenError, requestCharacterName, requireStaff, resetCharacterName, resetDisplayName, setRole, withdrawRequest } from "../staff.ts";
 import { setSidegrade, upgradeStat } from "../upgrades.ts";
 import {
@@ -71,7 +72,7 @@ import {
   tournamentView,
 } from "./views.ts";
 import { leaderboard, recentSeasons, seasonView } from "./season-views.ts";
-import { mySubmissions, submissionDetail, submissionRules } from "./submission-views.ts";
+import { latestCheck, mySubmissions, submissionDetail, submissionRules } from "./submission-views.ts";
 import { ballotView } from "./ballot-views.ts";
 import { castVote, retractVote } from "../voting.ts";
 import {
@@ -118,6 +119,8 @@ export interface ApiDeps {
   twitchChannel?: string | null;
   /** Where submitted fighter images are stored. Defaults to GI_SUBMISSIONS_DIR or `submissions/`. */
   submissionStore?: SubmissionStore;
+  /** Called when a run of the automatic checks was queued, so the worker looks now instead of at its next tick. */
+  onCheckQueued?: () => void;
   /** Where NFT holdings are read (a DAS endpoint). Defaults to GI_SOLANA_RPC_URL; null turns NFT features off. */
   nftSource?: NftSource | null;
   /** Downloads NFT images. Defaults to a guarded https fetch. */
@@ -484,7 +487,15 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   app.post<{ Params: { id: string } }>("/api/submissions/:id/submit", async (req, reply) => {
     const userId = await requireViewer(req);
     const sub = await sendForReview(db, config, { userId, submissionId: uuid.parse(req.params.id), confirmRights: SubmitBody.parse(req.body).confirmRights });
+    deps.onCheckQueued?.();
     return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
+  });
+  // Staff: run the automatic checks (smoke test, template check, balance simulation) on a submission again.
+  app.post<{ Params: { id: string } }>("/api/staff/submissions/:id/checks", async (req, reply) => {
+    const { id: actorId } = await requireStaffViewer(req, "review");
+    const run = await requestSubmissionCheck(db, { actorId, submissionId: uuid.parse(req.params.id) });
+    deps.onCheckQueued?.();
+    return send(reply.status(202), await latestCheck(db, run.submissionId));
   });
   app.post<{ Params: { id: string } }>("/api/submissions/:id/withdraw", async (req, reply) => {
     const userId = await requireViewer(req);

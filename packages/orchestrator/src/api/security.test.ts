@@ -45,6 +45,8 @@ describe("security headers", () => {
     expect(res.headers["content-security-policy"]).toContain("script-src 'self'");
     expect(res.headers["content-security-policy"]).not.toContain("unsafe-eval");
     expect(res.headers["content-security-policy"]).toContain("https://player.twitch.tv");
+    // Submitted images are fetched with the session header and shown as blob: URLs (submit and staff pages).
+    expect(res.headers["content-security-policy"]).toContain("img-src 'self' data: blob: https:");
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["strict-transport-security"]).toBeDefined();
     await app.close();

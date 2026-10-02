@@ -16,6 +16,27 @@ export interface RoundRobinOptions {
 }
 
 /**
+ * One fighter against each of `opponentIds`, `fights` in all (rounded up so
+ * every opponent is met the same even number of times, half on each side),
+ * pass by pass and rotating stages like `roundRobin`.
+ */
+export function versus(id: string, opponentIds: readonly string[], fights: number, stageIds: readonly string[]): PlannedFight[] {
+  if (opponentIds.length < 1) throw new Error("needs at least one opponent");
+  if (opponentIds.includes(id) || new Set(opponentIds).size !== opponentIds.length) throw new Error("the opponents must be different fighters, and not the fighter itself");
+  if (!Number.isInteger(fights) || fights < 1) throw new Error(`fights must be a whole number, 1 or more (got ${fights})`);
+  if (stageIds.length < 1) throw new Error("needs at least one stage");
+  const perOpponent = Math.ceil(fights / opponentIds.length / 2) * 2;
+  const plan: PlannedFight[] = [];
+  for (let pass = 0; pass < perOpponent; pass++) {
+    for (const [n, other] of opponentIds.entries()) {
+      const swap = pass % 2 === 1;
+      plan.push({ index: plan.length, p1: swap ? other : id, p2: swap ? id : other, stageId: stageIds[(Math.floor(pass / 2) + n) % stageIds.length]! });
+    }
+  }
+  return plan;
+}
+
+/**
  * Each fighter against itself, `fightsEach` times, rotating stages: with the
  * same fighter on both sides, only the side can decide who wins, so the
  * player 1 side should win about half.

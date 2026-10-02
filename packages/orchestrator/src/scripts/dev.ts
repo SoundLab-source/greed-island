@@ -4,6 +4,7 @@ import { createDb, loadAuthConfig, loadRepoEnv } from "@greed-island/db";
 import { createFakeSource, createIkemenSource, loadEngineConfig, pruneRuns, runsKeepMs, type EventSource } from "@greed-island/engine";
 import { loadConfig } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { loadRateLimits } from "../api/security.ts";
 import { buildServer, loadTwitchChannel } from "../api/server.ts";
 import { loadMailer } from "../mail.ts";
@@ -14,6 +15,7 @@ import { loadObsConfig, ObsSceneSwitcher } from "../obs.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { isProduction, productionProblems } from "../production.ts";
 import { reconcile } from "../reconcile.ts";
+import { createCheckRunner } from "../submission-checks.ts";
 
 loadRepoEnv();
 if (isProduction()) {
@@ -52,9 +54,13 @@ if (engine.mode === "fake") {
   throw new Error("ENGINE_MODE=sim is only for roster:smoke; use fake or live");
 }
 
-// Fight artifacts (runs/<fightId>/) are kept GI_RUNS_KEEP_DAYS days (default 7), checked hourly.
+// Fight artifacts (runs/<fightId>/, and runs/checks/<fightId>/ from the submission checks) are kept
+// GI_RUNS_KEEP_DAYS days (default 7), checked hourly.
 const keepRuns = runsKeepMs();
-const prune = () => pruneRuns(engine.runsDir, keepRuns).then((n) => n && console.log(`pruned ${n} old fight folder${n === 1 ? "" : "s"} from ${engine.runsDir}`)).catch((e) => console.warn(`couldn't prune ${engine.runsDir}: ${e.message}`));
+const checkRunsDir = path.join(engine.runsDir, "checks");
+const prune = () =>
+  Promise.all([engine.runsDir, checkRunsDir].map((dir) => pruneRuns(dir, keepRuns).then((n) => n && console.log(`pruned ${n} old fight folder${n === 1 ? "" : "s"} from ${dir}`))))
+    .catch((e) => console.warn(`couldn't prune ${engine.runsDir}: ${e.message}`));
 await prune();
 const pruneTimer = setInterval(prune, 3_600_000);
 
@@ -70,7 +76,27 @@ for (const a of await reconcile(deps)) console.log(`reconciled fight #${a.number
 const host = process.env["GI_HOST"] ?? "127.0.0.1";
 const port = Number(process.env["GI_PORT"] ?? 3000);
 const publicUrl = process.env["GI_PUBLIC_URL"] ?? `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy() });
+// The automatic checks on submitted fighters (docs/PHASE3.md step 4) run fast sim fights in the
+// background, a few at a time, whatever engine the stream itself uses.
+const checkParallel = Number(process.env["GI_CHECK_PARALLEL"] ?? 2);
+if (!Number.isInteger(checkParallel) || checkParallel < 1 || checkParallel > 16) throw new Error(`GI_CHECK_PARALLEL must be a whole number from 1 to 16, got "${process.env["GI_CHECK_PARALLEL"]}"`);
+const checks = config.checks.enabled
+  ? createCheckRunner(
+      db,
+      {
+        source: engine.ikemenDir
+          ? createIkemenSource({ mode: "sim", ikemenDir: engine.ikemenDir, runsDir: checkRunsDir, timeoutMs: engine.simTimeoutMs, aiLevel: engine.aiLevel, simSpeed: 100, extraArgs: engine.extraArgs })
+          : null,
+        settings: config.checks,
+        parallel: checkParallel,
+      },
+      {
+        onDone: (c) => console.log(`submission check ${c.status.toLowerCase()}${c.error ? `: ${c.error}` : ""}`),
+        onError: (e) => console.error(`submission checks: ${(e as Error).message}`),
+      },
+    )
+  : null;
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), ...(checks ? { onCheckQueued: checks.poke } : {}) });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
@@ -80,6 +106,8 @@ console.log(`Player site: ${publicUrl}/ · stream overlay for OBS: ${publicUrl}/
 const obsConfig = loadObsConfig();
 const obs = obsConfig ? new ObsSceneSwitcher(obsConfig) : null;
 obs?.start(bus);
+
+await checks?.start();
 
 const orchestrator = new Orchestrator({ ...deps, source, log: (m) => console.log(m) });
 const running = orchestrator.run();
@@ -96,6 +124,7 @@ async function shutdown(code = 0) {
   // Each step on its own: one failing (say, the database is gone) mustn't skip the rest.
   const step = (p: Promise<unknown> | unknown) => Promise.resolve(p).catch((e: Error) => console.error(`while stopping: ${e.message}`));
   await step(running);
+  await step(checks?.stop());
   obs?.stop();
   await step(app.close());
   await step(lock.release());

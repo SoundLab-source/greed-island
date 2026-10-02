@@ -90,6 +90,7 @@ model User {
   playerTitles     PlayerTitle[]
   reviewsSubmitted ReviewItem[]      @relation("ReviewSubmitter")
   reviewsDecided   ReviewItem[]      @relation("ReviewDecider")
+  checksRequested  SubmissionCheck[]
   staffActionsDone StaffAction[]     @relation("StaffActor")
   staffActionsGot  StaffAction[]     @relation("StaffTarget")
   seasonsTopBettor Season[]
@@ -1012,6 +1013,7 @@ model Submission {
   /// Approved, rejected or withdrawn.
   closedAt          DateTime?        @map("closed_at") @db.Timestamptz(3)
   files             SubmissionFile[]
+  checks            SubmissionCheck[]
   reviewItems       ReviewItem[]
   ballotEntry       BallotEntry?
   release           Release?
@@ -1038,6 +1040,38 @@ model SubmissionFile {
   @@unique([submissionId, sha256])
   @@index([submissionId, role])
   @@map("submission_file")
+}
+
+enum SubmissionCheckStatus {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+  /// The checks couldn't be run (no engine, no opponents, the server stopped).
+  ERROR
+}
+
+/// One run of the automatic checks on a submission (phase 3, step 4): a smoke
+/// test, the template check and a balance simulation. For staff, next to the review.
+model SubmissionCheck {
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  submissionId      String                @map("submission_id") @db.Uuid
+  submission        Submission            @relation(fields: [submissionId], references: [id])
+  status            SubmissionCheckStatus @default(QUEUED)
+  /// The staff member who asked for this run; null when sending the submission for review queued it.
+  requestedByUserId String?               @map("requested_by_user_id") @db.Uuid
+  requestedBy       User?                 @relation(fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  /// What each check found (CheckResults in packages/shared/src/checks.ts); set when the run finishes.
+  results           Json?
+  /// Why the checks couldn't be run (status ERROR).
+  error             String?
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt         DateTime?             @map("started_at") @db.Timestamptz(3)
+  finishedAt        DateTime?             @map("finished_at") @db.Timestamptz(3)
+
+  @@index([submissionId, createdAt])
+  @@index([status, createdAt])
+  @@map("submission_check")
 }
 
 // ---------------------------------------------------------------------------

@@ -483,7 +483,14 @@ describe("fighter submissions", () => {
     const sent = await app.inject({ method: "POST", url: `/api/submissions/${sub.id}/submit`, headers: adminAuth, payload: { confirmRights: true } });
     expect(sent.json()).toMatchObject({ status: "SUBMITTED", missing: [] });
     const queue = (await app.inject({ method: "GET", url: "/api/staff/queue", headers: modAuth })).json();
-    expect(queue.pending[0]).toMatchObject({ kind: "FIGHTER_SUBMISSION", submission: { id: sub.id, fighterName: "Iron Heron" } });
+    expect(queue.pending[0]).toMatchObject({ kind: "FIGHTER_SUBMISSION", submission: { id: sub.id, fighterName: "Iron Heron", checks: "QUEUED" } });
+    // The automatic checks were queued by sending it; staff see them and can ask for another run (the same one while it waits).
+    expect((await app.inject({ method: "GET", url: `/api/submissions/${sub.id}`, headers: modAuth })).json().checks).toMatchObject({ status: "QUEUED", requestedBy: null, lines: [] });
+    const rerun = await app.inject({ method: "POST", url: `/api/staff/submissions/${sub.id}/checks`, headers: modAuth });
+    expect(rerun.statusCode).toBe(202);
+    expect(rerun.json()).toMatchObject({ status: "QUEUED" });
+    expect((await app.inject({ method: "POST", url: `/api/staff/submissions/${sub.id}/checks`, headers: player })).statusCode).toBe(403);
+    expect(await db.submissionCheck.count()).toBe(1);
     const back = await app.inject({ method: "POST", url: `/api/staff/reviews/${queue.pending[0].id}/request-changes`, headers: modAuth, payload: { note: "Add a palette." } });
     expect(back.json()).toMatchObject({ status: "CHANGES_REQUESTED" });
     const mine = (await app.inject({ method: "GET", url: "/api/me/submissions", headers: adminAuth })).json();

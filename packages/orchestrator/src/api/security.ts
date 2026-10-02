@@ -110,14 +110,16 @@ export function installRateLimits(app: FastifyInstance, cfg: RateLimitConfig, no
 /**
  * Security headers on every response. The content policy allows only our
  * own scripts (no inline ones), the Twitch player and chat in frames, and
- * images from anywhere over https (NFT pictures).
+ * images from anywhere over https (NFT pictures) or from memory (`blob:`: the
+ * submit and staff pages fetch submitted images with the session header and
+ * show them that way).
  */
 export function installSecurityHeaders(app: FastifyInstance, opts: { https: boolean }): void {
   const csp = [
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: blob: https:",
     "connect-src 'self'",
     "frame-src 'self' https://player.twitch.tv https://www.twitch.tv https://embed.twitch.tv",
     "frame-ancestors 'self'",

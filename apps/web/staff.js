@@ -45,13 +45,26 @@ async function thumb(subId, fileId) {
   return thumbs.get(fileId);
 }
 
+// The automatic checks on a submission (smoke test, template check, balance simulation).
+const CHECK_LABELS = { QUEUED: "waiting to run", RUNNING: "running now", PASSED: "passed", FAILED: "FAILED", ERROR: "couldn't run" };
+function checksBlock(s) {
+  const c = s.checks;
+  const again = `<button data-checks="${s.id}">${c ? "Run the checks again" : "Run the checks"}</button>`;
+  if (!c) return `<div><strong>Automatic checks:</strong> <span class="muted">not run yet.</span> ${again}</div>`;
+  const busy = c.status === "QUEUED" || c.status === "RUNNING";
+  const lines = c.lines.map((l) => `<li>${esc(l)}</li>`).join("");
+  return `<div><strong>Automatic checks:</strong> <span class="${c.status === "FAILED" || c.status === "ERROR" ? "error" : ""}">${esc(CHECK_LABELS[c.status] ?? c.status)}</span>
+    <span class="muted">${busy ? `asked ${when(c.createdAt)}` : `finished ${when(c.finishedAt)}`}${c.requestedBy ? `, asked for by ${esc(c.requestedBy)}` : ""}</span> ${busy ? "" : again}
+    ${c.error ? `<br><span class="error">${esc(c.error)}</span>` : ""}${lines ? `<ul>${lines}</ul>` : ""}</div>`;
+}
+
 async function submissionDetails(subId) {
   const s = await api("GET", `/api/submissions/${subId}`);
   const files = await Promise.all(s.files.map(async (f) => `<figure style="display:inline-block;margin:4px"><a href="${await thumb(s.id, f.id)}" target="_blank"><img src="${await thumb(s.id, f.id)}" alt="" style="max-width:160px;max-height:120px;border:1px solid #ccc;image-rendering:pixelated"></a>
     <figcaption class="muted">${esc(nice(f.role))}: ${esc(f.label)} (${f.width}x${f.height})</figcaption></figure>`));
   return `<div><strong>Rights:</strong> ${esc(s.rights.label)}<br>${esc(s.rights.details)}${s.rights.link ? `<br><a href="${esc(s.rights.link)}" target="_blank" rel="noopener noreferrer">${esc(s.rights.link)}</a>` : ""}
     ${s.description ? `<br><strong>Description:</strong> ${esc(s.description)}` : ""}
-    <br><span class="muted">Sent ${s.reviews} time${s.reviews === 1 ? "" : "s"}; rights confirmed ${when(s.rights.confirmedAt)}</span></div>${files.join("")}`;
+    <br><span class="muted">Sent ${s.reviews} time${s.reviews === 1 ? "" : "s"}; rights confirmed ${when(s.rights.confirmedAt)}</span></div>${checksBlock(s)}${files.join("")}`;
 }
 
 async function refreshQueue() {
@@ -67,7 +80,9 @@ async function refreshQueue() {
     const s = r.submission;
     const details = opened.has(r.id) ? `<tr><td></td><td colspan="4">${await submissionDetails(s.id)}</td></tr>` : "";
     return `<tr><td class="muted">${when(r.createdAt)}</td><td>${esc(r.submittedBy.name)}</td>
-      <td>Fighter submission #${s.number} <span class="muted">(${esc(s.community)}, ${esc(nice(s.archetype))})</span> <button data-open="${r.id}">${opened.has(r.id) ? "Hide" : "Show"} details</button></td>
+      <td>Fighter submission #${s.number} <span class="muted">(${esc(s.community)}, ${esc(nice(s.archetype))})</span>
+        <span class="${s.checks === "FAILED" || s.checks === "ERROR" ? "error" : "muted"}">checks: ${esc(s.checks ? CHECK_LABELS[s.checks] ?? s.checks : "not run")}</span>
+        <button data-open="${r.id}">${opened.has(r.id) ? "Hide" : "Show"} details</button></td>
       <td><strong>${esc(s.fighterName)}</strong></td><td>${buttons}</td></tr>${details}`;
   }));
   $("queue").innerHTML = rows.length ? `<tr><th>Asked</th><th>Player</th><th>What</th><th>Name</th><th></th></tr>` + rows.join("") : `<tr><td class="muted">Nothing waiting.</td></tr>`;
@@ -80,6 +95,7 @@ async function refreshQueue() {
   for (const [attr, path] of [["approve", "approve"], ["changes", "request-changes"], ["reject", "reject"]]) {
     for (const b of document.querySelectorAll(`[data-${attr}]`)) b.onclick = () => act(() => api("POST", `/api/staff/reviews/${b.dataset[attr]}/${path}`, { note: note(b.dataset[attr]) || null }));
   }
+  for (const b of document.querySelectorAll("[data-checks]")) b.onclick = () => act(() => api("POST", `/api/staff/submissions/${b.dataset.checks}/checks`, {}));
   for (const b of document.querySelectorAll("[data-open]")) {
     b.onclick = () => {
       opened.has(b.dataset.open) ? opened.delete(b.dataset.open) : opened.add(b.dataset.open);
