@@ -195,3 +195,30 @@ export function writePng(img: PngImage): Buffer {
   parts.push(chunk("IDAT", deflateSync(raw, { level: 9 })), chunk("IEND", new Uint8Array(0)));
   return Buffer.concat(parts);
 }
+
+/** Any PNG as RGBA samples. */
+export function toRgba(png: PngImage): Uint8Array {
+  const n = png.width * png.height;
+  const p = png.pixels;
+  if (png.colorType === 6) return p;
+  const out = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    switch (png.colorType) {
+      case 0:
+        out.set([p[i]!, p[i]!, p[i]!, 255], i * 4);
+        break;
+      case 2:
+        out.set([p[i * 3]!, p[i * 3 + 1]!, p[i * 3 + 2]!, 255], i * 4);
+        break;
+      case 3: {
+        const v = p[i]!;
+        out.set([png.palette?.[v * 3] ?? 0, png.palette?.[v * 3 + 1] ?? 0, png.palette?.[v * 3 + 2] ?? 0, png.alpha?.[v] ?? 255], i * 4);
+        break;
+      }
+      case 4:
+        out.set([p[i * 2]!, p[i * 2]!, p[i * 2]!, p[i * 2 + 1]!], i * 4);
+        break;
+    }
+  }
+  return out;
+}

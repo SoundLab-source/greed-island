@@ -2,15 +2,18 @@ import { characterCosmetics, createUser } from "@greed-island/db";
 import { economy as testEconomy, useTestDb } from "@greed-island/db/test";
 import { encodeBase58, loadConfig, type Config, type NftSummary } from "@greed-island/shared";
 import { generateKeyPairSync, sign } from "node:crypto";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { characterCard } from "./api/views.ts";
 import { applyLook, createWalletChallenge, readLookImage, removeLook, setCollection, verifyWallet } from "./holders.ts";
 import { decodePng, LookStore, sniffImage } from "./look-images.ts";
+import { buildLookSprites, lookCharacterId, lookDefPath, syncLookSprites } from "./look-sprites.ts";
 import { MemoryNftSource } from "./nft-source.ts";
 import { setRole } from "./staff.ts";
+import { writeTestFighter } from "./testing/fighter.ts";
 import { png } from "./testing/png.ts";
 
 const db = useTestDb();
@@ -155,5 +158,49 @@ describe("look images", () => {
     const broken = png(3, 2);
     broken[broken.length - 20] = broken[broken.length - 20]! ^ 0xff;
     expect(() => decodePng(broken)).not.toThrow();
+  });
+});
+
+describe("NFT looks on the fighter's sprites", () => {
+  it("builds the look's own character in the NFT's colours, and builds it again at start-up", async () => {
+    const ikemen = await mkdtemp(path.join(tmpdir(), "gi-ikemen-"));
+    try {
+      await db.fighter.update({ where: { id: "monk" }, data: { defPath: await writeTestFighter(ikemen, "gi-monk") } });
+      await db.character.update({ where: { id: ch.m1 }, data: { palette: 2 } });
+      const r = await applyLook(db, { source, images, looks, ikemenDir: ikemen }, { userId: sam, characterId: ch.m1!, assetId: asset(1) });
+      expect(r.spritesProblem).toBeNull();
+      expect(r.look.defPath).toBe(lookDefPath(r.look.id));
+      const folder = path.join(ikemen, "chars", lookCharacterId(r.look.id));
+      expect((await readdir(folder)).sort()).toEqual([".greed-island-variant.json", "card.png", `${lookCharacterId(r.look.id)}.def`, "look.act"].sort());
+      // It plays the fighter's files, in the colour the character wears (2) recoloured as colour 1.
+      expect(await readFile(path.join(folder, `${lookCharacterId(r.look.id)}.def`), "latin1")).toContain("sprite = ../gi-monk/gi.sff");
+      const c = await db.character.findUniqueOrThrow({ where: { id: ch.m1 } });
+      expect((await characterCosmetics(db, c)).equipped.look).toMatchObject({ id: r.look.id, defPath: r.look.defPath });
+      expect((await characterCard(db, ch.m1!)).cosmetics.look).toMatchObject({ card: `/api/looks/${r.look.id}/card` });
+      // A clean engine folder gets it back from the stored image.
+      await rm(folder, { recursive: true });
+      expect(await syncLookSprites(db, ikemen, looks)).toEqual([]);
+      expect(existsSync(path.join(folder, "look.act"))).toBe(true);
+    } finally {
+      await rm(ikemen, { recursive: true, force: true });
+    }
+  });
+
+  it("applies the look without them, and says why, when the sprites can't be recoloured", async () => {
+    const ikemen = await mkdtemp(path.join(tmpdir(), "gi-ikemen-"));
+    try {
+      await db.fighter.update({ where: { id: "monk" }, data: { defPath: await writeTestFighter(ikemen, "gi-monk") } });
+      const jpeg = await applyLook(db, { source, images, looks, ikemenDir: ikemen }, { userId: sam, characterId: ch.m1!, assetId: asset(2) });
+      expect(jpeg).toMatchObject({ spritesProblem: expect.stringMatching(/only be taken from a PNG/), look: { defPath: null } });
+      const noEngine = await applyLook(db, { source, images, looks }, { userId: sam, characterId: ch.m2!, assetId: asset(1) });
+      expect(noEngine).toMatchObject({ spritesProblem: expect.stringMatching(/no game engine/), look: { defPath: null } });
+      expect((await characterCard(db, ch.m2!)).cosmetics.look).toMatchObject({ card: null });
+      const look = { lookId: noEngine.look.id, palette: 1, image: png(8, 8, 1), imageType: "png" as const };
+      expect(await buildLookSprites(ikemen, { ...look, fighterDefPath: "chars/kfm/kfm.def" })).toEqual({ problem: expect.stringMatching(/isn't one of Greed Island's own/) });
+      expect(await buildLookSprites(ikemen, { ...look, fighterDefPath: "chars/gi-gone/gi-gone.def" })).toEqual({ problem: expect.stringMatching(/couldn't be changed/) });
+      expect(await buildLookSprites(ikemen, { ...look, fighterDefPath: "chars/gi-monk/gi-monk.def", palette: 7 })).toEqual({ problem: expect.stringMatching(/no colour 7/) });
+    } finally {
+      await rm(ikemen, { recursive: true, force: true });
+    }
   });
 });

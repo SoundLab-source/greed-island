@@ -7,7 +7,9 @@
  * compare.
  */
 import { communityFiles, fighterNumbers, guideLayout, GuideError, readPng, TEMPLATES, writeCharacter, type CheckFighter, type FighterNumbers } from "@greed-island/engine";
+import type { Db, Prisma } from "@greed-island/db";
 import type { Archetype } from "@greed-island/shared";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { SubmissionStore } from "./submission-store.ts";
@@ -41,6 +43,26 @@ export type OwnArtResult =
   | { kind: "none"; problem: string };
 
 export type OwnArtBuilder = (input: OwnArtInput) => Promise<OwnArtResult>;
+
+/** The images a build uses, as a query selects them (`OWN_ART_FILES`). */
+export const OWN_ART_FILES = {
+  where: { role: { in: ["SPRITES", "PORTRAIT", "PALETTE"] } },
+  orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  select: { role: true, sha256: true, width: true, height: true },
+} as const satisfies Prisma.Submission$filesArgs;
+
+/** A submission and its images (selected with `OWN_ART_FILES`) as the builder's input. */
+export function ownArtInput(sub: Omit<OwnArtInput, "sprites" | "portrait" | "alternates"> & { files: readonly ({ role: string } & ImageFile)[] }): OwnArtInput {
+  const { files, ...rest } = sub;
+  const image = ({ sha256, width, height }: ImageFile) => ({ sha256, width, height });
+  const portrait = files.find((f) => f.role === "PORTRAIT");
+  return {
+    ...rest,
+    sprites: files.filter((f) => f.role === "SPRITES").map(image),
+    portrait: portrait ? image(portrait) : null,
+    alternates: files.filter((f) => f.role === "PALETTE").map(image),
+  };
+}
 
 /** The character id of a submission's build: ours, from its number (never from anything typed). */
 export function submissionCharacterId(number: number): string {
@@ -85,4 +107,25 @@ export function createOwnArtBuilder(ikemenDir: string, store: SubmissionStore): 
     const template = await readFile(path.join(ikemenDir, "chars", spec.id, "numbers.json"), "utf8").then((t) => JSON.parse(t) as FighterNumbers).catch(() => null);
     return { kind: "built", fighter: { id, name: sub.fighterName, defPath: built.defPath }, numbers: template ? { fighter: fighterNumbers(spec, out.reach), template } : null, outfits: 1 + alternates.length };
   };
+}
+
+/**
+ * Build released fighters' characters again where their folder is missing (a
+ * new or cleaned-up engine folder), from the submissions' stored images, so a
+ * fight never launches a character that isn't there. Returns problems, for
+ * the log.
+ */
+export async function syncCommunityBuilds(db: Db, ikemenDir: string, build: OwnArtBuilder): Promise<string[]> {
+  const released = await db.release.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { fighter: { select: { id: true, defPath: true } }, submission: { select: { id: true, number: true, archetype: true, fighterName: true, community: true, files: OWN_ART_FILES } } },
+  });
+  const problems: string[] = [];
+  for (const { fighter, submission } of released) {
+    const id = submissionCharacterId(submission.number);
+    if (fighter.defPath !== `chars/${id}/${id}.def` || existsSync(path.join(ikemenDir, fighter.defPath))) continue;
+    const r = await build(ownArtInput(submission));
+    if (r.kind !== "built") problems.push(`${fighter.id} (submission #${submission.number}) couldn't be built again: ${r.kind === "none" ? r.problem : r.problems.join("; ")}`);
+  }
+  return problems;
 }

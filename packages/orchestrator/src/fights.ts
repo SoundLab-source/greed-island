@@ -225,7 +225,8 @@ async function runEffect(
             volatility: c.volatility,
             wins: c.wins,
             losses: c.losses,
-            cosmetics: { title: equipped.title, nameplate: equipped.nameplate, badges: equipped.badges },
+            // The NFT look too: its portrait and colours on stream, and its character (sprites in its colours) for the engine.
+            cosmetics: { title: equipped.title, nameplate: equipped.nameplate, badges: equipped.badges, ...(equipped.look ? { look: { ...equipped.look } as unknown as Prisma.InputJsonObject } : {}) },
           },
         });
       }

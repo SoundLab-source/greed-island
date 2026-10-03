@@ -2,7 +2,7 @@ import { createCharacter, createUser } from "@greed-island/db";
 import { economy as testEconomy, ratingSettings, useTestDb } from "@greed-island/db/test";
 import { seededRandom } from "@greed-island/engine";
 import { encodeBase58, loadConfig, type Config } from "@greed-island/shared";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -14,6 +14,7 @@ import { DEFAULT_ORCHESTRATOR, type OrchestratorConfig } from "./config.ts";
 import { applyTransition, bookFight, type FightDeps } from "./fights.ts";
 import { setCollection } from "./holders.ts";
 import type { Rng } from "./matchmaking.ts";
+import { syncCommunityBuilds, type OwnArtBuilder, type OwnArtInput } from "./own-art.ts";
 import { currentShop } from "./shop.ts";
 import { decideReview, setRole } from "./staff.ts";
 import { SubmissionStore } from "./submission-store.ts";
@@ -173,6 +174,22 @@ describe("seasonal release", () => {
     // Guards: kept, debut set once, released only with a release.
     await expect(db.release.update({ where: { id: releases[0]!.id }, data: { debutTournamentId: second.tournament.id } })).rejects.toThrow(/debut tournament, once/);
     await expect(db.release.delete({ where: { id: releases[0]!.id } })).rejects.toThrow(/kept/);
+
+    // On an engine folder without its character (a new machine), the Sky Lark is built again from its images; the Iron Heron plays a stand-in.
+    const ikemen = await mkdtemp(path.join(tmpdir(), "gi-ikemen-"));
+    try {
+      const built: OwnArtInput[] = [];
+      const stub: OwnArtBuilder = async (input) => (built.push(input), { kind: "none", problem: "no sheet on the guide" });
+      expect(await syncCommunityBuilds(db, ikemen, stub)).toEqual(["community-sky-lark (submission #2) couldn't be built again: no sheet on the guide"]);
+      expect(built).toEqual([expect.objectContaining({ number: 2, fighterName: "Sky Lark", archetype: "ZONER", sprites: [expect.objectContaining({ width: 16, height: 16 })], portrait: expect.objectContaining({ sha256: expect.any(String) }), alternates: [] })]);
+      // Already there: left alone.
+      await mkdir(path.join(ikemen, "chars", "gi-sub-2"), { recursive: true });
+      await writeFile(path.join(ikemen, "chars", "gi-sub-2", "gi-sub-2.def"), "");
+      expect(await syncCommunityBuilds(db, ikemen, stub)).toEqual([]);
+      expect(built).toHaveLength(1);
+    } finally {
+      await rm(ikemen, { recursive: true, force: true });
+    }
   });
 
   it("releases nothing when nobody was elected", async () => {

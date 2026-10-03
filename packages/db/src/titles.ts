@@ -147,7 +147,11 @@ export async function characterCosmetics(db: Db | Tx, c: { id: string; firstEdit
   );
   const choice = parseCosmeticChoice(c.cosmetics);
   // An NFT look the character wears (docs/PHASE3.md "NFTs as fighters").
-  const look = await db.nftLook.findFirst({ where: { characterId: c.id, removedAt: null }, select: { id: true, name: true, colors: true } });
+  const look = await db.nftLook.findFirst({ where: { characterId: c.id, removedAt: null }, select: { id: true, name: true, colors: true, defPath: true } });
   const equipped = resolveCosmetics(unlocked, choice);
-  return { unlocked, choice, equipped: look ? { ...equipped, look: { id: look.id, name: look.name, colors: parsePlateColors(look.colors) } } : equipped };
+  return {
+    unlocked,
+    choice,
+    equipped: look ? { ...equipped, look: { id: look.id, name: look.name, colors: parsePlateColors(look.colors), ...(look.defPath ? { defPath: look.defPath } : {}) } } : equipped,
+  };
 }

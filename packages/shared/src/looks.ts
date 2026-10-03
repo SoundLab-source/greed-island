@@ -1,8 +1,8 @@
 /**
  * NFT looks (docs/PHASE3.md "NFTs as fighters"). A verified holder gives
  * their copy of their community's fighter their NFT's look: its image as the
- * portrait and its main colours on the name plate (recolouring the fighter's
- * sprites comes with the archetype templates). A look is cosmetic only, and
+ * portrait, its main colours on the name plate and on the fighter's sprites
+ * (a character of its own, orchestrator `look-sprites.ts`). A look is cosmetic only, and
  * stays with the character for good, like its titles. Pure rules.
  */
 
@@ -19,7 +19,12 @@ export interface LookCosmetic {
   name: string;
   /** Name plate colours taken from the image, when they could be read. */
   colors: PlateColors | null;
+  /** The look's own character (the fighter's sprites in the NFT's colours), which the fight plays in colour 1; absent when the sprites weren't recoloured. */
+  defPath?: string;
 }
+
+/** A look character's .def: ours, named after the look (chars/gi-look-<id without dashes>/...). */
+const LOOK_DEF = /^chars\/(gi-look-[0-9a-f]{32})\/\1\.def$/;
 
 const HEX = /^#[0-9a-f]{6}$/;
 
@@ -34,7 +39,8 @@ export function parseLookCosmetic(v: unknown): LookCosmetic | undefined {
   if (v === null || typeof v !== "object" || Array.isArray(v)) return undefined;
   const l = v as Record<string, unknown>;
   if (typeof l["id"] !== "string" || typeof l["name"] !== "string") return undefined;
-  return { id: l["id"], name: l["name"].slice(0, 80), colors: parsePlateColors(l["colors"]) };
+  const defPath = typeof l["defPath"] === "string" && LOOK_DEF.test(l["defPath"]) ? l["defPath"] : undefined;
+  return { id: l["id"], name: l["name"].slice(0, 80), colors: parsePlateColors(l["colors"]), ...(defPath ? { defPath } : {}) };
 }
 
 const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("")}`;

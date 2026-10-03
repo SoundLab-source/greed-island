@@ -12,7 +12,7 @@
 import { NotFoundError, withRetry, type Db, type Prisma, type Tx } from "@greed-island/db";
 import { CheckError, checkFighter, type CheckFighter, type EventSource } from "@greed-island/engine";
 import { checksPassed, pickStandIn, TEMPLATE_ID_PREFIX, type CheckResults, type CheckSettings, type WinTally } from "@greed-island/shared";
-import type { OwnArtBuilder } from "./own-art.ts";
+import { OWN_ART_FILES, ownArtInput, type OwnArtBuilder } from "./own-art.ts";
 import { requireStaff } from "./staff.ts";
 
 type CheckRow = Awaited<ReturnType<Tx["submissionCheck"]["findUniqueOrThrow"]>>;
@@ -71,7 +71,7 @@ async function claimNext(db: Db, now: Date): Promise<CheckRow | null> {
 async function castFor(db: Db, submissionId: string) {
   const sub = await db.submission.findUniqueOrThrow({
     where: { id: submissionId },
-    select: { id: true, number: true, archetype: true, fighterName: true, community: true, files: { where: { role: { in: ["SPRITES", "PORTRAIT", "PALETTE"] } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { role: true, sha256: true, width: true, height: true } } },
+    select: { id: true, number: true, archetype: true, fighterName: true, community: true, files: OWN_ART_FILES },
   });
   const roster = await db.fighter.findMany({ where: { enabled: true, source: "ROSTER" }, orderBy: { id: "asc" } });
   const standIn = pickStandIn(roster, sub.archetype);
@@ -99,17 +99,7 @@ export async function runNextSubmissionCheck(db: Db, deps: CheckRunnerDeps, cloc
     if (!deps.source) throw new CheckError("this server has no game engine to run the checks with (IKEMEN_DIR isn't set)");
     const cast = await castFor(db, run.submissionId);
     // Built from its own art when its sprite sheet is drawn on the guide; otherwise checked as its template.
-    const { files, ...sub } = cast.sub;
-    const image = ({ sha256, width, height }: (typeof files)[number]) => ({ sha256, width, height });
-    const portrait = files.find((f) => f.role === "PORTRAIT");
-    const own = deps.ownArt
-      ? await deps.ownArt({
-          ...sub,
-          sprites: files.filter((f) => f.role === "SPRITES").map(image),
-          portrait: portrait ? image(portrait) : null,
-          alternates: files.filter((f) => f.role === "PALETTE").map(image),
-        })
-      : null;
+    const own = deps.ownArt ? await deps.ownArt(ownArtInput(cast.sub)) : null;
     const artFindings =
       own?.kind === "problems" ? own.problems
       : own?.kind === "none" ? [own.problem]

@@ -1196,9 +1196,10 @@ model NftCollection {
   @@map("nft_collection")
 }
 
-/// An NFT's look on a character (portrait and name plate colours). It stays
-/// with the character for good (removed only by its owner, or replaced), even
-/// after the NFT is sold. Each NFT's look is on one character at a time.
+/// An NFT's look on a character (portrait, name plate colours and the
+/// sprites' colours). It stays with the character for good (removed only by
+/// its owner, or replaced), even after the NFT is sold. Each NFT's look is on
+/// one character at a time.
 model NftLook {
   id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   characterId     String        @map("character_id") @db.Uuid
@@ -1216,6 +1217,11 @@ model NftLook {
   colors          Json?
   /// The NFT's traits [{trait, value}], for trait kits later.
   traits          Json
+  /// The look's own character under IKEMEN_DIR (chars/gi-look-<id>/), the
+  /// fighter's sprites in the NFT's main colours; null when they weren't
+  /// recoloured (not a PNG, no game engine on this server, or a fighter that
+  /// isn't one of ours).
+  defPath         String?       @map("def_path")
   appliedByUserId String        @map("applied_by_user_id") @db.Uuid
   appliedBy       User          @relation(fields: [appliedByUserId], references: [id])
   /// The wallet that held the NFT when the look was applied.

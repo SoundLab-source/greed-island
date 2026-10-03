@@ -4,7 +4,7 @@
  * through applyTransition.
  */
 import type { EventSource, FightSpec } from "@greed-island/engine";
-import type { EngineOutcome, Side } from "@greed-island/shared";
+import { parseCosmetics, type EngineOutcome, type Side } from "@greed-island/shared";
 import { setTimeout as sleep } from "node:timers/promises";
 import { applyTransition, bookFight, recordRound, type FightDeps } from "./fights.ts";
 import { cryptoRng, type Rng } from "./matchmaking.ts";
@@ -141,11 +141,13 @@ export class Orchestrator {
     });
     const side = (s: Side) => {
       const l = fight.loadouts[s - 1]!;
+      // Wearing an NFT look with recoloured sprites: its own character, whose colour 1 is the look's.
+      const look = parseCosmetics(l.cosmetics).look;
       return {
         characterId: l.characterId,
         fighterId: l.fighterId,
-        defPath: l.character.fighter.defPath,
-        palette: l.character.palette,
+        defPath: look?.defPath ?? l.character.fighter.defPath,
+        palette: look?.defPath ? 1 : l.character.palette,
         stats: { lifePct: l.lifePct, startPower: l.startPower, attackPct: l.attackPct, defensePct: l.defensePct },
         rating: { rating: l.rating, deviation: l.deviation, volatility: l.volatility },
       };

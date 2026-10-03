@@ -19,9 +19,12 @@ import {
   type Config,
   type NftSummary,
 } from "@greed-island/shared";
-import { createPublicKey, randomBytes, randomInt, verify } from "node:crypto";
+import { createPublicKey, randomBytes, randomInt, randomUUID, verify } from "node:crypto";
+import { rm } from "node:fs/promises";
+import path from "node:path";
 import type { ImageFetcher } from "./image-fetch.ts";
 import { decodePng, sniffImage, type LookImageType, type LookStore } from "./look-images.ts";
+import { buildLookSprites, lookCharacterId } from "./look-sprites.ts";
 import type { NftSource } from "./nft-source.ts";
 import { requireStaff } from "./staff.ts";
 import type { SubmissionStore } from "./submission-store.ts";
@@ -223,22 +226,24 @@ type LookRow = Awaited<ReturnType<Tx["nftLook"]["findUniqueOrThrow"]>>;
 
 /**
  * Give a character the look of an NFT its owner holds: the NFT's image as the
- * portrait and its colours on the name plate. It replaces the character's
+ * portrait, its colours on the name plate and, with the game engine on this
+ * server and a PNG image, its main colours on the fighter's sprites (the
+ * look's own character, `look-sprites.ts`; `spritesProblem` says why not). It replaces the character's
  * current look (whose NFT is free again). Applying the look it already wears
  * returns it (replayed). The look then stays with the character for good,
  * whatever happens to the NFT.
  */
 export async function applyLook(
   db: Db,
-  deps: { source: NftSource | null; images: ImageFetcher; looks: LookStore },
+  deps: { source: NftSource | null; images: ImageFetcher; looks: LookStore; ikemenDir?: string | null },
   input: { userId: string; characterId: string; assetId: string },
   now = new Date(),
-): Promise<{ look: LookRow; replayed: boolean }> {
+): Promise<{ look: LookRow; replayed: boolean; spritesProblem: string | null }> {
   const { nft, collection } = await heldApproved(db, deps.source, input.userId, input.assetId, "looks");
-  const character = await db.character.findUnique({ where: { id: input.characterId }, select: { id: true, ownerUserId: true, fighterId: true } });
+  const character = await db.character.findUnique({ where: { id: input.characterId }, select: { id: true, ownerUserId: true, fighterId: true, palette: true, fighter: { select: { defPath: true } } } });
   if (!character) throw new NotFoundError("no such character");
   const current = await db.nftLook.findFirst({ where: { characterId: character.id, removedAt: null } });
-  if (current?.assetId === nft.assetId) return { look: current, replayed: true };
+  if (current?.assetId === nft.assetId) return { look: current, replayed: true, spritesProblem: null };
   const worn = await db.nftLook.findFirst({ where: { chain: "SOLANA", assetId: nft.assetId, removedAt: null }, select: { id: true } });
   refuse(lookProblem({ userId: input.userId, ownerUserId: character.ownerUserId, characterFighterId: character.fighterId, collection, usedElsewhere: worn !== null }));
   if (!nft.image) refuse("that NFT has no image to use");
@@ -253,7 +258,12 @@ export async function applyLook(
   const sha256 = await deps.looks.save(bytes, type!);
   const decoded = type === "png" ? decodePng(bytes) : null;
   const colors = decoded ? plateColorsFromPixels(decoded.rgba) : null;
-  const look = await withRetry(db, async (tx) => {
+  // The fighter's sprites in the NFT's colours: the look's own character, named after the look.
+  const lookId = randomUUID();
+  const sprites = deps.ikemenDir
+    ? await buildLookSprites(deps.ikemenDir, { lookId, fighterDefPath: character.fighter.defPath, palette: character.palette, image: bytes, imageType: type! })
+    : { problem: "this server has no game engine to recolour the fighter with" };
+  const lookTx = withRetry(db, async (tx) => {
     const rows = await tx.$queryRaw<{ owner_user_id: string | null }[]>`SELECT "owner_user_id" FROM "character" WHERE "id" = ${character.id}::uuid FOR UPDATE`;
     if (rows[0]?.owner_user_id !== input.userId) refuse("you can only change the look of a character you own");
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(7111, hashtext(${nft.assetId}))`;
@@ -263,6 +273,8 @@ export async function applyLook(
     await tx.nftLook.updateMany({ where: { characterId: character.id, removedAt: null }, data: { removedAt: now } });
     return tx.nftLook.create({
       data: {
+        id: lookId,
+        defPath: "defPath" in sprites ? sprites.defPath : null,
         characterId: character.id,
         chain: "SOLANA",
         assetId: nft.assetId,
@@ -278,7 +290,15 @@ export async function applyLook(
       },
     });
   });
-  return { look, replayed: false };
+  let look: LookRow;
+  try {
+    look = await lookTx;
+  } catch (err) {
+    // Not applied after all: its character goes too.
+    if ("defPath" in sprites && deps.ikemenDir) await rm(path.join(deps.ikemenDir, "chars", lookCharacterId(lookId)), { recursive: true, force: true });
+    throw err;
+  }
+  return { look, replayed: false, spritesProblem: "problem" in sprites ? sprites.problem : null };
 }
 
 /** The owner takes the look off (its NFT's look can then go on another character). */

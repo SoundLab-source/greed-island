@@ -254,7 +254,7 @@ export function describeCosmetics(c: Cosmetics) {
     title: c.title ? { code: c.title, label: TITLES[c.title].label } : null,
     nameplate: lookColors ? { id: c.nameplate, ...NAMEPLATES[c.nameplate], ...lookColors, label: "NFT look" } : { id: c.nameplate, ...NAMEPLATES[c.nameplate] },
     badges: c.badges.map((id) => ({ id, ...BADGES[id] })),
-    look: c.look ? { id: c.look.id, name: c.look.name, image: `/api/looks/${c.look.id}/image` } : null,
+    look: c.look ? { id: c.look.id, name: c.look.name, image: `/api/looks/${c.look.id}/image`, card: c.look.defPath ? `/api/looks/${c.look.id}/card` : null } : null,
   };
 }
 

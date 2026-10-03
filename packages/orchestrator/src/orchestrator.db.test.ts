@@ -1,7 +1,8 @@
 import { auditLedger, createUser, getBalance } from "@greed-island/db";
 import { economy as testEconomy, testDatabaseUrl, useTestDb } from "@greed-island/db/test";
-import { createFakeSource, seededRandom, type FakeScript } from "@greed-island/engine";
-import { loadConfig, type Config } from "@greed-island/shared";
+import { createFakeSource, seededRandom, type EventSource, type FakeScript, type FightSpec } from "@greed-island/engine";
+import { loadConfig, parseCosmetics, type Config } from "@greed-island/shared";
+import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { placeFightBet } from "./betting.ts";
 import { FightBus, type BusEvent } from "./bus.ts";
@@ -10,6 +11,7 @@ import { applyTransition, bookFight, IllegalTransitionError, StaleFightError, ty
 import { acquireOrchestratorLock, OrchestratorAlreadyRunningError } from "./lock.ts";
 import type { Rng } from "./matchmaking.ts";
 import { Orchestrator } from "./orchestrator.ts";
+import { lookDefPath } from "./look-sprites.ts";
 import { reconcile } from "./reconcile.ts";
 
 const db = useTestDb();
@@ -271,5 +273,34 @@ describe("single orchestrator lock", () => {
     await first.release();
     const second = await acquireOrchestratorLock(url);
     await second.release();
+  });
+});
+
+describe("NFT looks in fights", () => {
+  it("freezes a look into the loadout, and plays a look with recoloured sprites as its own character in colour 1", async () => {
+    const { user } = await createUser(db, { kind: "EMAIL", email: "sam@example.com" }, config.economy);
+    const collection = await db.nftCollection.create({ data: { chain: "SOLANA", address: "So11111111111111111111111111111111111111112", name: "Pixel Monks", looksAllowed: true } });
+    const looks = new Map<string, string | null>();
+    for (const [n, c] of (await db.character.findMany({ orderBy: { rosterKey: "asc" } })).entries()) {
+      await db.character.update({ where: { id: c.id }, data: { palette: 3 } });
+      const id = randomUUID();
+      // f1 and f2 wear looks with their sprites recoloured; f3 and f4 looks without (a JPEG, say).
+      const defPath = n < 2 ? lookDefPath(id) : null;
+      await db.nftLook.create({
+        data: { id, characterId: c.id, chain: "SOLANA", assetId: `asset${n}`, collectionId: collection.id, name: `Monk #${n}`, imageSha256: "a".repeat(64), imageType: "png", traits: [], appliedByUserId: user.id, walletAddress: "w", defPath },
+      });
+      looks.set(c.id, defPath);
+    }
+    const specs: FightSpec[] = [];
+    const fake = script(win(1));
+    const source: EventSource = { mode: fake.mode, run: (spec, o) => (specs.push(spec), fake.run(spec, o)) };
+    const summary = await new Orchestrator({ ...deps, source, rng: rng() }).runOneFight();
+    expect(summary).toMatchObject({ result: "SETTLED" });
+    const loadouts = await db.fightLoadout.findMany({ where: { fightId: summary!.fightId }, include: { character: { include: { fighter: true } } } });
+    for (const l of loadouts) {
+      const defPath = looks.get(l.characterId)!;
+      expect(parseCosmetics(l.cosmetics).look).toMatchObject({ name: expect.stringMatching(/^Monk #/), ...(defPath ? { defPath } : {}) });
+      expect(specs[0]!.sides[l.side as 1 | 2]).toMatchObject(defPath ? { defPath, palette: 1 } : { defPath: l.character.fighter.defPath, palette: 3 });
+    }
   });
 });

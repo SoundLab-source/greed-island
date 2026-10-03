@@ -52,10 +52,11 @@
     const look = c.cosmetics.look;
     const usable = nfts.filter((n) => n.collection.fighterId === c.fighter.id && (!n.wornBy || n.wornBy === c.id) && n.assetId);
     if (!look && !usable.length) return "";
-    const current = look ? `<div class="row"><span>Wearing the NFT look <b>${esc(look.name)}</b>.</span><button class="ghost small" data-unwear="${c.id}">Take it off</button></div>` : "";
+    const card = look?.card ? `<img src="${esc(look.card)}" alt="This fighter in the look's colours" style="max-height:120px;image-rendering:pixelated">` : "";
+    const current = look ? `<div class="row">${card}<span>Wearing the NFT look <b>${esc(look.name)}</b>${look.card ? ", in its colours" : ""}.</span><button class="ghost small" data-unwear="${c.id}">Take it off</button></div>` : "";
     const picker = usable.length
       ? `<div class="row"><select data-nft="${c.id}">${usable.map((n) => `<option value="${esc(n.assetId)}">${esc(n.name)} (${esc(n.collection.name)})</option>`).join("")}</select><button class="btn small" data-wear="${c.id}">Wear this look</button></div>
-         <div class="muted">The look stays with this fighter for good, even if you sell the NFT.</div>`
+         <div class="muted">The NFT's picture becomes this fighter's portrait, and its main colours go on the name plate and the fighter itself. The look stays with this fighter for good, even if you sell the NFT.</div>`
       : "";
     return `<details data-key="${c.id}-nft"><summary>NFT look</summary><div>${current}${picker}</div></details>`;
   }
@@ -122,7 +123,11 @@
     for (const b of document.querySelectorAll("[data-unname]")) b.onclick = () => act(() => api("POST", `/api/reviews/${b.dataset.unname}/withdraw`), "Name request withdrawn.");
     for (const b of document.querySelectorAll("[data-wear]")) {
       const id = b.dataset.wear;
-      b.onclick = () => act(() => api("POST", `/api/characters/${id}/look`, { assetId: document.querySelector(`[data-nft="${id}"]`).value }), "Look on. It shows from the next fight.");
+      b.onclick = () =>
+        act(
+          () => api("POST", `/api/characters/${id}/look`, { assetId: document.querySelector(`[data-nft="${id}"]`).value }),
+          (r) => `Look on. It shows from the next fight.${r.spritesProblem ? ` The fighter keeps its own colours: ${r.spritesProblem}.` : ""}`,
+        );
     }
     for (const b of document.querySelectorAll("[data-unwear]")) b.onclick = () => act(() => api("DELETE", `/api/characters/${b.dataset.unwear}/look`), "Look taken off.");
   }

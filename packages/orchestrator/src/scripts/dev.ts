@@ -16,7 +16,9 @@ import { Orchestrator } from "../orchestrator.ts";
 import { isProduction, productionProblems } from "../production.ts";
 import { reconcile } from "../reconcile.ts";
 import { createCheckRunner } from "../submission-checks.ts";
-import { createOwnArtBuilder } from "../own-art.ts";
+import { loadLookStore } from "../look-images.ts";
+import { syncLookSprites } from "../look-sprites.ts";
+import { createOwnArtBuilder, syncCommunityBuilds } from "../own-art.ts";
 import { loadSubmissionStore } from "../submission-store.ts";
 
 loadRepoEnv();
@@ -75,6 +77,14 @@ const bus = new FightBus();
 const deps = { db, config, orch, bus, now: () => new Date() };
 for (const a of await reconcile(deps)) console.log(`reconciled fight #${a.number}: ${a.from} → ${a.to}`);
 
+// Characters built from stored images, built again when missing (a new or cleaned-up engine folder) before
+// the first fight: released fighters drawn by their communities, then NFT looks (which use those fighters' files).
+const submissionStore = loadSubmissionStore();
+if (engine.ikemenDir) {
+  for (const problem of await syncCommunityBuilds(db, engine.ikemenDir, createOwnArtBuilder(engine.ikemenDir, submissionStore))) console.warn(`community fighter: ${problem}`);
+  for (const problem of await syncLookSprites(db, engine.ikemenDir, loadLookStore())) console.warn(`NFT look: ${problem}`);
+}
+
 const host = process.env["GI_HOST"] ?? "127.0.0.1";
 const port = Number(process.env["GI_PORT"] ?? 3000);
 const publicUrl = process.env["GI_PUBLIC_URL"] ?? `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
@@ -82,7 +92,6 @@ const publicUrl = process.env["GI_PUBLIC_URL"] ?? `http://${host === "0.0.0.0" ?
 // background, a few at a time, whatever engine the stream itself uses.
 const checkParallel = Number(process.env["GI_CHECK_PARALLEL"] ?? 2);
 if (!Number.isInteger(checkParallel) || checkParallel < 1 || checkParallel > 16) throw new Error(`GI_CHECK_PARALLEL must be a whole number from 1 to 16, got "${process.env["GI_CHECK_PARALLEL"]}"`);
-const submissionStore = loadSubmissionStore();
 const checks = config.checks.enabled
   ? createCheckRunner(
       db,

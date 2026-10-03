@@ -49,7 +49,13 @@ describe("looks in cosmetics", () => {
     expect(c.look).toEqual(look);
     const d = describeCosmetics(c);
     expect(d.nameplate).toMatchObject({ id: "gold", label: "NFT look", background: "#101010", border: "#ff0000" });
-    expect(d.look).toEqual({ id: "l1", name: "Pixel Monk #42", image: "/api/looks/l1/image" });
+    expect(d.look).toEqual({ id: "l1", name: "Pixel Monk #42", image: "/api/looks/l1/image", card: null });
+    // With its sprites recoloured: its own character, and a picture of the fighter in its colours.
+    const defPath = "chars/gi-look-0123456789abcdef0123456789abcdef/gi-look-0123456789abcdef0123456789abcdef.def";
+    expect(parseLookCosmetic({ ...look, defPath })).toEqual({ ...look, defPath });
+    expect(describeCosmetics(parseCosmetics({ title: null, nameplate: "gold", badges: [], look: { ...look, defPath } })).look).toMatchObject({ card: "/api/looks/l1/card" });
+    // Only ever one of our look characters.
+    for (const bad of ["chars/kfm/kfm.def", "chars/gi-look-0123456789abcdef0123456789abcdef/other.def", "../x.def", 42]) expect(parseLookCosmetic({ ...look, defPath: bad })).toEqual(look);
     // No look: nothing changes.
     expect(parseCosmetics({ title: null, nameplate: "gold", badges: [] })).toEqual({ title: null, nameplate: "gold", badges: [] });
     expect(describeCosmetics(parseCosmetics(null)).look).toBeNull();

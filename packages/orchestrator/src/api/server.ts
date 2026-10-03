@@ -92,6 +92,7 @@ import {
   verifyWallet,
 } from "../holders.ts";
 import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.ts";
+import { lookCharacterId } from "../look-sprites.ts";
 import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
 import { loadNftSource, NftSourceError, type NftSource } from "../nft-source.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
@@ -547,14 +548,22 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const userId = await requireViewer(req);
     const characterId = uuid.parse(req.params.id);
     const { assetId } = z.object({ assetId: z.string().min(1).max(64) }).parse(req.body);
-    const r = await applyLook(db, { source: nftSource, images, looks }, { userId, characterId, assetId });
-    return send(reply.status(r.replayed ? 200 : 201), { replayed: r.replayed, character: await characterProfile(db, characterId) });
+    const r = await applyLook(db, { source: nftSource, images, looks, ikemenDir: deps.ikemenDir ?? null }, { userId, characterId, assetId });
+    return send(reply.status(r.replayed ? 200 : 201), { replayed: r.replayed, spritesProblem: r.spritesProblem, character: await characterProfile(db, characterId) });
   });
   app.delete<{ Params: { id: string } }>("/api/characters/:id/look", async (req, reply) => {
     const userId = await requireViewer(req);
     const characterId = uuid.parse(req.params.id);
     await removeLook(db, { userId, characterId });
     return send(reply, { character: await characterProfile(db, characterId) });
+  });
+  // A look's picture of the fighter in the NFT's colours (public, like the look itself).
+  app.get<{ Params: { id: string } }>("/api/looks/:id/card", async (req, reply) => {
+    const id = uuid.parse(req.params.id);
+    const look = await db.nftLook.findUnique({ where: { id }, select: { defPath: true } });
+    const bytes = look?.defPath && deps.ikemenDir ? await readFile(path.join(deps.ikemenDir, "chars", lookCharacterId(id), "card.png")).catch(() => null) : null;
+    if (!bytes) throw new HttpError(404, "NOT_FOUND", "this look has no picture of its fighter");
+    return reply.type("image/png").header("cache-control", "public, max-age=86400").send(bytes);
   });
   app.get<{ Params: { id: string } }>("/api/looks/:id/image", async (req, reply) => {
     const { bytes, type } = await readLookImage(db, looks, uuid.parse(req.params.id));

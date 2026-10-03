@@ -51,9 +51,14 @@ export const NUMBERS_FILE = "numbers.json";
 
 export function withHash(art: TemplateArt, entries: readonly [string, Buffer][]): TemplateFiles {
   const files = new Map(entries);
+  return { art, files, hash: hashFiles(files) };
+}
+
+/** A short hash of a character's files, names included, so an unchanged build isn't written again. */
+export function hashFiles(files: ReadonlyMap<string, Buffer>): string {
   const h = createHash("sha256");
   for (const [name, bytes] of [...files].sort(([a], [b]) => (a < b ? -1 : 1))) h.update(name).update(bytes);
-  return { art, files, hash: h.digest("hex").slice(0, 16) };
+  return h.digest("hex").slice(0, 16);
 }
 
 export interface BuiltTemplate {
@@ -75,7 +80,7 @@ export async function writeTemplate(ikemenDir: string, spec: TemplateSpec, out: 
  * folder, then swapped in. Skipped when the files haven't changed; refuses a
  * folder without our marker. `id` must be one of ours (never typed by a player).
  */
-export async function writeCharacter(ikemenDir: string, id: string, out: TemplateFiles, meta: Record<string, string>): Promise<BuiltTemplate> {
+export async function writeCharacter(ikemenDir: string, id: string, out: Pick<TemplateFiles, "files" | "hash">, meta: Record<string, string>): Promise<BuiltTemplate> {
   if (!/^gi-[a-z0-9-]+$/.test(id)) throw new Error(`not a Greed Island character id: ${id}`);
   const dest = path.join(ikemenDir, "chars", id);
   const marker = path.join(dest, MARKER);

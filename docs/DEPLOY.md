@@ -45,9 +45,11 @@ The stream starts now and at every login, and restarts 30 seconds after it stops
 
 ## 3. Backups
 
-`pnpm service:install` also backs up the database every night at 04:30: a compressed SQL dump in `backups/`, keeping the newest 14 (`GI_BACKUP_DIR` and `GI_BACKUP_KEEP` change that). `pnpm db:backup` makes one now.
+`pnpm service:install` also backs up the database every night at 04:30: a compressed SQL dump in `backups/`, keeping the newest 14 (`GI_BACKUP_DIR` and `GI_BACKUP_KEEP` in `.env` change that). The database doesn't hold images, so the backup also copies the folders it refers to into `backups/images/`: `submissions/` (submitted fighters' images) and `looks/` (NFT look images); each file is named by its contents and never changes, so only new ones are copied. `pnpm db:backup` does all this now.
 
 Copy backups off the machine: point `GI_BACKUP_DIR` at a synced folder (iCloud Drive, Dropbox), or copy `backups/` somewhere else now and then.
+
+The characters built from those images (released community fighters in `chars/gi-sub-*`, NFT looks in `chars/gi-look-*` in the IKEMEN folder) don't need copying: on a new machine, put `backups/images/submissions` and `backups/images/looks` back as `submissions/` and `looks/`, run `pnpm templates:build` and `pnpm stages:build` once, and the stream builds the rest again from the images when it starts.
 
 To restore one (this replaces what's in the database; stop the stream first with `pnpm service:uninstall`):
 
