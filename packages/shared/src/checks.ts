@@ -56,8 +56,8 @@ export interface BalanceResult {
 }
 
 export interface CheckResults {
-  /** The engine character it was checked as. */
-  checkedAs: { fighterId: string; name: string; ownArt: boolean };
+  /** The engine character it was checked as; `defPath` is what a released fighter plays with when it was built from its own art. */
+  checkedAs: { fighterId: string; name: string; ownArt: boolean; defPath?: string };
   smoke: SmokeResult;
   /** Null when the smoke test failed: the rest wasn't run. */
   template: TemplateResult | null;

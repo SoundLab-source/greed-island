@@ -44,7 +44,7 @@ for (const spec of TEMPLATES.filter((t) => only.length === 0 || only.includes(t.
   if (preview) {
     const dir = path.join(REPO_ROOT, "runs", "templates", spec.id);
     await mkdir(dir, { recursive: true });
-    const pages = previewPages(sheet, spec.art.axis, out.art.actions, out.art.slots);
+    const pages = previewPages(out.art.source, spec.art.axis, out.art.actions, out.art.slots);
     for (const [i, page] of pages.entries()) await writeFile(path.join(dir, `preview-${i + 1}.png`), page);
     console.log(`            preview: ${path.relative(REPO_ROOT, dir)}/preview-1..${pages.length}.png`);
   }

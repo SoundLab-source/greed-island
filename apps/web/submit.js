@@ -11,6 +11,21 @@ function token() {
   try { return localStorage.getItem("gi_session"); } catch { return null; }
 }
 
+// The guide sheet for the chosen archetype, and how to draw on it (docs/PHASE3.md "Fighters from their own art").
+function showGuide() {
+  const g = rules?.guides?.find((x) => x.archetype === $("archetype").value);
+  $("guide").hidden = !g;
+  if (!g) return;
+  $("guide").innerHTML = `<strong>Draw your fighter on the ${esc(g.template)} guide.</strong> <a href="${esc(g.url)}" download>Download the guide sheet</a> (${g.width} x ${g.height} pixels, ${g.frames} frames).
+    <ol>
+      <li>Open it in your drawing app and add a new layer on top.</li>
+      <li>In every box, draw your fighter in the same pose as the faded figure: feet on the blue line, centred on the green cross, and inside the box.</li>
+      <li>Hide the guide layer and export only your layer as a PNG, the same size, with a transparent background.</li>
+      <li>Add it below as a <em>Sprite sheet</em>. Staff see your fighter built from it, and the automatic checks test it in fights.</li>
+    </ol>
+    <span class="muted">Use up to 239 colours. A move reaches as far as you draw it, so keep arms and legs about as long as the figure's.</span>`;
+}
+
 async function api(method, path, body, raw) {
   const headers = {};
   const t = token();
@@ -82,6 +97,7 @@ async function refresh() {
   let me = null;
   try { me = await api("GET", "/api/me"); } catch { /* not signed in */ }
   rules = await api("GET", "/api/submissions/rules");
+  $("archetype").onchange = showGuide;
   if (!me || me.kind !== "EMAIL") {
     $("closed").hidden = false;
     $("closed").innerHTML = `Sign in with your email on the <a href="/account.html">account page</a> first: staff need a way to reach you about your submission.`;
@@ -99,6 +115,8 @@ async function refresh() {
     $("role").innerHTML = rules.roles.map((r) => `<option value="${r.role}">${esc(r.label)} (${r.min ? `at least ${r.min}, ` : ""}up to ${r.max})</option>`).join("");
     $("limits").textContent = `PNG only, up to ${Math.floor(rules.maxFileBytes / 1048576)} MB and ${rules.maxImageSide} pixels a side, ${rules.maxFiles} images in all`;
   }
+
+  showGuide();
 
   const mine = await api("GET", "/api/me/submissions");
   $("list").hidden = mine.length === 0;

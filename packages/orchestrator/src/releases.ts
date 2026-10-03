@@ -9,7 +9,7 @@
  * that collection's fighter, so holders can give their copies NFT looks.
  */
 import { createCharacter, type Prisma, type Tx } from "@greed-island/db";
-import { COMMUNITY_RARITY, communityFighterId, pickStandIn, TEMPLATE_ID_PREFIX, type Config } from "@greed-island/shared";
+import { COMMUNITY_RARITY, communityFighterId, pickStandIn, TEMPLATE_ID_PREFIX, type CheckResults, type Config } from "@greed-island/shared";
 import type { BusEvent } from "./bus.ts";
 
 type SeasonRow = Prisma.SeasonGetPayload<object>;
@@ -25,6 +25,7 @@ export async function releaseElected(tx: Tx, config: Config, season: SeasonRow, 
     if (!standIn) break; // nothing to play with yet; they'll be released at a later season start
     const fighterId = communityFighterId(sub.fighterName, taken);
     taken.add(fighterId);
+    const ownArt = await ownArtBuild(tx, sub.id);
     await tx.fighter.create({
       data: {
         id: fighterId,
@@ -32,9 +33,11 @@ export async function releaseElected(tx: Tx, config: Config, season: SeasonRow, 
         displayName: sub.fighterName,
         archetype: sub.archetype,
         rarity: COMMUNITY_RARITY,
-        defPath: standIn.defPath,
+        defPath: ownArt ?? standIn.defPath,
         licenseNote: `Community fighter from ${sub.community} (submission #${sub.number}, ${sub.rightsBasis.toLowerCase().replace("_", " ")}). ${
-          standIn.id.startsWith(TEMPLATE_ID_PREFIX)
+          ownArt
+            ? `Plays on the ${standIn.displayName} template, with its own art.`
+            : standIn.id.startsWith(TEMPLATE_ID_PREFIX)
             ? `Plays on the ${standIn.displayName} template, with the template's own art until its art is built in.`
             : `Plays with ${standIn.displayName} as a stand-in until its template is built.`
         }`,
@@ -52,6 +55,16 @@ export async function releaseElected(tx: Tx, config: Config, season: SeasonRow, 
     released.push({ name: sub.fighterName, community: sub.community, fighterId });
   }
   return released.length ? [{ type: "release", seasonNumber: season.number, fighters: released }] : [];
+}
+
+/**
+ * The character built from a submission's own art (own-art.ts), if its latest
+ * finished automatic check built one that ran: its .def path, else null.
+ */
+async function ownArtBuild(tx: Tx, submissionId: string): Promise<string | null> {
+  const last = await tx.submissionCheck.findFirst({ where: { submissionId, status: { in: ["PASSED", "FAILED"] } }, orderBy: [{ finishedAt: "desc" }, { id: "desc" }], select: { results: true } });
+  const r = last?.results as unknown as CheckResults | null | undefined;
+  return r && r.checkedAs.ownArt && r.smoke.ok && r.checkedAs.defPath ? r.checkedAs.defPath : null;
 }
 
 /** House characters of released fighters that haven't had their debut tournament yet. */

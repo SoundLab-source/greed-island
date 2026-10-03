@@ -97,6 +97,14 @@ beforeEach(async () => {
   await setRole(db, { actorId: admin, target: { userId: mod }, role: "MODERATOR" });
 });
 
+/** Finish the submission's queued automatic check with these results. */
+async function finishCheck(submissionId: string, status: "PASSED" | "FAILED", checkedAs: { fighterId: string; name: string; ownArt: boolean; defPath: string }) {
+  const run = await db.submissionCheck.findFirstOrThrow({ where: { submissionId, status: "QUEUED" } });
+  await db.submissionCheck.update({ where: { id: run.id }, data: { status: "RUNNING", startedAt: clock } });
+  const results = { checkedAs, smoke: { ok: true, detail: "fine" }, template: { ok: true, findings: [] }, balance: null };
+  await db.submissionCheck.update({ where: { id: run.id }, data: { status, results, finishedAt: clock } });
+}
+
 describe("seasonal release", () => {
   it("brings the vote's winners into the roster at the next season, with a debut tournament and First Editions", async () => {
     await fight();
@@ -106,6 +114,9 @@ describe("seasonal release", () => {
     });
     const heron = await approved("sam@example.com", "Pixel Monks", "Iron Heron", "GRAPPLER", { assetId: "Asset1", collectionId: collection.id });
     const lark = await approved("pat@example.com", "Lark Club", "Sky Lark", "ZONER");
+    // The automatic checks built the Sky Lark from its own art (failing on balance, but it ran); the Iron Heron was checked as its template.
+    await finishCheck(lark, "FAILED", { fighterId: "gi-sub-2", name: "Sky Lark", ownArt: true, defPath: "chars/gi-sub-2/gi-sub-2.def" });
+    await finishCheck(heron, "PASSED", { fighterId: "gi-oak", name: "Fighter gi-oak", ownArt: false, defPath: "chars/gi-oak/gi-oak.def" });
     clock = new Date(T0.getTime() + 43 * DAY);
     await fight();
     await castVote(db, config, { userId: admin, submissionId: heron }, clock);
@@ -129,7 +140,10 @@ describe("seasonal release", () => {
     const heronFighter = await db.fighter.findUniqueOrThrow({ where: { id: "community-iron-heron" } });
     expect(heronFighter).toMatchObject({ source: "COMMUNITY", displayName: "Iron Heron", archetype: "GRAPPLER", rarity: "RARE", defPath: "chars/gi-oak/gi-oak.def", enabled: true });
     expect(heronFighter.licenseNote).toMatch(/Pixel Monks \(submission #1.*stand-in/);
-    expect((await db.fighter.findUniqueOrThrow({ where: { id: "community-sky-lark" } })).defPath).toBe("chars/kfm/kfm.def");
+    // Built from its own art: it plays with that character.
+    const larkFighter = await db.fighter.findUniqueOrThrow({ where: { id: "community-sky-lark" } });
+    expect(larkFighter.defPath).toBe("chars/gi-sub-2/gi-sub-2.def");
+    expect(larkFighter.licenseNote).toMatch(/Lark Club \(submission #2.*with its own art\./);
     const releases = await db.release.findMany({ orderBy: { createdAt: "asc" }, include: { character: true } });
     expect(releases.map((r) => [r.character.name, r.character.ownerKind, r.character.palette, r.standInFighterId])).toEqual([
       ["Iron Heron", "HOUSE", 3, "gi-oak"],

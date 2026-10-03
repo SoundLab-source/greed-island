@@ -176,7 +176,7 @@ describe("throws and projectiles", () => {
 });
 
 /** A 2x2 sheet of 40x60 cells: 0 standing, 1 punching, 2 in the air, 3 lying down. */
-function tinySheet(): Sheet {
+export function tinySheet(): Sheet {
   const cw = 40, ch = 60, width = cw * 2, height = ch * 2;
   const pixels = new Uint8Array(width * height);
   const paint = (c: number, f: (x: number, y: number) => boolean) => {
@@ -194,7 +194,7 @@ function tinySheet(): Sheet {
   return { width, height, pixels, palette, cellWidth: cw, cellHeight: ch, columns: 2, rows: 2 };
 }
 
-function tinySpec(): TemplateSpec {
+export function tinySpec(): TemplateSpec {
   return {
     ...ALL_ROUNDER,
     id: "gi-tpl-test",
@@ -276,6 +276,6 @@ describe("template art", () => {
     const a = templateFiles(tinySpec(), tinySheet());
     const b = templateFiles(tinySpec(), tinySheet());
     expect(a.hash).toBe(b.hash);
-    expect([...a.files.keys()].sort()).toEqual(["card.png", "gi-states.cns", "gi-tpl-test.def", "gi.air", "gi.cmd", "gi.cns", "gi.sff"]);
+    expect([...a.files.keys()].sort()).toEqual(["card.png", "gi-states.cns", "gi-tpl-test.def", "gi.air", "gi.cmd", "gi.cns", "gi.sff", "guide.png", "numbers.json"]);
   });
 });

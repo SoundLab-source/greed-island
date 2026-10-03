@@ -48,6 +48,43 @@ export async function loadSheet(file: string, grid: Grid): Promise<Sheet> {
   return { width: png.width, height: png.height, pixels: png.pixels, palette, ...grid };
 }
 
+/**
+ * Where a fighter's frames come from, by cell index: a template's sprite sheet
+ * (`sheetCells`), or a community's art drawn on the template's guide
+ * (templates/guide.ts). Every cell has the same size and the same ground point.
+ */
+export interface CellSource {
+  /** 256 RGB triples; index 0 is transparent. */
+  palette: Uint8Array;
+  cellWidth: number;
+  cellHeight: number;
+  /** The frame in this cell, as palette indices, stray pixels already cleaned. */
+  cell(index: number): IndexedImage;
+}
+
+/** A sheet's cells, with `stray` colours cleaned (each cell worked out once). */
+export function sheetCells(sheet: Sheet, stray: readonly number[] = []): CellSource {
+  const strays = new Set(stray);
+  const cache = new Map<number, IndexedImage>();
+  return {
+    palette: sheet.palette,
+    cellWidth: sheet.cellWidth,
+    cellHeight: sheet.cellHeight,
+    cell(index) {
+      let img = cache.get(index);
+      if (!img) {
+        img = cleanStrays(cell(sheet, index), strays);
+        cache.set(index, img);
+      }
+      return img;
+    },
+  };
+}
+
+export function isCellSource(x: Sheet | CellSource): x is CellSource {
+  return typeof (x as CellSource).cell === "function";
+}
+
 /** The cell with this index, counting left to right, then top to bottom. */
 export function cell(sheet: Sheet, index: number): IndexedImage {
   if (!Number.isInteger(index) || index < 0 || index >= sheet.columns * sheet.rows) throw new Error(`cell ${index} is outside the sheet`);

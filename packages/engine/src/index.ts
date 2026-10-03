@@ -21,3 +21,7 @@ export { loadEngineConfig, type EngineConfig } from "./config.ts";
 export { buildVariant, loadVariants, variantDefPath, VariantRecipe, VARIANTS_PATH, type Variant } from "./roster/variants.ts";
 export { deriveCharacter, pruneDerived, readConstants, type BaseConstants, type DeriveSpec } from "./ikemen/derive.ts";
 export { pruneRuns, runsKeepMs } from "./ikemen/prune-runs.ts";
+export { readPng, writePng, type PngImage } from "./art/png.ts";
+export { TEMPLATES, templateDefPath } from "./templates/index.ts";
+export { writeCharacter, GUIDE_FILE, NUMBERS_FILE } from "./templates/build.ts";
+export { artFromGuide, communityFiles, engineText, guideLayout, guideImage, GuideError, GUIDE_BOX, sampleArt, type CommunityIdentity, type GuideLayout } from "./templates/guide.ts";

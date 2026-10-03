@@ -15,6 +15,7 @@
     "roster:variants": "tsx src/scripts/roster-variants.ts",
     "templates:build": "tsx src/scripts/templates-build.ts",
     "templates:balance": "tsx src/scripts/templates-balance.ts",
+    "templates:sample-art": "tsx src/scripts/templates-sample-art.ts",
     "stages:build": "tsx src/scripts/stages-build.ts"
   },
   "dependencies": {

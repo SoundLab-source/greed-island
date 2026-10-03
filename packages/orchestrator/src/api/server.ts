@@ -41,6 +41,7 @@ import {
   type StaffPermission,
 } from "@greed-island/shared";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { GUIDE_FILE, TEMPLATES } from "@greed-island/engine";
 import { readFile } from "node:fs/promises";
 import { installRateLimits, installSecurityHeaders, type RateLimitConfig } from "./security.ts";
 import path from "node:path";
@@ -54,6 +55,7 @@ import { buyCharacter, currentShop } from "../shop.ts";
 import { loadSubmissionStore, type SubmissionStore } from "../submission-store.ts";
 import { addSubmissionFile, createSubmission, readSubmissionFile, removeSubmissionFile, sendForReview, updateSubmission, withdrawSubmission } from "../submissions.ts";
 import { requestSubmissionCheck } from "../submission-checks.ts";
+import { submissionCharacterId } from "../own-art.ts";
 import { decideReview, ForbiddenError, requestCharacterName, requireStaff, resetCharacterName, resetDisplayName, setRole, withdrawRequest } from "../staff.ts";
 import { setSidegrade, upgradeStat } from "../upgrades.ts";
 import {
@@ -490,6 +492,14 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     deps.onCheckQueued?.();
     return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
   });
+  // Staff: the picture of a submission's fighter as built from its own art (by its automatic checks).
+  app.get<{ Params: { id: string } }>("/api/staff/submissions/:id/card", async (req, reply) => {
+    await requireStaffViewer(req, "review");
+    const sub = await db.submission.findUnique({ where: { id: uuid.parse(req.params.id) }, select: { number: true } });
+    const bytes = sub && deps.ikemenDir ? await readFile(path.join(deps.ikemenDir, "chars", submissionCharacterId(sub.number), "card.png")).catch(() => null) : null;
+    if (!bytes) throw new HttpError(404, "NOT_FOUND", "this submission's fighter hasn't been built");
+    return reply.type("image/png").header("cache-control", "private, no-cache").send(bytes);
+  });
   // Staff: run the automatic checks (smoke test, template check, balance simulation) on a submission again.
   app.post<{ Params: { id: string } }>("/api/staff/submissions/:id/checks", async (req, reply) => {
     const { id: actorId } = await requireStaffViewer(req, "review");
@@ -618,6 +628,17 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const bytes = await readFile(file).catch(() => null);
     if (!bytes) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
     return reply.type("image/png").header("cache-control", "public, max-age=3600").send(bytes);
+  });
+  // The guide sheet artists draw a fighter of this archetype on (written by pnpm templates:build next to the template).
+  app.get<{ Params: { archetype: string } }>("/api/guides/:archetype", async (req, reply) => {
+    const spec = TEMPLATES.find((t) => t.archetype === req.params.archetype);
+    const bytes = spec && deps.ikemenDir ? await readFile(path.join(deps.ikemenDir, "chars", spec.id, GUIDE_FILE)).catch(() => null) : null;
+    if (!spec || !bytes) throw new HttpError(404, "NOT_FOUND", "no guide sheet for that archetype on this server");
+    return reply
+      .type("image/png")
+      .header("content-disposition", `attachment; filename="greed-island-guide-${spec.name.toLowerCase()}.png"`)
+      .header("cache-control", "public, max-age=3600")
+      .send(bytes);
   });
   app.get<{ Params: { id: string } }>("/api/characters/:id", async (req, reply) => {
     const id = uuid.parse(req.params.id);

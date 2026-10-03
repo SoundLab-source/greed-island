@@ -5,9 +5,9 @@
  */
 import type { AirAction, Box } from "../art/air.ts";
 import { writePng } from "../art/png.ts";
-import { cell, type Sheet } from "../art/sheet.ts";
+import type { CellSource } from "../art/sheet.ts";
 
-const DIGITS: Record<string, string> = {
+export const DIGITS: Record<string, string> = {
   "0": "111101101101111", "1": "010110010010111", "2": "111001111100111", "3": "111001111001111", "4": "101101111001001",
   "5": "111100111001111", "6": "111100111101111", "7": "111001001001001", "8": "111101111101111", "9": "111101111001111",
 };
@@ -22,7 +22,7 @@ export interface PreviewOptions {
 }
 
 /** PNG pages showing every action; `slots` maps sprite group,number to its sheet cell. */
-export function previewPages(sheet: Sheet, axis: { x: number; y: number }, actions: readonly AirAction[], slots: ReadonlyMap<string, number>, opts: PreviewOptions = {}): Buffer[] {
+export function previewPages(sheet: CellSource, axis: { x: number; y: number }, actions: readonly AirAction[], slots: ReadonlyMap<string, number>, opts: PreviewOptions = {}): Buffer[] {
   const perRow = opts.perRow ?? 10;
   const rowsPerPage = opts.rowsPerPage ?? 12;
   const k = opts.shrink ?? 2;
@@ -41,7 +41,7 @@ export function previewPages(sheet: Sheet, axis: { x: number; y: number }, actio
     pageRows.forEach((row, r) => {
       row.frames.forEach((f, c) => {
         const ox = c * fw, oy = r * fh;
-        const src = cell(sheet, slots.get(`${f.group},${f.number}`)!);
+        const src = sheet.cell(slots.get(`${f.group},${f.number}`)!);
         const dy = f.y ?? 0;
         for (let y = 0; y < fh; y++) {
           for (let x = 0; x < fw; x++) {

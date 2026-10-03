@@ -95,7 +95,7 @@ describe("checkFighter", () => {
     const source = stubSource({ tpl: 0.5 });
     const r = await checkFighter(input(), { source, parallel: 3 });
     expect(checksPassed(r)).toBe(true);
-    expect(r.checkedAs).toEqual({ fighterId: "tpl", name: "TPL", ownArt: false });
+    expect(r.checkedAs).toEqual({ fighterId: "tpl", name: "TPL", ownArt: false, defPath: "chars/tpl/tpl.def" });
     expect(r.smoke).toEqual({ ok: true, detail: "A full fight against O1 on Stage One finished in 2 rounds." });
     expect(r.template).toEqual({ ok: true, findings: [] });
     expect(r.balance).toMatchObject({ ok: true, fighter: null, difference: null, opponents: ["O1", "O2"], reference: { fighterId: "tpl", fights: 40, winRate: 0.5 } });

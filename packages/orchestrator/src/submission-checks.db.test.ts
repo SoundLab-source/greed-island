@@ -9,6 +9,8 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { reviewQueue } from "./api/staff-views.ts";
 import { submissionDetail } from "./api/submission-views.ts";
 import { ForbiddenError, setRole } from "./staff.ts";
+import { guideLayout, TEMPLATES as TEMPLATE_SPECS, writePng } from "@greed-island/engine";
+import { createOwnArtBuilder, type OwnArtBuilder } from "./own-art.ts";
 import { createCheckRunner, requestSubmissionCheck, requeueInterruptedChecks, runNextSubmissionCheck, type CheckRunnerDeps } from "./submission-checks.ts";
 import { SubmissionStore } from "./submission-store.ts";
 import { addSubmissionFile, createSubmission, sendForReview } from "./submissions.ts";
@@ -163,6 +165,59 @@ describe("running", () => {
     await expect.poll(() => done, { timeout: 5000 }).toEqual(["PASSED", "PASSED"]);
     expect(source.fights.length - first).toBe(1); // only the smoke fight the second time
     await runner.stop();
+  });
+});
+
+describe("fighters built from their own art", () => {
+  const template = { life: 1000, attack: 100, defence: 100, walkFwd: 2, runFwd: 4, moves: [] };
+
+  it("checks the character built from its sprite sheet, against its template's numbers", async () => {
+    const sub = await sent();
+    const seen: string[] = [];
+    const ownArt: OwnArtBuilder = async (input) => {
+      seen.push(`${input.number} ${input.archetype} ${input.sprites.length}`);
+      return { kind: "built", fighter: { id: `gi-sub-${input.number}`, name: input.fighterName, defPath: `chars/gi-sub-${input.number}/gi-sub-${input.number}.def` }, numbers: { fighter: { ...template, life: 1300 }, template } };
+    };
+    const source = stubSource();
+    const run = await runNextSubmissionCheck(db, deps(source, { ownArt }));
+    expect(seen).toEqual([`${sub.number} GRAPPLER 1`]);
+    expect(run).toMatchObject({
+      status: "FAILED",
+      results: {
+        checkedAs: { fighterId: `gi-sub-${sub.number}`, name: "Iron Heron", ownArt: true, defPath: `chars/gi-sub-${sub.number}/gi-sub-${sub.number}.def` },
+        smoke: { ok: true },
+        template: { ok: false, findings: ["life is 1300, the template's is 1000"] },
+        balance: { ok: true, fighter: { winRate: 0.5 }, reference: { fighterId: "gi-tpl-grappler", winRate: 0.5 } },
+      },
+    });
+    // Its own fights and the template's, against the same opponents.
+    const fought = new Set(source.fights.flatMap((f) => [f.sides[1].fighterId, f.sides[2].fighterId]));
+    expect(fought).toEqual(new Set([`gi-sub-${sub.number}`, "gi-tpl-grappler", "gi-tpl-all-rounder", "gi-tpl-heavy", "gi-tpl-zoner"]));
+  });
+
+  it("checks it as its template when its sheet isn't on the guide or has problems, and says why", async () => {
+    await sent();
+    const none = await runNextSubmissionCheck(db, deps(stubSource(), { ownArt: async () => ({ kind: "none", problem: "none of its sprite sheets is drawn on the Wrestler guide" }) }));
+    expect(none).toMatchObject({ status: "FAILED", results: { checkedAs: { fighterId: "gi-tpl-grappler", ownArt: false }, template: { ok: false, findings: ["none of its sprite sheets is drawn on the Wrestler guide"] } } });
+    const sub = await db.submission.findFirstOrThrow();
+    await requestSubmissionCheck(db, { actorId: admin, submissionId: sub.id });
+    const problems = await runNextSubmissionCheck(db, deps(stubSource(), { ownArt: async () => ({ kind: "problems", problems: ["its sprite sheet: box 4 is empty"] }) }));
+    expect(problems).toMatchObject({ status: "FAILED", results: { template: { findings: ["its sprite sheet: box 4 is empty"] } } });
+  });
+
+  it("finds the sheet drawn on the guide by its size and reports what to fix in it", async () => {
+    const sub = await sent();
+    const ikemenDir = await mkdtemp(path.join(tmpdir(), "gi-ikemen-"));
+    const build = createOwnArtBuilder(ikemenDir, store);
+    const input = { id: sub.id, number: sub.number, fighterName: sub.fighterName, community: sub.community, archetype: "GRAPPLER" as const };
+    expect(await build({ ...input, sprites: [{ sha256: "x", width: 64, height: 48 }] })).toEqual({ kind: "none", problem: expect.stringMatching(/drawn on the Wrestler guide \(\d+x\d+ pixels/) });
+    // A blank page of the guide's size: every box is empty.
+    const layout = guideLayout(TEMPLATE_SPECS.find((t) => t.archetype === "GRAPPLER")!);
+    const blank = writePng({ width: layout.width, height: layout.height, colorType: 6, pixels: new Uint8Array(layout.width * layout.height * 4) });
+    const sha256 = await store.save(sub.id, blank);
+    const r = await build({ ...input, sprites: [{ sha256, width: layout.width, height: layout.height }] });
+    expect(r).toEqual({ kind: "problems", problems: [expect.stringMatching(/^its sprite sheet: boxes 1, 2, 3, .* and \d+ more are empty/)] });
+    await rm(ikemenDir, { recursive: true, force: true });
   });
 });
 

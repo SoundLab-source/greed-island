@@ -12,6 +12,7 @@
 import { NotFoundError, withRetry, type Db, type Prisma, type Tx } from "@greed-island/db";
 import { CheckError, checkFighter, type CheckFighter, type EventSource } from "@greed-island/engine";
 import { checksPassed, pickStandIn, TEMPLATE_ID_PREFIX, type CheckResults, type CheckSettings, type WinTally } from "@greed-island/shared";
+import type { OwnArtBuilder } from "./own-art.ts";
 import { requireStaff } from "./staff.ts";
 
 type CheckRow = Awaited<ReturnType<Tx["submissionCheck"]["findUniqueOrThrow"]>>;
@@ -28,6 +29,8 @@ export interface CheckRunnerDeps {
   parallel: number;
   /** Each reference fighter's record, kept between runs (CheckRunner keeps one for the life of the server). */
   referenceRecords: Map<string, WinTally>;
+  /** Builds the fighter from its own art (own-art.ts); without it, every fighter is checked as its archetype's template. */
+  ownArt?: OwnArtBuilder;
   signal?: AbortSignal;
 }
 
@@ -66,7 +69,10 @@ async function claimNext(db: Db, now: Date): Promise<CheckRow | null> {
 
 /** Who the fighter is checked as, and against whom, from the roster as it is now. */
 async function castFor(db: Db, submissionId: string) {
-  const sub = await db.submission.findUniqueOrThrow({ where: { id: submissionId }, select: { archetype: true, fighterName: true } });
+  const sub = await db.submission.findUniqueOrThrow({
+    where: { id: submissionId },
+    select: { id: true, number: true, archetype: true, fighterName: true, community: true, files: { where: { role: "SPRITES" }, select: { sha256: true, width: true, height: true } } },
+  });
   const roster = await db.fighter.findMany({ where: { enabled: true, source: "ROSTER" }, orderBy: { id: "asc" } });
   const standIn = pickStandIn(roster, sub.archetype);
   if (!standIn) throw new CheckError("there are no fighters on the roster to check it as");
@@ -92,11 +98,26 @@ export async function runNextSubmissionCheck(db: Db, deps: CheckRunnerDeps, cloc
   try {
     if (!deps.source) throw new CheckError("this server has no game engine to run the checks with (IKEMEN_DIR isn't set)");
     const cast = await castFor(db, run.submissionId);
+    // Built from its own art when its sprite sheet is drawn on the guide; otherwise checked as its template.
+    const own = deps.ownArt ? await deps.ownArt({ ...cast.sub, sprites: cast.sub.files }) : null;
+    const artFindings =
+      own?.kind === "problems" ? own.problems
+      : own?.kind === "none" ? [own.problem]
+      : own?.kind === "built" && !own.numbers ? ["its template's numbers aren't on this server (run pnpm templates:build), so they couldn't be compared"]
+      : [];
     const results: CheckResults = await checkFighter(
-      { fighter: { ...cast.fighter, ownArt: false }, reference: cast.fighter, opponents: cast.opponents, stages: cast.stages, settings: deps.settings },
+      {
+        fighter: own?.kind === "built" ? { ...own.fighter, ownArt: true } : { ...cast.fighter, ownArt: false },
+        reference: cast.fighter,
+        opponents: cast.opponents,
+        stages: cast.stages,
+        settings: deps.settings,
+        ...(own?.kind === "built" && own.numbers ? { numbers: own.numbers } : {}),
+      },
       { source: deps.source, parallel: deps.parallel, referenceRecords: deps.referenceRecords, ...(deps.signal ? { signal: deps.signal } : {}) },
     );
     if (deps.signal?.aborted) return null;
+    if (results.template && artFindings.length) results.template = { ok: false, findings: [...artFindings, ...results.template.findings] };
     // A fighter with no template of its archetype would play as someone else's character: that's a finding.
     if (!cast.standIn.id.startsWith(TEMPLATE_ID_PREFIX) && results.template) {
       results.template = { ok: false, findings: [...results.template.findings, `there is no ${cast.sub.archetype.toLowerCase().replace("_", "-")} template on the roster, so it would play as ${cast.standIn.displayName}`] };

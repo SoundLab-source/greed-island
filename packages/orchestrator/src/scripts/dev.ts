@@ -16,6 +16,8 @@ import { Orchestrator } from "../orchestrator.ts";
 import { isProduction, productionProblems } from "../production.ts";
 import { reconcile } from "../reconcile.ts";
 import { createCheckRunner } from "../submission-checks.ts";
+import { createOwnArtBuilder } from "../own-art.ts";
+import { loadSubmissionStore } from "../submission-store.ts";
 
 loadRepoEnv();
 if (isProduction()) {
@@ -80,6 +82,7 @@ const publicUrl = process.env["GI_PUBLIC_URL"] ?? `http://${host === "0.0.0.0" ?
 // background, a few at a time, whatever engine the stream itself uses.
 const checkParallel = Number(process.env["GI_CHECK_PARALLEL"] ?? 2);
 if (!Number.isInteger(checkParallel) || checkParallel < 1 || checkParallel > 16) throw new Error(`GI_CHECK_PARALLEL must be a whole number from 1 to 16, got "${process.env["GI_CHECK_PARALLEL"]}"`);
+const submissionStore = loadSubmissionStore();
 const checks = config.checks.enabled
   ? createCheckRunner(
       db,
@@ -89,6 +92,8 @@ const checks = config.checks.enabled
           : null,
         settings: config.checks,
         parallel: checkParallel,
+        // A submission whose sprite sheet is drawn on its archetype's guide is built and checked as itself.
+        ...(engine.ikemenDir ? { ownArt: createOwnArtBuilder(engine.ikemenDir, submissionStore) } : {}),
       },
       {
         onDone: (c) => console.log(`submission check ${c.status.toLowerCase()}${c.error ? `: ${c.error}` : ""}`),
@@ -96,7 +101,7 @@ const checks = config.checks.enabled
       },
     )
   : null;
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), ...(checks ? { onCheckQueued: checks.poke } : {}) });
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 

@@ -83,7 +83,7 @@ export async function checkFighter(input: FighterCheckInput, deps: FighterCheckD
     const plan = versus(id, opponents.map((o) => o.id), settings.fights, stages.map((s) => s.id));
     return runSeries(plan, run, { parallel: deps.parallel, ...(deps.signal ? { signal: deps.signal } : {}) }).then((results) => tally(plan, results, id));
   };
-  const checkedAs = { fighterId: fighter.id, name: fighter.name, ownArt: fighter.ownArt };
+  const checkedAs = { fighterId: fighter.id, name: fighter.name, ownArt: fighter.ownArt, defPath: fighter.defPath };
 
   // 1. Smoke test: one whole fight on the first stage.
   const first = opponents[0]!;

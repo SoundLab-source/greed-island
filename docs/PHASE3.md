@@ -54,7 +54,7 @@ Built from 2026-09-30. One template per archetype, each a real IKEMEN character 
 - **Throws.** A throw reaches out (it only catches someone standing or crouching who isn't already being hit), then holds the opponent frame by frame, lifts and slams them. The victim is drawn with its own standard "getting hit" sprites (every MUGEN-style character has them), so throws work on any opponent.
 - **Projectiles.** The sheet has no projectile art, so the builder draws the energy ball itself (flying, bursting, fading) in six spare palette slots; each outfit can recolour it (the Sage's Flame outfit throws an orange one).
 - **Colours.** The sheet's palette comes in ramps (skin, hair, shirt, jeans, shoes...), so each template has its own main colours and three more outfits, each a recolour of a few ramps.
-- **Community fighters.** Each sprite a template uses is a named slot (animation, frame). A community fighter drawn on the template fills the same slots with its own art; its boxes are worked out from its pixels the same way. Until that step exists, a released community fighter plays on its archetype's template with the template's own art (`pickStandIn`).
+- **Community fighters.** Each sprite a template uses is a named slot (animation, frame). A community fighter drawn on the template fills the same slots with its own art, on the template's guide sheet; its boxes are worked out from its pixels the same way. See "Fighters from their own art" below.
 - **Review.** `pnpm templates:build --preview` draws every animation with its boxes (runs/templates/<id>/), for checking frames by eye and for artists.
 
 **Defaults** (settings in each spec)
@@ -126,16 +126,11 @@ Win rates are sensitive: 5% of life or attack moves a fighter by several points,
 
 Built 2026-10-02 (step 4, last part). Sending a submission for review queues a run; a background worker on the server does one run at a time and the staff page shows what it found, next to the submission. Staff can run them again with a button. A failed check doesn't block approving: it's information for the reviewer.
 
-**What a run checks.** The engine character the fighter will fight as. Today that is its archetype's template with the template's own art, because building a character from a community's own sprite sheets isn't built yet (the next piece of work). So today a run confirms:
+**What a run checks.** The engine character the fighter will fight as. When its sprite sheet is drawn on its archetype's guide (below), that's the character built from it; otherwise its archetype's template, and the template check fails saying the sheet isn't on the guide.
 
-- **Smoke test:** that character plays a whole sim fight on one of our stages without crashing or hanging.
-- **Template check:** its archetype has a template on the roster (otherwise it would play as someone else's character, which fails), and its numbers are the template's.
-- **Balance simulation:** the template's own record against the other templates over 200 sim fights, shown to the reviewer. A fighter that plays the reference character itself passes by definition.
-
-**What they'll check once fighters are built from their own art** (the code and its tests are already there):
-
-- **Template check:** life, attack, defence and speeds equal to the template's; the same moves with the same damage and timing; and each move's reach within 10% (or 3 units) of the template's. Reach is the one thing art can change, because collision boxes follow the drawn pixels: a fighter drawn with longer arms would hit from farther away.
-- **Balance simulation:** the fighter's own 200 fights against the same opponents as its template, passing if its win rate is within 10 points of the template's. The template's record is fought once per server start and reused, so two fighters of one archetype are measured against the same number.
+- **Smoke test:** the character plays a whole sim fight on one of our stages without crashing or hanging.
+- **Template check:** its archetype has a template on the roster, and the fighter's numbers are the template's: life, attack, defence and speeds; the same moves with the same damage and timing; and each move's reach within 10% (or 3 units) of the template's. Reach is the one thing art changes, because collision boxes follow the drawn pixels: a fighter drawn with longer arms would hit from farther away. Problems with the drawn sheet (empty boxes, a frame cut off at its box's edge, a strike that doesn't reach out) are listed here too.
+- **Balance simulation:** the fighter's own 200 fights against the same opponents as its template, passing if its win rate is within 10 points of the template's. The template's record is fought once per server start and reused, so two fighters of one archetype are measured against the same number. A fighter checked as the template itself passes by definition.
 
 **Where it runs.** On the server, as fast sim fights (100x speed) two at a time, whatever engine the stream itself uses. A server without IKEMEN reports "couldn't run" instead. On the stream machine that means sim fights run in the background during the stream: not yet tried during a live stream, and `GI_SUBMISSION_CHECKS=false` switches the checks off.
 
@@ -146,6 +141,20 @@ Built 2026-10-02 (step 4, last part). Sending a submission for review queues a r
 - `GI_CHECK_PARALLEL=2`: sim fights at a time.
 - Opponents: up to 4 other templates on the roster (any other enabled roster fighters if there are no templates). Stages: up to 3 of our own (`gi-*`), else any enabled.
 - Reach limit: 10% of the template's reach, or 3 units if that's more (`DEFAULT_LIMITS` in `packages/engine/src/templates/limits.ts`).
+
+## Fighters from their own art
+
+Built 2026-10-02. A community draws its fighter on its archetype's template, and the server builds a real character from the drawing: the template's moves, timing, numbers and AI, with the community's art and collision boxes worked out from it.
+
+**The guide sheet.** `pnpm templates:build` writes one per template (`guide.png` in the template's folder; the submit page links to it for the chosen archetype, `GET /api/guides/:archetype`). Every frame the character uses is a box on one page, in sheet order, so frames of one move sit together: 192 to 223 frames, 4080 pixels wide and 2,784 to 3,248 tall (within the 4,096-pixel limit for submitted images). Each box shows the template's frame faded, the ground line, the ground point and the box's number; boxes are 240 x 232 pixels, room for every frame of every template.
+
+**What the artist does.** Draw on a new layer over the guide, the same pose in every box (feet on the line, centred on the cross, inside the box), hide the guide and export only their layer as a PNG of the same size with a transparent background, then add it to the submission as a sprite sheet. Up to 239 colours (the engine's palette; the rest of the 256 draw the transparent background and the projectile).
+
+**What the server does.** When the submission is sent for review, the automatic checks look for a sprite sheet the size of the guide, read it back into frames (reducing it to 239 colours if needed), build the character into `IKEMEN_DIR/chars/gi-sub-<number>/`, and check it as itself. Staff see its picture next to the results. A sheet with problems (the wrong size, no transparency, empty boxes, frames cut off at a box's edge, a strike that doesn't reach out) gets them listed in the template check, in words for the artist. When the fighter is released, it plays with that character if the latest finished check built it and its smoke test passed; otherwise with its template, as before.
+
+**Trying it without an artist.** `pnpm templates:sample-art grappler` writes `runs/guides/sample-gi-tpl-grappler.png`: the Wrestler traced in other colours, on its guide. Submitted as a sprite sheet, it builds a recoloured Wrestler. Tried end to end on 2026-10-02 (submission #3).
+
+**Still open** (the owner's call): every frame is a lot of drawing (about 200). A smaller set of key poses reused across moves would cut that down, at the cost of smoother animation. The portrait and the alternate colours a submission sends aren't used yet: the lifebar face is cut from the fighter's stance, and a built fighter has one palette.
 
 ## NFTs as fighters
 

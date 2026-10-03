@@ -55,7 +55,20 @@ function checksBlock(s) {
   const lines = c.lines.map((l) => `<li>${esc(l)}</li>`).join("");
   return `<div><strong>Automatic checks:</strong> <span class="${c.status === "FAILED" || c.status === "ERROR" ? "error" : ""}">${esc(CHECK_LABELS[c.status] ?? c.status)}</span>
     <span class="muted">${busy ? `asked ${when(c.createdAt)}` : `finished ${when(c.finishedAt)}`}${c.requestedBy ? `, asked for by ${esc(c.requestedBy)}` : ""}</span> ${busy ? "" : again}
-    ${c.error ? `<br><span class="error">${esc(c.error)}</span>` : ""}${lines ? `<ul>${lines}</ul>` : ""}</div>`;
+    ${c.error ? `<br><span class="error">${esc(c.error)}</span>` : ""}${lines ? `<ul>${lines}</ul>` : ""}
+    ${c.results?.checkedAs?.ownArt ? `<img data-card="${s.id}" alt="the fighter as built" style="max-height:160px;image-rendering:pixelated;border:1px solid #ccc">` : ""}</div>`;
+}
+
+// The picture of a submission's fighter as built from its own art (needs the session header, like the images).
+async function showCards() {
+  for (const img of document.querySelectorAll("img[data-card]")) {
+    const key = `card:${img.dataset.card}`;
+    if (!thumbs.has(key)) {
+      const res = await fetch(`/api/staff/submissions/${img.dataset.card}/card`, { headers: { authorization: `Bearer ${token()}` } });
+      thumbs.set(key, res.ok ? URL.createObjectURL(await res.blob()) : "");
+    }
+    img.src = thumbs.get(key);
+  }
 }
 
 async function submissionDetails(subId) {
@@ -95,6 +108,7 @@ async function refreshQueue() {
   for (const [attr, path] of [["approve", "approve"], ["changes", "request-changes"], ["reject", "reject"]]) {
     for (const b of document.querySelectorAll(`[data-${attr}]`)) b.onclick = () => act(() => api("POST", `/api/staff/reviews/${b.dataset[attr]}/${path}`, { note: note(b.dataset[attr]) || null }));
   }
+  showCards().catch(() => {});
   for (const b of document.querySelectorAll("[data-checks]")) b.onclick = () => act(() => api("POST", `/api/staff/submissions/${b.dataset.checks}/checks`, {}));
   for (const b of document.querySelectorAll("[data-open]")) {
     b.onclick = () => {
