@@ -158,7 +158,7 @@ Built 2026-10-02. A community draws its fighter on its archetype's template, and
 
 **Trying it without an artist.** `pnpm templates:sample-art grappler` writes `runs/guides/sample-gi-tpl-grappler.png`: the Wrestler traced in other colours, on its guide, plus `-colours.png` (an alternate colour sheet), `-portrait.png` (its stance, as a portrait), and `-intro.png` and `-win.png` (the template's intro and first win pose on the pose guide). Submitted as a sprite sheet, an alternate colour sheet, the portrait, an intro and a win pose, they build a recoloured Wrestler with two outfits. Tried end to end on 2026-10-02 (submission #3) and with outfits and the portrait on 2026-10-03.
 
-**Still open** (the owner's call): every frame is a lot of drawing (about 190). A smaller set of key poses reused across moves would cut that down, at the cost of smoother animation.
+**Still open** (the owner's call): every frame is a lot of drawing (about 190). A smaller set of key poses reused across moves would cut that down, at the cost of smoother animation. Measured on the five templates (2026-10-03): near-identical frames sharing a drawing (silhouettes overlapping 80% or more, hit and catch frames kept apart) leave 150 to 177 frames; only each animation's first, hitting and last frame, with 4 for walking and running, leaves 113 to 119. About 80 animations each need at least a pose of their own.
 
 ## NFTs as fighters
 
