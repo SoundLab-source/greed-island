@@ -276,6 +276,6 @@ describe("template art", () => {
     const a = templateFiles(tinySpec(), tinySheet());
     const b = templateFiles(tinySpec(), tinySheet());
     expect(a.hash).toBe(b.hash);
-    expect([...a.files.keys()].sort()).toEqual(["card.png", "gi-states.cns", "gi-tpl-test.def", "gi.air", "gi.cmd", "gi.cns", "gi.sff", "guide.png", "numbers.json"]);
+    expect([...a.files.keys()].sort()).toEqual(["card.png", "gi-states.cns", "gi-tpl-test.def", "gi.air", "gi.cmd", "gi.cns", "gi.sff", "guide.png", "numbers.json", "pose-guide.png"]);
   });
 });

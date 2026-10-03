@@ -181,7 +181,7 @@ describe("seasonal release", () => {
       const built: OwnArtInput[] = [];
       const stub: OwnArtBuilder = async (input) => (built.push(input), { kind: "none", problem: "no sheet on the guide" });
       expect(await syncCommunityBuilds(db, ikemen, stub)).toEqual(["community-sky-lark (submission #2) couldn't be built again: no sheet on the guide"]);
-      expect(built).toEqual([expect.objectContaining({ number: 2, fighterName: "Sky Lark", archetype: "ZONER", sprites: [expect.objectContaining({ width: 16, height: 16 })], portrait: expect.objectContaining({ sha256: expect.any(String) }), alternates: [] })]);
+      expect(built).toEqual([expect.objectContaining({ number: 2, fighterName: "Sky Lark", archetype: "ZONER", sprites: [expect.objectContaining({ width: 16, height: 16 })], portrait: expect.objectContaining({ sha256: expect.any(String) }), alternates: [], intros: [expect.objectContaining({ width: 16 })], wins: [expect.objectContaining({ width: 16 })] })]);
       // Already there: left alone.
       await mkdir(path.join(ikemen, "chars", "gi-sub-2"), { recursive: true });
       await writeFile(path.join(ikemen, "chars", "gi-sub-2", "gi-sub-2.def"), "");

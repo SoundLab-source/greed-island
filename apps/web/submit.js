@@ -24,6 +24,7 @@ function showGuide() {
       <li>Add it below as a <em>Sprite sheet</em>. Staff see your fighter built from it, and the automatic checks test it in fights.</li>
     </ol>
     <span class="muted">Use up to 239 colours. A move reaches as far as you draw it, so keep arms and legs about as long as the figure's.</span>
+    <p><strong>Intro and win pose:</strong> your fighter's own, drawn on the <a href="${esc(g.pose.url)}" download>pose guide</a> (${g.pose.frames} boxes of ${g.pose.frameWidth} x ${g.pose.height} pixels, the same as the guide's): one frame per box, left to right, feet on the blue line, in your sprite sheet's colours. Use as many boxes as you need (up to ${g.pose.maxFrames}: widen or crop the page by whole boxes) and leave the rest empty. Each frame shows for a tenth of a second and the last one stays. Add them as an <em>Intro animation</em> and a <em>Win pose animation</em>; send two of either and the fighter picks one each time.</p>
     <p><strong>Outfits:</strong> for each extra colour scheme, recolour a copy of your sprite sheet (change only the colours, move nothing; parts that share a colour on the sheet must share one here too) and add it as an <em>Alternate colour sheet</em>. <strong>Portrait:</strong> it becomes your fighter's face on the health bars, cut square from the top of a tall picture or the middle of a wide one, so keep the face near the top.</p>`;
 }
 

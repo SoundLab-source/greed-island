@@ -4,7 +4,7 @@
  * submitter and staff). Images are served separately, never publicly.
  */
 import type { Db, Prisma } from "@greed-island/db";
-import { guideLayout, TEMPLATES } from "@greed-island/engine";
+import { guideLayout, POSE_GUIDE_FRAMES, POSE_MAX_FRAMES, TEMPLATES } from "@greed-island/engine";
 import {
   ARCHETYPES,
   describeChecks,
@@ -104,10 +104,18 @@ export function submissionRules(config: Config, viewerIsStaff: boolean) {
     archetypes: ARCHETYPES,
     roles: FILE_ROLES.map((role) => ({ role, min: FILE_ROLE_RULES[role].min, max: FILE_ROLE_RULES[role].max, label: FILE_ROLE_RULES[role].many })),
     rightsBases: RIGHTS_BASES.map((basis) => ({ basis, label: RIGHTS_LABELS[basis] })),
-    /** Per archetype: the template to draw on and its guide sheet (GET /api/guides/:archetype). */
+    /** Per archetype: the template to draw on, its guide sheet (GET /api/guides/:archetype) and its pose guide for intros and win poses (?sheet=pose). */
     guides: TEMPLATES.map((t) => {
       const l = guideLayout(t);
-      return { archetype: t.archetype, template: t.name, width: l.width, height: l.height, frames: l.cells.length, url: `/api/guides/${t.archetype}` };
+      return {
+        archetype: t.archetype,
+        template: t.name,
+        width: l.width,
+        height: l.height,
+        frames: l.cells.length,
+        url: `/api/guides/${t.archetype}`,
+        pose: { url: `/api/guides/${t.archetype}?sheet=pose`, frameWidth: l.box.width, height: l.box.height, frames: POSE_GUIDE_FRAMES, maxFrames: POSE_MAX_FRAMES },
+      };
     }),
   };
 }

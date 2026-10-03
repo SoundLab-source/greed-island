@@ -25,6 +25,6 @@ export { readPng, toRgba, writePng, type PngImage } from "./art/png.ts";
 export { mainColors, recolorPalette } from "./art/recolor.ts";
 export { readSff, writeSff, type SffPalette, type SffSprite } from "./art/sff.ts";
 export { TEMPLATES, templateDefPath } from "./templates/index.ts";
-export { hashFiles, writeCharacter, GUIDE_FILE, NUMBERS_FILE } from "./templates/build.ts";
+export { hashFiles, writeCharacter, GUIDE_FILE, NUMBERS_FILE, POSE_GUIDE_FILE } from "./templates/build.ts";
 export { defFiles, LOOK_PALETTE_FILE, lookFiles, type LookFighter } from "./templates/look.ts";
-export { artFromGuide, communityFiles, engineText, guideLayout, guideImage, GuideError, GUIDE_BOX, portraitArt, sampleArt, type CommunityIdentity, type CommunityImages, type GuideLayout } from "./templates/guide.ts";
+export { artFromGuide, communityFiles, engineText, guideLayout, guideImage, GuideError, GUIDE_BOX, numbered, POSE_GUIDE_FRAMES, POSE_MAX_FRAMES, portraitArt, sampleArt, type CommunityIdentity, type CommunityImages, type GuideLayout } from "./templates/guide.ts";

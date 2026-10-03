@@ -9,6 +9,7 @@
 import type { SffPalette } from "../art/sff.ts";
 import { toRgba, writePng, type PngImage } from "../art/png.ts";
 import { quantize } from "../art/quantize.ts";
+import { oklab } from "../art/recolor.ts";
 import { bounds, type CellSource, type IndexedImage } from "../art/sheet.ts";
 import { allAnims, buildTemplateArt, cardImage, FACE_SIZES } from "./art.ts";
 import { withHash, type TemplateFiles } from "./build.ts";
@@ -19,7 +20,7 @@ import { DIGITS } from "./preview.ts";
 export { quantize };
 import { PROJECTILE_COLORS, PROJECTILE_SLOTS } from "./projectile.ts";
 import { measureReach } from "./reach.ts";
-import { cellList, type TemplateSpec } from "./spec.ts";
+import { cellList, type AnimSpec, type TemplateSpec } from "./spec.ts";
 
 export interface GuideBox {
   width: number;
@@ -46,10 +47,15 @@ export interface GuideLayout {
   height: number;
 }
 
-/** Every cell a template's character uses: its animations (throws included), the standard get-hit sprites and the portrait. */
+/** The intro (190; 192 is a second one) and the win poses (180, 181): a community draws its own on the pose guide, so the main guide leaves them out. */
+export const INTRO_ACTIONS = [190, 192] as const;
+export const WIN_ACTIONS = [180, 181] as const;
+const POSE_ACTIONS: ReadonlySet<number> = new Set([...INTRO_ACTIONS, ...WIN_ACTIONS]);
+
+/** Every cell a template's character uses: its animations (throws included) but the intro and win poses, the standard get-hit sprites and the portrait. */
 export function guideCells(spec: TemplateSpec): number[] {
   const set = new Set<number>();
-  for (const a of allAnims(spec)) for (const c of cellList(a.cells)) set.add(c);
+  for (const a of allAnims(spec)) if (!POSE_ACTIONS.has(a.action)) for (const c of cellList(a.cells)) set.add(c);
   for (const e of Object.values(spec.art.standardSprites)) set.add(typeof e === "number" ? e : e.cell);
   set.add(spec.portrait.cell);
   return [...set].sort((a, b) => a - b);
@@ -145,6 +151,104 @@ export function sampleArt(spec: TemplateSpec, source: CellSource, layout: GuideL
   });
   return writePng({ width: layout.width, height: layout.height, colorType: 6, pixels: out });
 }
+
+/** Intros and win poses are drawn on the pose guide: one row of the guide's boxes, a frame in each, left to right. */
+export const POSE_GUIDE_FRAMES = 12;
+export const POSE_MAX_FRAMES = GUIDE_COLUMNS;
+/** Ticks each pose frame shows (60 a second), and how long the last one stays: an intro's, then a win pose's. */
+export const POSE_TICKS = 6;
+export const INTRO_LAST_TICKS = 30;
+export const WIN_LAST_TICKS = 60;
+
+/**
+ * The pose guide as an RGBA PNG: POSE_GUIDE_FRAMES boxes with the ground line,
+ * the ground point and their numbers, the template's stance faded in the first
+ * for scale. Artists draw an intro or a win pose on it, a frame a box, and may
+ * make it longer (up to POSE_MAX_FRAMES boxes) or shorter.
+ */
+export function poseGuideImage(spec: TemplateSpec, source: CellSource, layout: GuideLayout): Buffer {
+  const stand = spec.anims.find((a) => a.action === 0);
+  if (!stand) throw new Error(`${spec.id}: no stand animation`);
+  const first = cellList(stand.cells)[0]!;
+  const empty: IndexedImage = { width: spec.art.cellWidth, height: spec.art.cellHeight, pixels: new Uint8Array(spec.art.cellWidth * spec.art.cellHeight) };
+  const strip: CellSource = { ...source, cell: (c) => (c === first ? source.cell(first) : empty) };
+  const cells = [first, ...Array.from({ length: POSE_GUIDE_FRAMES - 1 }, () => -1)];
+  return guideImage(spec, strip, { ...layout, cells, columns: POSE_GUIDE_FRAMES, rows: 1, width: POSE_GUIDE_FRAMES * layout.box.width, height: layout.box.height });
+}
+
+/** A label for one of several images of a kind ("its intro", or "its intro 2" when there are two). */
+export function numbered(label: string, i: number, count: number): string {
+  return count > 1 ? `${label} ${i + 1}` : label;
+}
+
+/**
+ * Read an intro or win pose drawn on the pose guide: its frames, left to
+ * right (empty boxes at the end don't count), each in a template cell and in
+ * the sprite sheet's colours (each colour becomes the closest one on the
+ * sprite sheet, so outfits recolour it too). Throws a GuideError for the wrong
+ * size, no transparency, an empty box in the middle, a frame cut off at its
+ * box's edge, or colours that aren't on the sprite sheet.
+ */
+function readPose(spec: TemplateSpec, page: PngImage, drawing: Drawing, layout: GuideLayout): IndexedImage[] {
+  const box = layout.box;
+  const count = page.width / box.width;
+  if (page.height !== box.height || !Number.isInteger(count) || count < 1 || count > POSE_MAX_FRAMES) {
+    throw new GuideError([`it is ${page.width}x${page.height} pixels, but a pose is drawn on the pose guide: ${box.height} pixels tall and ${box.width} wide for each frame (up to ${POSE_MAX_FRAMES} frames)`]);
+  }
+  const rgba = rgbaOf(page);
+  if (!rgba) throw new GuideError(["it has no transparent background: send only the layer you drew, with everything else transparent"]);
+  const labs = drawing.colors.map(oklab);
+  const nearest = new Map<number, { index: number; far: boolean }>();
+  const closest = (c: number) => {
+    let n = nearest.get(c);
+    if (!n) {
+      const lab = oklab(c);
+      let best = 0, d = Infinity;
+      labs.forEach((l, i) => {
+        const e = Math.hypot(l[0] - lab[0], l[1] - lab[1], l[2] - lab[2]);
+        if (e < d) [best, d] = [i, e];
+      });
+      n = { index: best + 1, far: d > POSE_COLOR_DISTANCE };
+      nearest.set(c, n);
+    }
+    return n;
+  };
+  const { dx, dy } = offset(spec, layout);
+  let drawn = 0, far = 0;
+  const frames: (IndexedImage | null)[] = [];
+  const cut: number[] = [];
+  for (let n = 0; n < count; n++) {
+    const pixels = new Uint8Array(spec.art.cellWidth * spec.art.cellHeight);
+    let any = false, edge = false;
+    for (let y = 0; y < box.height; y++) {
+      for (let x = 0; x < box.width; x++) {
+        const i = y * page.width + n * box.width + x;
+        if (rgba[i * 4 + 3]! < 128) continue;
+        const c = closest(rgbAt(rgba, i));
+        pixels[(y + dy) * spec.art.cellWidth + x + dx] = c.index;
+        any = true;
+        drawn++;
+        if (c.far) far++;
+        if (x === 0 || y === 0 || x === box.width - 1 || y === box.height - 1) edge = true;
+      }
+    }
+    if (edge) cut.push(n + 1);
+    frames.push(any ? { width: spec.art.cellWidth, height: spec.art.cellHeight, pixels } : null);
+  }
+  while (frames.length && frames[frames.length - 1] === null) frames.pop();
+  const problems: string[] = [];
+  if (frames.length === 0) throw new GuideError(["there's nothing drawn on it"]);
+  const empty = frames.flatMap((f, n) => (f ? [] : [n + 1]));
+  if (empty.length) problems.push(`${empty.length === 1 ? "box" : "boxes"} ${empty.join(", ")} ${empty.length === 1 ? "is" : "are"} empty: draw the frames one after another, from the first box`);
+  if (cut.length) problems.push(`the drawing touches the edge of ${cut.length === 1 ? "box" : "boxes"} ${cut.join(", ")}, so it would be cut off: keep each frame inside its box`);
+  if (far > drawn * POSE_FAR_SHARE) problems.push("it uses colours that aren't on the sprite sheet: draw it with the sprite sheet's colours, so the fighter's outfits recolour it too");
+  if (problems.length) throw new GuideError(problems);
+  return frames as IndexedImage[];
+}
+
+/** A pose colour this far (OKLab) from every sprite sheet colour is a new colour; a pose may have a few of those (antialiasing), not more. */
+const POSE_COLOR_DISTANCE = 0.12;
+const POSE_FAR_SHARE = 0.1;
 
 /** What's wrong with a drawn sheet, in words for the artist. */
 export class GuideError extends Error {
@@ -402,6 +506,36 @@ export interface CommunityImages {
   portrait?: PngImage;
   /** Alternate colour sheets: copies of the sprite sheet in other colours, one more palette (outfit) each. */
   alternates?: readonly PngImage[];
+  /** Its intros (up to 2, one played at random) and win poses (up to 2), drawn on the pose guide; without them, the fighter stands still. */
+  intros?: readonly PngImage[];
+  wins?: readonly PngImage[];
+}
+
+/**
+ * The template with the community's own intro and win poses: their frames as
+ * extra cells after the sheet's (on new rows), action 190 (and 192) the
+ * intros, 180 and 181 the win poses (one pose plays both). Without any, each
+ * holds the stance.
+ */
+function withPoses(spec: TemplateSpec, art: CellSource, intros: readonly IndexedImage[][], wins: readonly IndexedImage[][]): { spec: TemplateSpec; art: CellSource } {
+  const base = spec.art.columns * spec.art.rows;
+  const extra: IndexedImage[] = [];
+  const stand = spec.anims.find((a) => a.action === 0);
+  if (!stand) throw new Error(`${spec.id}: no stand animation`);
+  const pose = (action: number, frames: readonly IndexedImage[] | undefined, last: number, win: boolean, comment: string): AnimSpec => {
+    const cells = frames ? frames.map((f) => base + extra.push(f) - 1) : [cellList(stand.cells)[0]!];
+    return { action, cells, ticks: cells.map((_, i) => (i === cells.length - 1 ? last : POSE_TICKS)), ...(win ? { loop: false as const } : {}), comment };
+  };
+  const own = new Map<number, AnimSpec>([
+    [190, pose(190, intros[0], INTRO_LAST_TICKS, false, "intro: its own")],
+    [180, pose(180, wins[0], WIN_LAST_TICKS, true, "win: its own")],
+    [181, pose(181, wins[1] ?? wins[0], WIN_LAST_TICKS, true, "win: its own")],
+  ]);
+  const second = intros[1] ? [pose(192, intros[1], INTRO_LAST_TICKS, false, "intro: its own, the second")] : [];
+  return {
+    spec: { ...spec, art: { ...spec.art, rows: spec.art.rows + Math.ceil(extra.length / spec.art.columns) }, anims: [...spec.anims.filter((a) => a.action !== 192).map((a) => own.get(a.action) ?? a), ...second] },
+    art: { ...art, cell: (c) => (c >= base ? extra[c - base]! : art.cell(c)) },
+  };
 }
 
 /** Run `read`, labelling its problems with the image they're in. */
@@ -422,18 +556,21 @@ function labelled<T>(label: string, read: () => T): { value?: T; problems: strin
  * the image it's in ("its sprite sheet", "its portrait", "its alternate colour
  * sheet 2").
  */
-export function communityFiles(spec: TemplateSpec, page: PngImage, who: CommunityIdentity, images: CommunityImages = {}): TemplateFiles & { reach: Map<number, number> } {
+export function communityFiles(template: TemplateSpec, page: PngImage, who: CommunityIdentity, images: CommunityImages = {}): TemplateFiles & { reach: Map<number, number> } {
   if (!/^gi-[a-z0-9-]+$/.test(who.id)) throw new Error(`not a Greed Island character id: ${who.id}`);
-  const layout = guideLayout(spec);
+  const layout = guideLayout(template);
   const SHEET = "its sprite sheet";
   const portrait = images.portrait ? labelled("its portrait", () => portraitArt(images.portrait!)) : { problems: [] };
-  const sheet = labelled(SHEET, () => readDrawing(spec, page, layout));
+  const sheet = labelled(SHEET, () => readDrawing(template, page, layout));
   if (!sheet.value) throw new GuideError([...sheet.problems, ...portrait.problems]);
   const drawing = sheet.value;
   const alternates = (images.alternates ?? []).map((alt, i) => labelled(`its alternate colour sheet ${i + 1}`, () => alternateColors(drawing, alt, layout)));
-  const problems = [...portrait.problems, ...alternates.flatMap((a) => a.problems)];
+  const poses = (label: string, list: readonly PngImage[] = []) => list.slice(0, 2).map((p, i, all) => labelled(numbered(label, i, all.length), () => readPose(template, p, drawing, layout)));
+  const intros = poses("its intro", images.intros);
+  const wins = poses("its win pose", images.wins);
+  const problems = [...portrait.problems, ...alternates.flatMap((a) => a.problems), ...intros.flatMap((p) => p.problems), ...wins.flatMap((p) => p.problems)];
   if (problems.length) throw new GuideError(problems);
-  const art = drawing.art;
+  const { spec, art } = withPoses(template, drawing.art, intros.map((p) => p.value!), wins.map((p) => p.value!));
   const palettes = [fighterPalette(art.palette, 1), ...alternates.map((a, i) => fighterPalette(a.value!, i + 2))];
   let built;
   try {

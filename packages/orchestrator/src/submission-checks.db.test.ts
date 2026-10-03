@@ -178,12 +178,12 @@ describe("fighters built from their own art", () => {
     const sha = (role: string) => files.filter((f) => f.role === role).map((f) => f.sha256);
     const seen: string[] = [];
     const ownArt: OwnArtBuilder = async (input) => {
-      seen.push(`${input.number} ${input.archetype} ${input.sprites.map((f) => f.sha256)} ${input.portrait?.sha256} ${input.alternates?.map((f) => f.sha256)}`);
+      seen.push(`${input.number} ${input.archetype} ${input.sprites.map((f) => f.sha256)} ${input.portrait?.sha256} ${input.alternates?.map((f) => f.sha256)} ${input.intros?.map((f) => f.sha256)} ${input.wins?.map((f) => f.sha256)}`);
       return { kind: "built", fighter: { id: `gi-sub-${input.number}`, name: input.fighterName, defPath: `chars/gi-sub-${input.number}/gi-sub-${input.number}.def` }, numbers: { fighter: { ...template, life: 1300 }, template }, outfits: 3 };
     };
     const source = stubSource();
     const run = await runNextSubmissionCheck(db, deps(source, { ownArt }));
-    expect(seen).toEqual([`${sub.number} GRAPPLER ${sha("SPRITES")} ${sha("PORTRAIT")} ${sha("PALETTE")}`]);
+    expect(seen).toEqual([`${sub.number} GRAPPLER ${sha("SPRITES")} ${sha("PORTRAIT")} ${sha("PALETTE")} ${sha("INTRO")} ${sha("WIN_POSE")}`]);
     expect(sha("PALETTE")).toHaveLength(2);
     expect(run).toMatchObject({
       status: "FAILED",

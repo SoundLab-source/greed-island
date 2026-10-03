@@ -5,7 +5,7 @@ import { readSff } from "../art/sff.ts";
 import { sheetCells } from "../art/sheet.ts";
 import { templateFiles } from "./build.ts";
 import { FACE_SIZES, PORTRAIT_PALETTE } from "./art.ts";
-import { artFromGuide, communityFiles, engineText, GUIDE_BOX, guideImage, guideLayout, GuideError, MAX_PORTRAIT_COLORS, portraitArt, quantize, sampleArt, MAX_ART_COLORS } from "./guide.ts";
+import { artFromGuide, communityFiles, engineText, GUIDE_BOX, guideCells, guideImage, guideLayout, GuideError, MAX_PORTRAIT_COLORS, POSE_GUIDE_FRAMES, poseGuideImage, portraitArt, quantize, sampleArt, MAX_ART_COLORS } from "./guide.ts";
 import { TEMPLATES } from "./index.ts";
 import { fighterNumbers, templateFindings } from "./limits.ts";
 import { tinySheet, tinySpec } from "./templates.test.ts";
@@ -17,7 +17,7 @@ describe("guide sheets", () => {
     for (const t of TEMPLATES) {
       const l = guideLayout(t);
       expect(l.box).toEqual(GUIDE_BOX);
-      expect(l.cells.length).toBeGreaterThan(180);
+      expect(l.cells.length).toBeGreaterThan(170);
       expect(new Set(l.cells).size).toBe(l.cells.length);
       expect(l.cells).toContain(t.portrait.cell);
       expect(l.width).toBeLessThanOrEqual(4096);
@@ -235,5 +235,64 @@ describe("quantize", () => {
         if (counts.size <= max) expect(new Set(palette)).toEqual(new Set(counts.keys()));
       }),
     );
+  });
+});
+
+describe("intros and win poses", () => {
+  const spec = tinySpec();
+  const source = sheetCells(tinySheet(), spec.art.stray);
+  const layout = guideLayout(spec);
+  const page = readPng(sampleArt(spec, source, layout));
+  /** A pose drawn on the pose guide: these cells of the sheet, a box each, recoloured like the sprite sheet. */
+  const strip = (cells: number[], recolor?: (rgb: [number, number, number]) => [number, number, number]) =>
+    readPng(sampleArt(spec, source, { ...layout, cells, columns: cells.length, rows: 1, width: cells.length * layout.box.width }, recolor));
+  const action = (out: ReturnType<typeof communityFiles>, n: number) => out.art.actions.find((a) => a.action === n);
+
+  it("leaves the template's own intro and win poses off the main guide, and has a pose guide for them", () => {
+    const posed = { ...spec, anims: spec.anims.map((a) => (a.action === 190 ? { ...a, cells: [3] } : a.action === 5110 ? { ...a, cells: [0] } : a)) };
+    expect(guideCells(posed)).toEqual([0, 1, 2]); // cell 3 only played the intro
+    const guide = readPng(poseGuideImage(spec, source, layout));
+    expect([guide.width, guide.height]).toEqual([POSE_GUIDE_FRAMES * layout.box.width, layout.box.height]);
+    const px = (x: number, y: number) => [...guide.pixels.subarray((y * guide.width + x) * 4, (y * guide.width + x) * 4 + 4)];
+    expect(px(17, 30)).toEqual([200, 100, 50, 110]); // the stance, faded, in the first box
+    expect(px(40 + 17, 30)[3]).toBe(0); // the others are empty
+    expect(px(40 + 5, 58)).toEqual([120, 170, 230, 255]); // with the ground line
+  });
+
+  it("plays the community's own intros (one at random) and win poses, in the sprite sheet's colours", () => {
+    const out = communityFiles(spec, page, who, { intros: [strip([1, 0]), strip([3, 3, 1])], wins: [strip([2])] });
+    expect(action(out, 190)!.frames.map((f) => f.ticks)).toEqual([6, 30]);
+    expect(action(out, 192)!.frames.map((f) => f.ticks)).toEqual([6, 6, 30]);
+    expect(action(out, 180)!.frames.map((f) => f.ticks)).toEqual([-1]); // one frame, held
+    expect(action(out, 181)!.frames).toEqual(action(out, 180)!.frames.map((f) => ({ ...f, group: 181 }))); // one pose plays both
+    expect(out.files.get("gi-states.cns")!.toString("latin1")).toContain("value = ifelse(Random < 500, 190, 192)");
+    // Its frames are new sprites, drawn with the sprite sheet's palette.
+    const sff = readSff(out.files.get("gi.sff")!);
+    const intro = sff.sprites.filter((s) => s.group === 190);
+    expect(intro).toHaveLength(2);
+    expect(new Set(intro.flatMap((s) => [...s.image.pixels]))).toEqual(new Set([0, 1]));
+  });
+
+  it("holds the stance when it has none of its own, and plays one intro without picking", () => {
+    const out = communityFiles(spec, page, who);
+    for (const n of [190, 180, 181]) expect(action(out, n)!.frames).toHaveLength(1);
+    expect(action(out, 192)).toBeUndefined();
+    expect(communityFiles(spec, page, who, { intros: [strip([1])] }).files.get("gi-states.cns")!.toString("latin1")).not.toContain("pick an intro");
+  });
+
+  it("says what's wrong with a pose", () => {
+    const one = strip([1]);
+    const problems = (images: Parameters<typeof communityFiles>[3]) => problemsOf(() => communityFiles(spec, page, who, images));
+    expect(problems({ intros: [{ ...one, height: 50 }] })).toEqual([expect.stringMatching(/^its intro: it is 40x50 pixels, but a pose is drawn on the pose guide: 60 pixels tall and 40 wide for each frame/)]);
+    expect(problems({ wins: [strip([1], () => [0, 255, 0])] })).toEqual(["its win pose: it uses colours that aren't on the sprite sheet: draw it with the sprite sheet's colours, so the fighter's outfits recolour it too"]);
+    const gap = strip([1, 0, 1]);
+    for (let y = 0; y < 60; y++) gap.pixels.fill(0, (y * 120 + 40) * 4, (y * 120 + 80) * 4); // the middle box rubbed out
+    const edge = strip([1]);
+    for (let y = 0; y < 60; y++) edge.pixels.set([200, 100, 50, 255], (y * 40) * 4); // a line on the box's left edge
+    expect(problems({ intros: [one, gap], wins: [edge] })).toEqual([
+      "its intro 2: box 2 is empty: draw the frames one after another, from the first box",
+      "its win pose: the drawing touches the edge of box 1, so it would be cut off: keep each frame inside its box",
+    ]);
+    expect(problems({ intros: [readPng(writePng({ width: 40, height: 60, colorType: 6, pixels: new Uint8Array(40 * 60 * 4) }))] })).toEqual(["its intro: there's nothing drawn on it"]);
   });
 });

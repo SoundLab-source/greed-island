@@ -11,7 +11,7 @@ import path from "node:path";
 import { MARKER } from "../ikemen/derive.ts";
 import type { CellSource, Sheet } from "../art/sheet.ts";
 import { buildTemplateArt, cardImage, cellsOf, type TemplateArt } from "./art.ts";
-import { guideImage, guideLayout } from "./guide.ts";
+import { guideImage, guideLayout, poseGuideImage } from "./guide.ts";
 import { fighterNumbers } from "./limits.ts";
 import { commandsFile, constantsFile, defFile, statesFile } from "./cns.ts";
 import { measureReach } from "./reach.ts";
@@ -41,12 +41,14 @@ export function templateFiles(spec: TemplateSpec, sheet: Sheet | CellSource): Te
     // For community artists: every frame on one sheet to draw over (GET /api/guides/:archetype), and
     // the template's numbers, which a fighter drawn on it is checked against (templates/limits.ts).
     [GUIDE_FILE, guideImage(spec, source, guideLayout(spec))],
+    [POSE_GUIDE_FILE, poseGuideImage(spec, source, guideLayout(spec))],
     [NUMBERS_FILE, Buffer.from(JSON.stringify(fighterNumbers(spec, reach), null, 2) + "\n")],
   ]);
 }
 
-/** In a template's folder: the artists' guide sheet, and its numbers with measured reach. */
+/** In a template's folder: the artists' guide sheet and pose guide (intros and win poses), and its numbers with measured reach. */
 export const GUIDE_FILE = "guide.png";
+export const POSE_GUIDE_FILE = "pose-guide.png";
 export const NUMBERS_FILE = "numbers.json";
 
 export function withHash(art: TemplateArt, entries: readonly [string, Buffer][]): TemplateFiles {

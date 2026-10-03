@@ -268,6 +268,10 @@ export function statesFile(spec: TemplateSpec): string {
     "trigger1 = 1",
     "flag = Intro",
     "",
+    // A community fighter with two intros of its own (anims 190 and 192) plays one at random.
+    ...(spec.anims.some((a) => a.action === 192)
+      ? ["[State 191, pick an intro]", "type = ChangeAnim", "trigger1 = Time = 0", "value = ifelse(Random < 500, 190, 192)", ""]
+      : []),
     "[State 191, done]",
     "type = ChangeState",
     "trigger1 = AnimTime = 0",

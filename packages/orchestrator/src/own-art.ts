@@ -2,11 +2,11 @@
  * Building a submitted fighter from its own art (docs/PHASE3.md "Fighters
  * from their own art"): find the sprite sheet drawn on its archetype's guide,
  * build the character on the template into IKEMEN_DIR/chars/gi-sub-<number>/
- * (with its portrait as the lifebar faces and an outfit per alternate colour
- * sheet), and give the automatic checks its numbers and the template's to
- * compare.
+ * (with its portrait as the lifebar faces, an outfit per alternate colour
+ * sheet, and its own intros and win poses), and give the automatic checks its
+ * numbers and the template's to compare.
  */
-import { communityFiles, fighterNumbers, guideLayout, GuideError, readPng, TEMPLATES, writeCharacter, type CheckFighter, type FighterNumbers } from "@greed-island/engine";
+import { communityFiles, fighterNumbers, guideLayout, GuideError, numbered, readPng, TEMPLATES, writeCharacter, type CheckFighter, type FighterNumbers } from "@greed-island/engine";
 import type { Db, Prisma } from "@greed-island/db";
 import type { Archetype } from "@greed-island/shared";
 import { existsSync } from "node:fs";
@@ -26,6 +26,9 @@ export interface OwnArtInput {
   portrait?: ImageFile | null;
   /** Its alternate colour sheets, oldest first: one more palette each. */
   alternates?: readonly ImageFile[];
+  /** Its intros and win poses, oldest first, drawn on the pose guide. */
+  intros?: readonly ImageFile[];
+  wins?: readonly ImageFile[];
 }
 
 export interface ImageFile {
@@ -46,13 +49,13 @@ export type OwnArtBuilder = (input: OwnArtInput) => Promise<OwnArtResult>;
 
 /** The images a build uses, as a query selects them (`OWN_ART_FILES`). */
 export const OWN_ART_FILES = {
-  where: { role: { in: ["SPRITES", "PORTRAIT", "PALETTE"] } },
+  where: { role: { in: ["SPRITES", "PORTRAIT", "PALETTE", "INTRO", "WIN_POSE"] } },
   orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   select: { role: true, sha256: true, width: true, height: true },
 } as const satisfies Prisma.Submission$filesArgs;
 
 /** A submission and its images (selected with `OWN_ART_FILES`) as the builder's input. */
-export function ownArtInput(sub: Omit<OwnArtInput, "sprites" | "portrait" | "alternates"> & { files: readonly ({ role: string } & ImageFile)[] }): OwnArtInput {
+export function ownArtInput(sub: Omit<OwnArtInput, "sprites" | "portrait" | "alternates" | "intros" | "wins"> & { files: readonly ({ role: string } & ImageFile)[] }): OwnArtInput {
   const { files, ...rest } = sub;
   const image = ({ sha256, width, height }: ImageFile) => ({ sha256, width, height });
   const portrait = files.find((f) => f.role === "PORTRAIT");
@@ -61,6 +64,8 @@ export function ownArtInput(sub: Omit<OwnArtInput, "sprites" | "portrait" | "alt
     sprites: files.filter((f) => f.role === "SPRITES").map(image),
     portrait: portrait ? image(portrait) : null,
     alternates: files.filter((f) => f.role === "PALETTE").map(image),
+    intros: files.filter((f) => f.role === "INTRO").map(image),
+    wins: files.filter((f) => f.role === "WIN_POSE").map(image),
   };
 }
 
@@ -95,9 +100,21 @@ export function createOwnArtBuilder(ikemenDir: string, store: SubmissionStore): 
     const portrait = sub.portrait ? await read("its portrait", sub.portrait) : null;
     const alternates = [];
     for (const [i, f] of (sub.alternates ?? []).entries()) alternates.push(await read(`its alternate colour sheet ${i + 1}`, f));
+    const poses = async (label: string, files: readonly ImageFile[] = []) => {
+      const out = [];
+      for (const [i, f] of files.slice(0, 2).entries()) out.push(await read(numbered(label, i, Math.min(files.length, 2)), f));
+      return out;
+    };
+    const intros = await poses("its intro", sub.intros);
+    const wins = await poses("its win pose", sub.wins);
     let out;
     try {
-      out = page && communityFiles(spec, page, { id, name: sub.fighterName, credit: `Art: ${sub.community} (submission #${sub.number})` }, { ...(portrait ? { portrait } : {}), alternates: alternates.filter((a) => a !== null) });
+      out = page && communityFiles(spec, page, { id, name: sub.fighterName, credit: `Art: ${sub.community} (submission #${sub.number})` }, {
+        ...(portrait ? { portrait } : {}),
+        alternates: alternates.filter((a) => a !== null),
+        intros: intros.filter((a) => a !== null),
+        wins: wins.filter((a) => a !== null),
+      });
     } catch (e) {
       if (e instanceof GuideError) return { kind: "problems", problems: [...problems, ...e.problems] };
       throw e;

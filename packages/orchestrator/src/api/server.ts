@@ -42,7 +42,7 @@ import {
   type StaffPermission,
 } from "@greed-island/shared";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { GUIDE_FILE, TEMPLATES } from "@greed-island/engine";
+import { GUIDE_FILE, POSE_GUIDE_FILE, TEMPLATES } from "@greed-island/engine";
 import { readFile } from "node:fs/promises";
 import { installRateLimits, installSecurityHeaders, type RateLimitConfig } from "./security.ts";
 import path from "node:path";
@@ -642,13 +642,15 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     return reply.type("image/png").header("cache-control", "public, max-age=3600").send(bytes);
   });
   // The guide sheet artists draw a fighter of this archetype on (written by pnpm templates:build next to the template).
-  app.get<{ Params: { archetype: string } }>("/api/guides/:archetype", async (req, reply) => {
+  // An archetype's guide sheet, or with ?sheet=pose its pose guide (for intros and win poses).
+  app.get<{ Params: { archetype: string }; Querystring: { sheet?: string } }>("/api/guides/:archetype", async (req, reply) => {
     const spec = TEMPLATES.find((t) => t.archetype === req.params.archetype);
-    const bytes = spec && deps.ikemenDir ? await readFile(path.join(deps.ikemenDir, "chars", spec.id, GUIDE_FILE)).catch(() => null) : null;
+    const pose = z.enum(["main", "pose"]).default("main").parse(req.query.sheet) === "pose";
+    const bytes = spec && deps.ikemenDir ? await readFile(path.join(deps.ikemenDir, "chars", spec.id, pose ? POSE_GUIDE_FILE : GUIDE_FILE)).catch(() => null) : null;
     if (!spec || !bytes) throw new HttpError(404, "NOT_FOUND", "no guide sheet for that archetype on this server");
     return reply
       .type("image/png")
-      .header("content-disposition", `attachment; filename="greed-island-guide-${spec.name.toLowerCase()}.png"`)
+      .header("content-disposition", `attachment; filename="greed-island-${pose ? "pose-guide" : "guide"}-${spec.name.toLowerCase()}.png"`)
       .header("cache-control", "public, max-age=3600")
       .send(bytes);
   });
