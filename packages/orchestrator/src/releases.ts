@@ -45,7 +45,8 @@ export async function releaseElected(tx: Tx, config: Config, season: SeasonRow, 
         updatedAt: now,
       },
     });
-    const house = await tx.character.findFirst({ where: { fighterId: standIn.id, ownerKind: "HOUSE" }, orderBy: { createdAt: "asc" }, select: { palette: true } });
+    // Its own art's main colours are palette 1 (the rest are its outfits); a stand-in's look comes from its house character.
+    const house = ownArt ? null : await tx.character.findFirst({ where: { fighterId: standIn.id, ownerKind: "HOUSE" }, orderBy: { createdAt: "asc" }, select: { palette: true } });
     const character = await createCharacter(tx, { fighterId, name: sub.fighterName, palette: house?.palette ?? 1 }, config);
     await tx.release.create({ data: { seasonId: season.id, submissionId: sub.id, fighterId, characterId: character.id, standInFighterId: standIn.id, createdAt: now } });
     await tx.submission.update({ where: { id: sub.id }, data: { status: "RELEASED" } });

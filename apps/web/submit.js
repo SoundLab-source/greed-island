@@ -23,7 +23,8 @@ function showGuide() {
       <li>Hide the guide layer and export only your layer as a PNG, the same size, with a transparent background.</li>
       <li>Add it below as a <em>Sprite sheet</em>. Staff see your fighter built from it, and the automatic checks test it in fights.</li>
     </ol>
-    <span class="muted">Use up to 239 colours. A move reaches as far as you draw it, so keep arms and legs about as long as the figure's.</span>`;
+    <span class="muted">Use up to 239 colours. A move reaches as far as you draw it, so keep arms and legs about as long as the figure's.</span>
+    <p><strong>Outfits:</strong> for each extra colour scheme, recolour a copy of your sprite sheet (change only the colours, move nothing; parts that share a colour on the sheet must share one here too) and add it as an <em>Alternate colour sheet</em>. <strong>Portrait:</strong> it becomes your fighter's face on the health bars, cut square from the top of a tall picture or the middle of a wide one, so keep the face near the top.</p>`;
 }
 
 async function api(method, path, body, raw) {

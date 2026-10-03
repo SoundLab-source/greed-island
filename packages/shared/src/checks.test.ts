@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balanceResult, checksPassed, DEFAULT_CHECKS, tallyRate, validateChecks, type CheckResults } from "./checks.ts";
+import { balanceResult, checksPassed, DEFAULT_CHECKS, describeChecks, tallyRate, validateChecks, type CheckResults } from "./checks.ts";
 
 const reference = { fighterId: "gi-tpl-heavy", name: "Bruiser", fights: 200, wins: 100, draws: 0 };
 
@@ -39,6 +39,19 @@ describe("checksPassed", () => {
     expect(checksPassed({ ...ok, template: null })).toBe(false);
     expect(checksPassed({ ...ok, balance: null })).toBe(false);
     expect(checksPassed({ ...ok, balance: { ...ok.balance!, ok: false } })).toBe(false);
+  });
+});
+
+describe("describeChecks", () => {
+  const base: CheckResults = { checkedAs: { fighterId: "gi-tpl-heavy", name: "Bruiser", ownArt: false }, smoke: { ok: false, detail: "It crashed." }, template: null, balance: null };
+
+  it("says what it was checked as: its template, or its own art and how many outfits", () => {
+    expect(describeChecks(base)[0]).toMatch(/^Checked as Bruiser \(its archetype's template/);
+    const own = { ...base, checkedAs: { fighterId: "gi-sub-4", name: "Iron Heron", ownArt: true } };
+    expect(describeChecks(own)[0]).toBe("Checked as Iron Heron, built from its own art.");
+    expect(describeChecks({ ...own, checkedAs: { ...own.checkedAs, outfits: 1 } })[0]).toBe("Checked as Iron Heron, built from its own art.");
+    expect(describeChecks({ ...own, checkedAs: { ...own.checkedAs, outfits: 3 } })[0]).toBe("Checked as Iron Heron, built from its own art in 3 outfits (its alternate colour sheets).");
+    expect(describeChecks(base).slice(1)).toEqual(["Smoke test: FAILED. It crashed.", "The template check and balance simulation weren't run."]);
   });
 });
 

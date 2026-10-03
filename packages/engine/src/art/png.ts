@@ -2,7 +2,10 @@
  * A small PNG reader and writer for the fighter art pipeline. Reading keeps
  * palette images as palette indices (the source sheets are 8-bit palette
  * PNGs, and IKEMEN sprites are palette sprites too), so colours are never
- * re-quantised. Handles 8-bit, non-interlaced PNGs of every colour type.
+ * re-quantised. Reads every standard PNG: all colour types and bit depths
+ * (samples come back as 8 bits; 16-bit keeps the high byte, palette indices
+ * stay indices), interlaced or not, and a transparent colour (tRNS) on a grey
+ * or RGB image comes back as an alpha channel.
  */
 import { crc32, deflateSync, inflateSync } from "node:zlib";
 
@@ -27,6 +30,14 @@ export function channelsOf(colorType: number): number {
   if (!c) throw new Error(`unsupported PNG colour type ${colorType}`);
   return c;
 }
+
+/** Bit depths each colour type may use. */
+const DEPTHS: Record<number, number[]> = { 0: [1, 2, 4, 8, 16], 2: [8, 16], 3: [1, 2, 4, 8], 4: [8, 16], 6: [8, 16] };
+
+/** Adam7 interlacing: each pass's first column and row, and its steps. */
+const ADAM7 = [
+  [0, 0, 8, 8], [4, 0, 8, 8], [0, 4, 4, 8], [2, 0, 4, 4], [0, 2, 2, 4], [1, 0, 2, 2], [0, 1, 1, 2],
+] as const;
 
 export function readPng(bytes: Uint8Array): PngImage {
   if (bytes.length < 8 || !SIGNATURE.equals(Buffer.from(bytes.subarray(0, 8)))) throw new Error("not a PNG file");
@@ -54,21 +65,63 @@ export function readPng(bytes: Uint8Array): PngImage {
     offset += 12 + length;
   }
   const channels = channelsOf(colorType);
-  if (depth !== 8) throw new Error(`unsupported PNG bit depth ${depth} (only 8)`);
-  if (interlace !== 0) throw new Error("interlaced PNGs are not supported");
+  if (!DEPTHS[colorType]!.includes(depth)) throw new Error(`unsupported PNG bit depth ${depth} for colour type ${colorType}`);
+  if (interlace > 1) throw new Error(`unknown PNG interlace method ${interlace}`);
   if (width === 0 || height === 0) throw new Error("PNG has no pixels");
   if (colorType === 3 && !palette) throw new Error("palette PNG without a palette");
   const raw = inflateSync(Buffer.concat(data));
-  const stride = width * channels;
-  if (raw.length < height * (stride + 1)) throw new Error("PNG image data is cut short");
-  const pixels = new Uint8Array(height * stride);
-  for (let y = 0; y < height; y++) {
-    const filter = raw[y * (stride + 1)]!;
-    const src = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
-    const out = pixels.subarray(y * stride, (y + 1) * stride);
-    const prev = y > 0 ? pixels.subarray((y - 1) * stride, y * stride) : new Uint8Array(stride);
-    unfilter(filter, src, out, prev, channels);
+  // A transparent colour on a grey or RGB image: its raw samples (16 bits each in the chunk).
+  const key = (colorType === 0 || colorType === 2) && alpha && alpha.length >= channels * 2 ? Array.from({ length: channels }, (_, c) => (alpha![c * 2]! << 8) | alpha![c * 2 + 1]!) : null;
+
+  if (depth === 8 && !interlace && !key) {
+    // The usual case, unfiltered straight into place.
+    const stride = width * channels;
+    if (raw.length < height * (stride + 1)) throw new Error("PNG image data is cut short");
+    const pixels = new Uint8Array(height * stride);
+    for (let y = 0; y < height; y++) {
+      const filter = raw[y * (stride + 1)]!;
+      const src = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+      const out = pixels.subarray(y * stride, (y + 1) * stride);
+      const prev = y > 0 ? pixels.subarray((y - 1) * stride, y * stride) : new Uint8Array(stride);
+      unfilter(filter, src, out, prev, channels);
+    }
+    return { width, height, colorType: colorType as PngImage["colorType"], pixels, palette, alpha };
   }
+
+  const bits = channels * depth;
+  const outChannels = key ? channels + 1 : channels;
+  const pixels = new Uint8Array(width * height * outChannels);
+  const max = (1 << depth) - 1;
+  // One raw sample (16-bit as is), and as 8 bits.
+  const sampleAt = (row: Uint8Array, k: number) =>
+    depth === 16 ? (row[k * 2]! << 8) | row[k * 2 + 1]! : depth === 8 ? row[k]! : (row[(k * depth) >> 3]! >> (8 - depth - ((k * depth) & 7))) & max;
+  const to8 = (v: number) => (depth === 16 ? v >> 8 : depth === 8 || colorType === 3 ? v : Math.round((v * 255) / max));
+  let pos = 0;
+  for (const [x0, y0, dx, dy] of interlace ? ADAM7 : ([[0, 0, 1, 1]] as const)) {
+    const pw = Math.ceil((width - x0) / dx), ph = Math.ceil((height - y0) / dy);
+    if (pw <= 0 || ph <= 0) continue;
+    const stride = Math.ceil((pw * bits) / 8);
+    if (raw.length < pos + ph * (stride + 1)) throw new Error("PNG image data is cut short");
+    let prev = new Uint8Array(stride);
+    for (let r = 0; r < ph; r++) {
+      const row = new Uint8Array(stride);
+      unfilter(raw[pos]!, raw.subarray(pos + 1, pos + 1 + stride), row, prev, Math.max(1, bits >> 3));
+      pos += stride + 1;
+      prev = row;
+      const y = y0 + r * dy;
+      for (let i = 0; i < pw; i++) {
+        const o = (y * width + x0 + i * dx) * outChannels;
+        let keyed = !!key;
+        for (let c = 0; c < channels; c++) {
+          const v = sampleAt(row, i * channels + c);
+          if (key && v !== key[c]) keyed = false;
+          pixels[o + c] = to8(v);
+        }
+        if (key) pixels[o + channels] = keyed ? 0 : 255;
+      }
+    }
+  }
+  if (key) return { width, height, colorType: colorType === 0 ? 4 : 6, pixels };
   return { width, height, colorType: colorType as PngImage["colorType"], pixels, palette, alpha };
 }
 

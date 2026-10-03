@@ -4,7 +4,8 @@ import { readPng, writePng } from "../art/png.ts";
 import { readSff } from "../art/sff.ts";
 import { sheetCells } from "../art/sheet.ts";
 import { templateFiles } from "./build.ts";
-import { artFromGuide, communityFiles, engineText, GUIDE_BOX, guideImage, guideLayout, GuideError, quantize, sampleArt, MAX_ART_COLORS } from "./guide.ts";
+import { FACE_SIZES, PORTRAIT_PALETTE } from "./art.ts";
+import { artFromGuide, communityFiles, engineText, GUIDE_BOX, guideImage, guideLayout, GuideError, MAX_PORTRAIT_COLORS, portraitArt, quantize, sampleArt, MAX_ART_COLORS } from "./guide.ts";
 import { TEMPLATES } from "./index.ts";
 import { fighterNumbers, templateFindings } from "./limits.ts";
 import { tinySheet, tinySpec } from "./templates.test.ts";
@@ -97,7 +98,113 @@ describe("guide sheets", () => {
     const noFist = page.pixels.slice();
     for (let y = 0; y < 60; y++) noFist.fill(0, (y * 160 + 40 + 25) * 4, (y * 160 + 40 + 39) * 4);
     expect(problems(() => communityFiles(spec, { ...page, pixels: noFist }, who))).toEqual([
-      "box 2 (the Jab as it hits): nothing reaches out past the move's first frame, so it can't hit anything; draw the strike reaching forward",
+      "its sprite sheet: box 2 (the Jab as it hits): nothing reaches out past the move's first frame, so it can't hit anything; draw the strike reaching forward",
+    ]);
+  });
+});
+
+/** What a call throws as a GuideError's problems. */
+function problemsOf(f: () => unknown): string[] {
+  try {
+    f();
+  } catch (e) {
+    expect(e).toBeInstanceOf(GuideError);
+    return (e as GuideError).problems;
+  }
+  throw new Error("no problems found");
+}
+
+/** An RGBA picture from a function of each pixel. */
+function picture(width: number, height: number, at: (x: number, y: number) => [number, number, number, number]) {
+  const pixels = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) pixels.set(at(x, y), (y * width + x) * 4);
+  return readPng(writePng({ width, height, colorType: 6, pixels }));
+}
+
+describe("alternate colour sheets", () => {
+  const spec = tinySpec();
+  const source = sheetCells(tinySheet(), spec.art.stray);
+  const layout = guideLayout(spec);
+  const page = readPng(sampleArt(spec, source, layout));
+  const swap = ([r, g, b]: [number, number, number]): [number, number, number] => [255 - r, b, g];
+
+  it("gives the fighter one more palette each: every colour swapped for the one drawn over it", () => {
+    const out = communityFiles(spec, page, who, { alternates: [readPng(sampleArt(spec, source, layout, swap)), readPng(sampleArt(spec, source, layout, () => [9, 9, 9]))] });
+    expect(out.files.get("gi-sub-7.def")!.toString("latin1")).toContain("pal.defaults = 1,2,3");
+    // A picture of each outfit for staff, besides the main one.
+    expect([...out.files.keys()].filter((f) => f.startsWith("card"))).toEqual(["card.png", "card-2.png", "card-3.png"]);
+    const { palettes } = readSff(out.files.get("gi.sff")!);
+    expect(palettes.map((p) => `${p.group},${p.number}`)).toEqual(["1,1", "1,2", "1,3"]);
+    const used = new Set([0, 1, 2, 3].flatMap((c) => [...artFromGuide(spec, page).cell(c).pixels]).filter((v) => v > 0));
+    for (const k of used) {
+      const rgb = [...palettes[0]!.colors.subarray(k * 3, k * 3 + 3)] as [number, number, number];
+      expect([...palettes[1]!.colors.subarray(k * 3, k * 3 + 3)]).toEqual(swap(rgb));
+      expect([...palettes[2]!.colors.subarray(k * 3, k * 3 + 3)]).toEqual([9, 9, 9]);
+    }
+    // The projectile keeps its colours in every outfit.
+    expect(palettes[1]!.colors.subarray(240 * 3, 246 * 3)).toEqual(palettes[0]!.colors.subarray(240 * 3, 246 * 3));
+  });
+
+  it("says when it isn't a recoloured copy of the sprite sheet", () => {
+    const alt = readPng(sampleArt(spec, source, layout, swap));
+    expect(problemsOf(() => communityFiles(spec, page, who, { alternates: [{ ...alt, width: 100 }] }))).toEqual([expect.stringMatching(/^its alternate colour sheet 1: it is 100x60 pixels, but the sprite sheet is 160x60/)]);
+    const moved = alt.pixels.slice();
+    for (let y = 0; y < 60; y++) moved.fill(0, (y * 160 + 120) * 4, (y * 160 + 160) * 4); // box 4 rubbed out
+    const patchy = alt.pixels.slice();
+    for (let i = 0; i < 160 * 60; i++) if (i % 160 < 80 && patchy[i * 4 + 3]) patchy.set([0, 255, 0], i * 4); // boxes 1-2 one colour
+    expect(problemsOf(() => communityFiles(spec, page, who, { alternates: [alt, { ...alt, pixels: moved }, { ...alt, pixels: patchy }] }))).toEqual([
+      expect.stringMatching(/^its alternate colour sheet 2: it isn't the same drawing as the sprite sheet \(\d+% of the drawing is in different places\)/),
+      expect.stringMatching(/^its alternate colour sheet 3: parts that are one colour on the sprite sheet are different colours here/),
+    ]);
+  });
+});
+
+describe("portraits", () => {
+  it("cuts the drawn part square, from the top of a tall picture and the middle of a wide one", () => {
+    const red: [number, number, number, number] = [220, 20, 20, 255];
+    // Tall, with a transparent margin on the left: the top square is all red.
+    const tall = portraitArt(picture(30, 60, (x, y) => (x < 5 ? [0, 0, 0, 0] : y < 25 ? red : [20, 20, 220, 255])));
+    expect([tall.small.width, tall.small.height, tall.large.width, tall.large.height]).toEqual([FACE_SIZES.small, FACE_SIZES.small, FACE_SIZES.large, FACE_SIZES.large]);
+    expect([...tall.palette]).toEqual([0, 0, 0, 220, 20, 20]);
+    expect(new Set(tall.large.pixels)).toEqual(new Set([1]));
+    // Wide and opaque (no transparency at all): the middle third.
+    const rgb = new Uint8Array(60 * 20 * 3);
+    for (let i = 0; i < 60 * 20; i++) rgb.set(i % 60 < 20 ? [0, 200, 0] : i % 60 < 40 ? [220, 20, 20] : [20, 20, 220], i * 3);
+    const wide = portraitArt(readPng(writePng({ width: 60, height: 20, colorType: 2, pixels: rgb })));
+    expect([...wide.palette]).toEqual([0, 0, 0, 220, 20, 20]);
+    expect(new Set(wide.small.pixels)).toEqual(new Set([1]));
+  });
+
+  it("keeps a picture with many colours to fewer than the fighter's 256, averaging as it shrinks", () => {
+    const art = portraitArt(picture(300, 300, (x, y) => [x % 256, y % 256, (x * y) % 256, 255]));
+    expect(art.palette.length / 3).toBeLessThanOrEqual(MAX_PORTRAIT_COLORS + 1);
+    expect(art.palette.length / 3).toBeLessThan(256);
+    expect([...art.large.pixels].every((v) => v > 0)).toBe(true);
+  });
+
+  it("becomes the lifebar faces, in a palette of their own that choosing a colour doesn't repaint", () => {
+    const spec = tinySpec();
+    const source = sheetCells(tinySheet(), spec.art.stray);
+    const layout = guideLayout(spec);
+    const page = readPng(sampleArt(spec, source, layout));
+    const out = communityFiles(spec, page, who, { portrait: picture(50, 50, () => [10, 200, 90, 255]), alternates: [readPng(sampleArt(spec, source, layout, () => [1, 2, 3]))] });
+    const sff = readSff(out.files.get("gi.sff")!);
+    expect(sff.palettes.map((p) => `${p.group},${p.number}`)).toEqual(["1,1", "1,2", `${PORTRAIT_PALETTE.group},${PORTRAIT_PALETTE.number}`]);
+    const faces = sff.sprites.filter((s) => s.group === 9000);
+    expect(faces.map((s) => [s.number, s.image.width, s.palette])).toEqual([[0, FACE_SIZES.small, 2], [1, FACE_SIZES.large, 2]]);
+    expect([...sff.palettes[2]!.colors.subarray(3, 6)]).toEqual([10, 200, 90]);
+    // Without a portrait, the faces are cut from the stance in the fighter's colours.
+    const plain = readSff(communityFiles(spec, page, who).files.get("gi.sff")!);
+    expect(plain.sprites.filter((s) => s.group === 9000).map((s) => s.palette)).toEqual([0, 0]);
+  });
+
+  it("says what's wrong with the portrait along with the sprite sheet's problems", () => {
+    const spec = tinySpec();
+    const empty = picture(10, 10, () => [0, 0, 0, 0]);
+    const rgb = readPng(writePng({ width: 160, height: 60, colorType: 2, pixels: new Uint8Array(160 * 60 * 3) }));
+    expect(problemsOf(() => communityFiles(spec, rgb, who, { portrait: empty }))).toEqual([
+      expect.stringMatching(/^its sprite sheet: the sprite sheet has no transparent background/),
+      "its portrait: there's nothing on it: it's all transparent",
     ]);
   });
 });

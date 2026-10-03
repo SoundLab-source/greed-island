@@ -43,12 +43,13 @@ beforeEach(async () => {
 });
 
 /** A submission sent for review (which queues the checks when they're enabled). */
-async function sent(cfg = config, archetype: "GRAPPLER" | "RUSHDOWN" = "GRAPPLER") {
+async function sent(cfg = config, archetype: "GRAPPLER" | "RUSHDOWN" = "GRAPPLER", alternates = 0) {
   const sub = await createSubmission(db, cfg, {
     userId: sam,
     details: { community: "Pixel Monks", fighterName: "Iron Heron", archetype, description: "", rightsBasis: "ORIGINAL", rightsDetails: "Drawn by our member Sam in 2026; the community owns it.", rightsLink: null },
   });
-  for (const [role, shade] of [["SPRITES", 1], ["PORTRAIT", 3], ["INTRO", 4], ["WIN_POSE", 5]] as const) {
+  const alternateSheets = Array.from({ length: alternates }, (_, i) => ["PALETTE", 6 + i] as const);
+  for (const [role, shade] of [["SPRITES", 1], ["PORTRAIT", 3], ["INTRO", 4], ["WIN_POSE", 5], ...alternateSheets] as const) {
     await addSubmissionFile(db, cfg, store, { userId: sam, submissionId: sub.id, role, label: `${role} ${shade}`, bytes: png(64, 48, shade) });
   }
   return sendForReview(db, cfg, { userId: sam, submissionId: sub.id, confirmRights: true });
@@ -172,19 +173,22 @@ describe("fighters built from their own art", () => {
   const template = { life: 1000, attack: 100, defence: 100, walkFwd: 2, runFwd: 4, moves: [] };
 
   it("checks the character built from its sprite sheet, against its template's numbers", async () => {
-    const sub = await sent();
+    const sub = await sent(config, "GRAPPLER", 2);
+    const files = await db.submissionFile.findMany({ where: { submissionId: sub.id }, orderBy: { createdAt: "asc" } });
+    const sha = (role: string) => files.filter((f) => f.role === role).map((f) => f.sha256);
     const seen: string[] = [];
     const ownArt: OwnArtBuilder = async (input) => {
-      seen.push(`${input.number} ${input.archetype} ${input.sprites.length}`);
-      return { kind: "built", fighter: { id: `gi-sub-${input.number}`, name: input.fighterName, defPath: `chars/gi-sub-${input.number}/gi-sub-${input.number}.def` }, numbers: { fighter: { ...template, life: 1300 }, template } };
+      seen.push(`${input.number} ${input.archetype} ${input.sprites.map((f) => f.sha256)} ${input.portrait?.sha256} ${input.alternates?.map((f) => f.sha256)}`);
+      return { kind: "built", fighter: { id: `gi-sub-${input.number}`, name: input.fighterName, defPath: `chars/gi-sub-${input.number}/gi-sub-${input.number}.def` }, numbers: { fighter: { ...template, life: 1300 }, template }, outfits: 3 };
     };
     const source = stubSource();
     const run = await runNextSubmissionCheck(db, deps(source, { ownArt }));
-    expect(seen).toEqual([`${sub.number} GRAPPLER 1`]);
+    expect(seen).toEqual([`${sub.number} GRAPPLER ${sha("SPRITES")} ${sha("PORTRAIT")} ${sha("PALETTE")}`]);
+    expect(sha("PALETTE")).toHaveLength(2);
     expect(run).toMatchObject({
       status: "FAILED",
       results: {
-        checkedAs: { fighterId: `gi-sub-${sub.number}`, name: "Iron Heron", ownArt: true, defPath: `chars/gi-sub-${sub.number}/gi-sub-${sub.number}.def` },
+        checkedAs: { fighterId: `gi-sub-${sub.number}`, name: "Iron Heron", ownArt: true, defPath: `chars/gi-sub-${sub.number}/gi-sub-${sub.number}.def`, outfits: 3 },
         smoke: { ok: true },
         template: { ok: false, findings: ["life is 1300, the template's is 1000"] },
         balance: { ok: true, fighter: { winRate: 0.5 }, reference: { fighterId: "gi-tpl-grappler", winRate: 0.5 } },
@@ -217,6 +221,10 @@ describe("fighters built from their own art", () => {
     const sha256 = await store.save(sub.id, blank);
     const r = await build({ ...input, sprites: [{ sha256, width: layout.width, height: layout.height }] });
     expect(r).toEqual({ kind: "problems", problems: [expect.stringMatching(/^its sprite sheet: boxes 1, 2, 3, .* and \d+ more are empty/)] });
+    // An image the PNG reader can't read is a problem with that image, listed with the rest.
+    const unreadable = await store.save(sub.id, Buffer.from("not a png at all"));
+    const both = await build({ ...input, sprites: [{ sha256, width: layout.width, height: layout.height }], portrait: { sha256: unreadable, width: 1, height: 1 } });
+    expect(both).toEqual({ kind: "problems", problems: ["its portrait: it can't be read (not a PNG file): save it again as an ordinary PNG", expect.stringMatching(/^its sprite sheet: boxes 1, 2, 3/)] });
     await rm(ikemenDir, { recursive: true, force: true });
   });
 });

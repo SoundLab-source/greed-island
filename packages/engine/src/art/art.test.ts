@@ -1,3 +1,5 @@
+import fc from "fast-check";
+import { crc32, deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { writeAir } from "./air.ts";
 import { hitbox, hurtboxes } from "./clsn.ts";
@@ -12,6 +14,48 @@ function image(width: number, height: number, fill: (x: number, y: number) => nu
 }
 
 const PALETTE = Uint8Array.from({ length: 16 * 3 }, (_, i) => (i * 37) % 256);
+
+/** A PNG at any bit depth, interlaced or not, rows unfiltered: `samples` are raw values, `channels` per pixel. */
+function encodePng(o: { width: number; height: number; colorType: number; depth: number; interlace: boolean; samples: number[]; trns?: number[] }): Buffer {
+  const channels = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[o.colorType]!;
+  const passes = o.interlace ? [[0, 0, 8, 8], [4, 0, 8, 8], [0, 4, 4, 8], [2, 0, 4, 4], [0, 2, 2, 4], [1, 0, 2, 2], [0, 1, 1, 2]] : [[0, 0, 1, 1]];
+  const rows: number[] = [];
+  for (const [x0, y0, dx, dy] of passes as [number, number, number, number][]) {
+    const pw = Math.ceil((o.width - x0) / dx), ph = Math.ceil((o.height - y0) / dy);
+    if (pw <= 0 || ph <= 0) continue;
+    for (let r = 0; r < ph; r++) {
+      const row = new Uint8Array(Math.ceil((pw * channels * o.depth) / 8));
+      let bit = 0;
+      for (let i = 0; i < pw; i++) {
+        for (let c = 0; c < channels; c++) {
+          const v = o.samples[((y0 + r * dy) * o.width + x0 + i * dx) * channels + c]!;
+          if (o.depth === 16) row.set([v >> 8, v & 255], bit / 8);
+          else if (o.depth === 8) row[bit / 8] = v;
+          else row[bit >> 3]! |= v << (8 - o.depth - (bit & 7));
+          bit += o.depth;
+        }
+      }
+      rows.push(0, ...row);
+    }
+  }
+  const chunk = (kind: string, body: Uint8Array) => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32BE(body.length);
+    head.write(kind, 4, "ascii");
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), body])));
+    return Buffer.concat([head, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(o.width, 0);
+  ihdr.writeUInt32BE(o.height, 4);
+  ihdr.set([o.depth, o.colorType, 0, 0, o.interlace ? 1 : 0], 8);
+  const parts = [Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", ihdr)];
+  if (o.colorType === 3) parts.push(chunk("PLTE", Uint8Array.from({ length: 256 * 3 }, (_, i) => i % 256)));
+  if (o.trns) parts.push(chunk("tRNS", Uint8Array.from(o.trns.flatMap((v) => [v >> 8, v & 255]))));
+  parts.push(chunk("IDAT", deflateSync(Uint8Array.from(rows))), chunk("IEND", new Uint8Array(0)));
+  return Buffer.concat(parts);
+}
 
 describe("png", () => {
   it("round-trips palette images, keeping the indices", () => {
@@ -29,8 +73,35 @@ describe("png", () => {
     expect(Buffer.from(back.pixels)).toEqual(Buffer.from(pixels));
   });
 
-  it("rejects files that aren't PNGs", () => {
+  it("reads every bit depth, interlaced or not, as 8-bit samples (palette indices stay indices)", () => {
+    const kinds = [[0, 1], [0, 2], [0, 4], [0, 8], [0, 16], [2, 8], [2, 16], [3, 1], [3, 2], [3, 4], [3, 8], [4, 8], [4, 16], [6, 8], [6, 16]] as const;
+    fc.assert(
+      fc.property(fc.constantFrom(...kinds), fc.boolean(), fc.integer({ min: 1, max: 19 }), fc.integer({ min: 1, max: 19 }), fc.integer(), ([colorType, depth], interlace, width, height, seed) => {
+        const channels = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[colorType];
+        const max = 2 ** depth - 1;
+        const samples = Array.from({ length: width * height * channels }, (_, i) => Math.abs((seed + i * 7919) * 2654435761) % (max + 1));
+        const png = readPng(encodePng({ width, height, colorType, depth, interlace, samples }));
+        const want = samples.map((v) => (depth === 16 ? v >> 8 : depth === 8 || colorType === 3 ? v : Math.round((v * 255) / max)));
+        expect(png).toMatchObject({ width, height, colorType });
+        expect([...png.pixels]).toEqual(want);
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it("turns a grey or RGB image's transparent colour into an alpha channel", () => {
+    const samples = [10, 20, 30, 1000, 2000, 3000, 10, 20, 30, 0, 0, 0];
+    const png = readPng(encodePng({ width: 2, height: 2, colorType: 2, depth: 16, interlace: true, samples, trns: [1000, 2000, 3000] }));
+    expect(png.colorType).toBe(6);
+    expect([...png.pixels]).toEqual([0, 0, 0, 255, 3, 7, 11, 0, 0, 0, 0, 255, 0, 0, 0, 255]);
+    const grey = readPng(encodePng({ width: 3, height: 1, colorType: 0, depth: 2, interlace: false, samples: [0, 3, 1], trns: [3] }));
+    expect(grey.colorType).toBe(4);
+    expect([...grey.pixels]).toEqual([0, 255, 255, 0, 85, 255]);
+  });
+
+  it("rejects files that aren't PNGs, and bit depths a colour type can't have", () => {
     expect(() => readPng(Buffer.from("hello, world"))).toThrow(/not a PNG/);
+    expect(() => readPng(encodePng({ width: 1, height: 1, colorType: 2, depth: 4, interlace: false, samples: [1, 2, 3] }))).toThrow(/bit depth 4 for colour type 2/);
   });
 });
 

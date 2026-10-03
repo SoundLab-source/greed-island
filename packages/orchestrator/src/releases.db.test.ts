@@ -147,7 +147,7 @@ describe("seasonal release", () => {
     const releases = await db.release.findMany({ orderBy: { createdAt: "asc" }, include: { character: true } });
     expect(releases.map((r) => [r.character.name, r.character.ownerKind, r.character.palette, r.standInFighterId])).toEqual([
       ["Iron Heron", "HOUSE", 3, "gi-oak"],
-      ["Sky Lark", "HOUSE", 3, "kfm"],
+      ["Sky Lark", "HOUSE", 1, "kfm"], // its own art's main colours, not the stand-in's
     ]);
     expect((await db.submission.findMany({ orderBy: { number: "asc" } })).map((s) => s.status)).toEqual(["RELEASED", "RELEASED"]);
     // It became its NFT collection's community fighter.

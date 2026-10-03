@@ -709,4 +709,40 @@ describe("fighter pictures", () => {
       await rm(ikemen, { recursive: true, force: true });
     }
   });
+
+  it("shows staff a submission's fighter as built, in each outfit", async () => {
+    const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const cfg: Config = { ...config, submissions: { ...config.submissions, open: true } };
+    const srv = await buildServer({ db, config: cfg, bus, mailer, ikemenDir: ikemen });
+    try {
+      const user = async (email: string) => {
+        const u = (await createUser(db, { kind: "EMAIL", email }, cfg.economy)).user;
+        await db.user.update({ where: { id: u.id }, data: { emailVerifiedAt: new Date() } });
+        return u.id;
+      };
+      const [sam, mod] = [await user("sam@example.com"), await user("mod@example.com")];
+      await setRole(db, { actorId: null, target: { userId: mod }, role: "MODERATOR" });
+      const sub = await createSubmission(db, cfg, {
+        userId: sam,
+        details: { community: "Pixel Monks", fighterName: "Iron Heron", archetype: "ZONER", description: "", rightsBasis: "ORIGINAL", rightsDetails: "Drawn by our member Sam; all rights ours.", rightsLink: null },
+      });
+      const dir = nodePath.join(ikemen, "chars", `gi-sub-${sub.number}`);
+      await mkdir(dir, { recursive: true });
+      await writeFile(nodePath.join(dir, "card.png"), png(4, 8, 1));
+      await writeFile(nodePath.join(dir, "card-2.png"), png(4, 8, 2));
+      const staff = { authorization: `Bearer ${await createSession(db, mod)}` };
+      const card = (q: string, headers = staff) => srv.inject({ method: "GET", url: `/api/staff/submissions/${sub.id}/card${q}`, headers });
+      expect((await card("")).rawPayload).toEqual(png(4, 8, 1));
+      expect((await card("?outfit=1")).rawPayload).toEqual(png(4, 8, 1));
+      expect((await card("?outfit=2")).rawPayload).toEqual(png(4, 8, 2));
+      expect((await card("?outfit=3")).statusCode).toBe(404); // no third outfit
+      expect((await card("?outfit=8")).statusCode).toBe(400); // more than a submission can have
+      expect((await card("?outfit=../x")).statusCode).toBe(400);
+      expect((await card("", { authorization: `Bearer ${await createSession(db, sam)}` })).statusCode).toBe(403); // staff only
+    } finally {
+      await srv.close();
+      await rm(ikemen, { recursive: true, force: true });
+    }
+  });
 });

@@ -24,4 +24,4 @@ export { pruneRuns, runsKeepMs } from "./ikemen/prune-runs.ts";
 export { readPng, writePng, type PngImage } from "./art/png.ts";
 export { TEMPLATES, templateDefPath } from "./templates/index.ts";
 export { writeCharacter, GUIDE_FILE, NUMBERS_FILE } from "./templates/build.ts";
-export { artFromGuide, communityFiles, engineText, guideLayout, guideImage, GuideError, GUIDE_BOX, sampleArt, type CommunityIdentity, type GuideLayout } from "./templates/guide.ts";
+export { artFromGuide, communityFiles, engineText, guideLayout, guideImage, GuideError, GUIDE_BOX, portraitArt, sampleArt, type CommunityIdentity, type CommunityImages, type GuideLayout } from "./templates/guide.ts";

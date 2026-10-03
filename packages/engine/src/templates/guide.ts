@@ -9,7 +9,7 @@
 import type { SffPalette } from "../art/sff.ts";
 import { writePng, type PngImage } from "../art/png.ts";
 import { bounds, type CellSource, type IndexedImage } from "../art/sheet.ts";
-import { allAnims, buildTemplateArt, cardImage } from "./art.ts";
+import { allAnims, buildTemplateArt, cardImage, FACE_SIZES } from "./art.ts";
 import { withHash, type TemplateFiles } from "./build.ts";
 import { commandsFile, constantsFile, defFile, statesFile } from "./cns.ts";
 import { fighterNumbers } from "./limits.ts";
@@ -150,29 +150,42 @@ export class GuideError extends Error {
   }
 }
 
-/** RGBA samples of any PNG with transparency; null when it has none. */
-function rgbaOf(png: PngImage): Uint8Array | null {
+/** Any PNG as RGBA samples. */
+function toRgba(png: PngImage): Uint8Array {
   const n = png.width * png.height;
-  const out = new Uint8Array(n * 4);
   const p = png.pixels;
-  switch (png.colorType) {
-    case 6:
-      return p;
-    case 4:
-      for (let i = 0; i < n; i++) out.set([p[i * 2]!, p[i * 2]!, p[i * 2]!, p[i * 2 + 1]!], i * 4);
-      return out;
-    case 3: {
-      if (!png.palette || !png.alpha || ![...png.alpha].some((a) => a < 128)) return null;
-      for (let i = 0; i < n; i++) {
+  if (png.colorType === 6) return p;
+  const out = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    switch (png.colorType) {
+      case 0:
+        out.set([p[i]!, p[i]!, p[i]!, 255], i * 4);
+        break;
+      case 2:
+        out.set([p[i * 3]!, p[i * 3 + 1]!, p[i * 3 + 2]!, 255], i * 4);
+        break;
+      case 3: {
         const v = p[i]!;
-        out.set([png.palette[v * 3] ?? 0, png.palette[v * 3 + 1] ?? 0, png.palette[v * 3 + 2] ?? 0, png.alpha[v] ?? 255], i * 4);
+        out.set([png.palette?.[v * 3] ?? 0, png.palette?.[v * 3 + 1] ?? 0, png.palette?.[v * 3 + 2] ?? 0, png.alpha?.[v] ?? 255], i * 4);
+        break;
       }
-      return out;
+      case 4:
+        out.set([p[i * 2]!, p[i * 2]!, p[i * 2]!, p[i * 2 + 1]!], i * 4);
+        break;
     }
-    default:
-      return null;
   }
+  return out;
 }
+
+/** RGBA samples of a PNG that can have transparency; null when it can't (grey or RGB, or a palette with none). */
+function rgbaOf(png: PngImage): Uint8Array | null {
+  if (png.colorType === 0 || png.colorType === 2) return null;
+  if (png.colorType === 3 && (!png.palette || !png.alpha || ![...png.alpha].some((a) => a < 128))) return null;
+  return toRgba(png);
+}
+
+const rgbAt = (rgba: Uint8Array, i: number) => (rgba[i * 4]! << 16) | (rgba[i * 4 + 1]! << 8) | rgba[i * 4 + 2]!;
+const rgbOf = (c: number) => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
 
 /**
  * At most `max` colours for the drawing (median cut, weighted by how often
@@ -235,12 +248,26 @@ export function quantize(counts: ReadonlyMap<number, number>, max: number): { pa
 /** How many problems to list before summing up the rest. */
 const MAX_LISTED = 8;
 
+/** A drawn sheet as read: its frames, and each drawn colour's palette position, for reading alternate colour sheets against it. */
+interface Drawing {
+  art: CellSource;
+  rgba: Uint8Array;
+  /** The drawing's colours (RGB), palette index 1 onwards. */
+  colors: number[];
+  /** Drawn colour → position in `colors`. */
+  index: Map<number, number>;
+}
+
 /**
  * Read a drawn sheet back into frames for the template builder. Throws a
  * GuideError listing what to fix: the wrong size, no transparent background,
  * an empty box, or a drawing cut off at the edge of its box.
  */
 export function artFromGuide(spec: TemplateSpec, page: PngImage, layout: GuideLayout = guideLayout(spec)): CellSource {
+  return readDrawing(spec, page, layout).art;
+}
+
+function readDrawing(spec: TemplateSpec, page: PngImage, layout: GuideLayout): Drawing {
   if (page.width !== layout.width || page.height !== layout.height) {
     throw new GuideError([`the sprite sheet is ${page.width}x${page.height} pixels, but the ${spec.name} guide is ${layout.width}x${layout.height}: draw on the guide and keep its size`]);
   }
@@ -251,12 +278,12 @@ export function artFromGuide(spec: TemplateSpec, page: PngImage, layout: GuideLa
   const counts = new Map<number, number>();
   for (let i = 0; i < W * page.height; i++) {
     if (rgba[i * 4 + 3]! < 128) continue;
-    const c = (rgba[i * 4]! << 16) | (rgba[i * 4 + 1]! << 8) | rgba[i * 4 + 2]!;
+    const c = rgbAt(rgba, i);
     counts.set(c, (counts.get(c) ?? 0) + 1);
   }
   const { palette, index } = quantize(counts, MAX_ART_COLORS);
   const pal = new Uint8Array(768);
-  palette.forEach((c, i) => pal.set([(c >> 16) & 255, (c >> 8) & 255, c & 255], (i + 1) * 3));
+  palette.forEach((c, i) => pal.set(rgbOf(c), (i + 1) * 3));
 
   const problems: string[] = [];
   const empty: number[] = [];
@@ -270,7 +297,7 @@ export function artFromGuide(spec: TemplateSpec, page: PngImage, layout: GuideLa
       for (let x = 0; x < GUIDE_BOX.width; x++) {
         const i = (oy + y) * W + ox + x;
         if (rgba[i * 4 + 3]! < 128) continue;
-        pixels[y * GUIDE_BOX.width + x] = index.get((rgba[i * 4]! << 16) | (rgba[i * 4 + 1]! << 8) | rgba[i * 4 + 2]!)! + 1;
+        pixels[y * GUIDE_BOX.width + x] = index.get(rgbAt(rgba, i))! + 1;
         if (x === 0 || y === 0 || x === GUIDE_BOX.width - 1 || y === GUIDE_BOX.height - 1) edge++;
       }
     }
@@ -287,7 +314,7 @@ export function artFromGuide(spec: TemplateSpec, page: PngImage, layout: GuideLa
   const { dx, dy } = offset(spec, layout);
   const boxOf = new Map(layout.cells.map((c, n) => [c, n]));
   const cache = new Map<number, IndexedImage>();
-  return {
+  const art: CellSource = {
     palette: pal,
     cellWidth: spec.art.cellWidth,
     cellHeight: spec.art.cellHeight,
@@ -304,6 +331,128 @@ export function artFromGuide(spec: TemplateSpec, page: PngImage, layout: GuideLa
       return img;
     },
   };
+  return { art, rgba, colors: palette, index };
+}
+
+/** How much of a drawing may differ between the sprite sheet and an alternate colour sheet (stray pixels), as a share of the drawn pixels. */
+const ALTERNATE_SHAPE_TOLERANCE = 0.02;
+/** How much of an alternate colour sheet has to follow one colour swap per sprite sheet colour. */
+const ALTERNATE_SWAP_SHARE = 0.9;
+
+/**
+ * An alternate colour sheet: a copy of the sprite sheet with its colours
+ * changed. Each of the drawing's colours becomes the colour most often drawn
+ * over it, which gives the fighter another palette (an outfit). Throws a
+ * GuideError when it isn't the same drawing, or when it can't be done with
+ * one colour swap per colour.
+ */
+function alternateColors(base: Drawing, page: PngImage, layout: GuideLayout): Uint8Array {
+  if (page.width !== layout.width || page.height !== layout.height) {
+    throw new GuideError([`it is ${page.width}x${page.height} pixels, but the sprite sheet is ${layout.width}x${layout.height}: recolour a copy of the sprite sheet and keep its size`]);
+  }
+  const rgba = rgbaOf(page);
+  if (!rgba) throw new GuideError(["it has no transparent background: recolour a copy of the sprite sheet, keeping everything around the drawing transparent"]);
+  const tallies = base.colors.map(() => new Map<number, number>());
+  let drawn = 0, moved = 0;
+  for (let i = 0; i < page.width * page.height; i++) {
+    const inBase = base.rgba[i * 4 + 3]! >= 128, inAlt = rgba[i * 4 + 3]! >= 128;
+    if (inBase) drawn++;
+    if (inBase !== inAlt) moved++;
+    if (!inBase || !inAlt) continue;
+    const t = tallies[base.index.get(rgbAt(base.rgba, i))!]!;
+    const c = rgbAt(rgba, i);
+    t.set(c, (t.get(c) ?? 0) + 1);
+  }
+  if (moved > drawn * ALTERNATE_SHAPE_TOLERANCE) {
+    throw new GuideError([`it isn't the same drawing as the sprite sheet (${Math.round((moved / Math.max(1, drawn)) * 100)}% of the drawing is in different places): only change the colours of a copy of the sprite sheet`]);
+  }
+  const near = (a: number, b: number) => rgbOf(a).every((v, k) => Math.abs(v - rgbOf(b)[k]!) <= 40);
+  const pal = new Uint8Array(768);
+  let swapped = 0, total = 0;
+  tallies.forEach((t, k) => {
+    let best = base.colors[k]!, most = 0;
+    for (const [c, n] of t) if (n > most || (n === most && c < best)) [best, most] = [c, n];
+    pal.set(rgbOf(best), (k + 1) * 3);
+    for (const [c, n] of t) {
+      total += n;
+      if (near(c, best)) swapped += n;
+    }
+  });
+  if (total > 0 && swapped < total * ALTERNATE_SWAP_SHARE) {
+    throw new GuideError(["parts that are one colour on the sprite sheet are different colours here: an alternate colour sheet can only swap each colour for another, so keep parts that share a colour on the sprite sheet the same colour"]);
+  }
+  return pal;
+}
+
+/** Colours a portrait may use: fewer than the fighter's 256, so the engine never mistakes its palette for one of the fighter's colours. */
+export const MAX_PORTRAIT_COLORS = 254;
+
+export interface PortraitArt {
+  small: IndexedImage;
+  large: IndexedImage;
+  /** Its own palette: index 0 transparent, at most MAX_PORTRAIT_COLORS colours after it. */
+  palette: Uint8Array;
+}
+
+/**
+ * A submitted portrait as the fighter's lifebar faces: the drawn part
+ * (transparent margins trimmed), cut square (from the top of a tall picture,
+ * the middle of a wide one), shrunk with averaging, in its own colours.
+ */
+export function portraitArt(page: PngImage): PortraitArt {
+  const rgba = toRgba(page);
+  const W = page.width;
+  let x0 = W, y0 = page.height, x1 = 0, y1 = 0;
+  for (let y = 0; y < page.height; y++) {
+    for (let x = 0; x < W; x++) {
+      if (rgba[(y * W + x) * 4 + 3]! < 128) continue;
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x >= x1) x1 = x + 1;
+      if (y >= y1) y1 = y + 1;
+    }
+  }
+  if (x1 <= x0) throw new GuideError(["there's nothing on it: it's all transparent"]);
+  const side = Math.min(x1 - x0, y1 - y0);
+  const left = x0 + Math.floor((x1 - x0 - side) / 2);
+  const top = y0;
+  // Each face pixel: the average of the picture's pixels under it (colours weighted by how opaque they are).
+  const shrink = (size: number) => {
+    const out = new Uint8Array(size * size * 4);
+    for (let ty = 0; ty < size; ty++) {
+      const sy0 = top + Math.floor((ty * side) / size), sy1 = Math.max(sy0 + 1, top + Math.floor(((ty + 1) * side) / size));
+      for (let tx = 0; tx < size; tx++) {
+        const sx0 = left + Math.floor((tx * side) / size), sx1 = Math.max(sx0 + 1, left + Math.floor(((tx + 1) * side) / size));
+        let r = 0, g = 0, b = 0, a = 0, n = 0;
+        for (let y = sy0; y < sy1; y++) {
+          for (let x = sx0; x < sx1; x++) {
+            const o = (y * W + x) * 4, al = rgba[o + 3]!;
+            r += rgba[o]! * al;
+            g += rgba[o + 1]! * al;
+            b += rgba[o + 2]! * al;
+            a += al;
+            n++;
+          }
+        }
+        if (a / n >= 128) out.set([Math.round(r / a), Math.round(g / a), Math.round(b / a), 255], (ty * size + tx) * 4);
+      }
+    }
+    return out;
+  };
+  const faces = { small: shrink(FACE_SIZES.small), large: shrink(FACE_SIZES.large) };
+  const counts = new Map<number, number>();
+  for (const f of [faces.small, faces.large]) {
+    for (let i = 0; i < f.length / 4; i++) if (f[i * 4 + 3]) counts.set(rgbAt(f, i), (counts.get(rgbAt(f, i)) ?? 0) + 1);
+  }
+  const { palette, index } = quantize(counts, MAX_PORTRAIT_COLORS);
+  const indexed = (f: Uint8Array, size: number): IndexedImage => {
+    const pixels = new Uint8Array(size * size);
+    for (let i = 0; i < size * size; i++) if (f[i * 4 + 3]) pixels[i] = index.get(rgbAt(f, i))! + 1;
+    return { width: size, height: size, pixels };
+  };
+  const pal = new Uint8Array((palette.length + 1) * 3);
+  palette.forEach((c, i) => pal.set(rgbOf(c), (i + 1) * 3));
+  return { small: indexed(faces.small, FACE_SIZES.small), large: indexed(faces.large, FACE_SIZES.large), palette: pal };
 }
 
 /** Printable ASCII without quotes or semicolons (a .def comment or a quoted value can't be broken out of), at most 60 characters. */
@@ -319,51 +468,82 @@ export interface CommunityIdentity {
   credit: string;
 }
 
-/** The drawing's palette, plus the template's projectile colours in their slots. */
-function fighterPalette(art: CellSource): SffPalette {
-  const colors = art.palette.slice();
+/** A palette of the drawing's colours (or an alternate's), plus the template's projectile colours in their slots, as the fighter's colour `number`. */
+function fighterPalette(colors: Uint8Array, number: number): SffPalette {
+  const out = colors.slice();
   PROJECTILE_SLOTS.forEach((slot, i) => {
     const hex = PROJECTILE_COLORS[i]!;
-    colors.set([1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16)), slot * 3);
+    out.set([1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16)), slot * 3);
   });
-  return { group: 1, number: 1, colors };
+  return { group: 1, number, colors: out };
+}
+
+/** The other images of a community fighter. */
+export interface CommunityImages {
+  /** Its portrait, for the lifebar faces (without one they're cut from the fighter's stance). */
+  portrait?: PngImage;
+  /** Alternate colour sheets: copies of the sprite sheet in other colours, one more palette (outfit) each. */
+  alternates?: readonly PngImage[];
+}
+
+/** Run `read`, labelling its problems with the image they're in. */
+function labelled<T>(label: string, read: () => T): { value?: T; problems: string[] } {
+  try {
+    return { value: read(), problems: [] };
+  } catch (e) {
+    if (e instanceof GuideError) return { problems: e.problems.map((p) => `${label}: ${p}`) };
+    throw e;
+  }
 }
 
 /**
  * Every file of a community fighter drawn on `spec`'s guide: the template's
- * code with the new art, collision boxes and reach from the new pixels.
- * Throws a GuideError for problems with the drawing.
+ * code with the new art, collision boxes and reach from the new pixels, its
+ * portrait as the lifebar faces and an extra palette per alternate colour
+ * sheet. Throws a GuideError listing what to fix, each problem starting with
+ * the image it's in ("its sprite sheet", "its portrait", "its alternate colour
+ * sheet 2").
  */
-export function communityFiles(spec: TemplateSpec, page: PngImage, who: CommunityIdentity): TemplateFiles & { reach: Map<number, number> } {
+export function communityFiles(spec: TemplateSpec, page: PngImage, who: CommunityIdentity, images: CommunityImages = {}): TemplateFiles & { reach: Map<number, number> } {
   if (!/^gi-[a-z0-9-]+$/.test(who.id)) throw new Error(`not a Greed Island character id: ${who.id}`);
-  const art = artFromGuide(spec, page);
-  const palette = fighterPalette(art);
+  const layout = guideLayout(spec);
+  const SHEET = "its sprite sheet";
+  const portrait = images.portrait ? labelled("its portrait", () => portraitArt(images.portrait!)) : { problems: [] };
+  const sheet = labelled(SHEET, () => readDrawing(spec, page, layout));
+  if (!sheet.value) throw new GuideError([...sheet.problems, ...portrait.problems]);
+  const drawing = sheet.value;
+  const alternates = (images.alternates ?? []).map((alt, i) => labelled(`its alternate colour sheet ${i + 1}`, () => alternateColors(drawing, alt, layout)));
+  const problems = [...portrait.problems, ...alternates.flatMap((a) => a.problems)];
+  if (problems.length) throw new GuideError(problems);
+  const art = drawing.art;
+  const palettes = [fighterPalette(art.palette, 1), ...alternates.map((a, i) => fighterPalette(a.value!, i + 2))];
   let built;
   try {
-    built = buildTemplateArt(spec, art, { palettes: [palette] });
+    built = buildTemplateArt(spec, art, { palettes, ...(portrait.value ? { portrait: portrait.value } : {}) });
   } catch (e) {
     // The builder speaks in cells and actions; say which box of the guide it is, and what to draw.
-    const layout = guideLayout(spec);
     const message = (e as Error).message;
     const box = (cell: string) => layout.cells.indexOf(Number(cell)) + 1;
     const reach = /^action (\d+) frame \d+ \(cell (\d+)\): nothing reaches out/.exec(message);
     if (reach) {
       const move = [...spec.attacks, ...(spec.throws ?? [])].find((m) => m.state === Number(reach[1]))?.name ?? `move ${reach[1]}`;
-      throw new GuideError([`box ${box(reach[2]!)} (the ${move} as it hits): nothing reaches out past the move's first frame, so it can't hit anything; draw the strike reaching forward`]);
+      throw new GuideError([`${SHEET}: box ${box(reach[2]!)} (the ${move} as it hits): nothing reaches out past the move's first frame, so it can't hit anything; draw the strike reaching forward`]);
     }
-    throw new GuideError([message.replace(/\(cell (\d+)\)|cell (\d+)/, (_m, a: string | undefined, b: string | undefined) => `(box ${box(a ?? b!)})`)]);
+    throw new GuideError([`${SHEET}: ${message.replace(/\(cell (\d+)\)|cell (\d+)/, (_m, a: string | undefined, b: string | undefined) => `(box ${box(a ?? b!)})`)}`]);
   }
   const reach = measureReach(spec, built.actions);
   // Names a player typed end up in the engine's files: keep them to plain, quote-free text.
   const named: TemplateSpec = { ...spec, id: who.id, name: engineText(who.name) || "Community Fighter", art: { ...spec.art, credit: engineText(who.credit) } };
   const files = withHash(built, [
-    [`${who.id}.def`, Buffer.from(defFile(named, 1, `a Greed Island community fighter on the ${spec.name} template (${spec.archetype}), built from its own art`), "latin1")],
+    [`${who.id}.def`, Buffer.from(defFile(named, palettes.length, `a Greed Island community fighter on the ${spec.name} template (${spec.archetype}), built from its own art`), "latin1")],
     ["gi.cns", Buffer.from(constantsFile(named), "latin1")],
     ["gi-states.cns", Buffer.from(statesFile(named), "latin1")],
     ["gi.cmd", Buffer.from(commandsFile(named, reach), "latin1")],
     ["gi.air", Buffer.from(built.air, "latin1")],
     ["gi.sff", built.sff],
-    ["card.png", cardImage(spec, art, palette.colors)],
+    ["card.png", cardImage(spec, art, palettes[0]!.colors)],
+    // Its other outfits, for staff to look at.
+    ...palettes.slice(1).map((p): [string, Buffer] => [`card-${p.number}.png`, cardImage(spec, art, p.colors)]),
     ["numbers.json", Buffer.from(JSON.stringify(fighterNumbers(named, reach), null, 2) + "\n")],
   ]);
   return { ...files, reach };

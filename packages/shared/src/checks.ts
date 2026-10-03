@@ -2,9 +2,9 @@
  * The automatic checks on a submitted fighter (docs/PHASE3.md step 4): what a
  * run reports, and whether it passed. Pure.
  *
- * A check runs on the engine character the fighter will fight as. Until
- * community fighters are built from their own art, that is its archetype's
- * template, with the template's art (`ownArt: false`).
+ * A check runs on the engine character the fighter will fight as: the one
+ * built from its own art when its sprite sheet is drawn on its archetype's
+ * guide, else its archetype's template, with the template's art (`ownArt: false`).
  */
 
 export interface CheckSettings {
@@ -56,8 +56,8 @@ export interface BalanceResult {
 }
 
 export interface CheckResults {
-  /** The engine character it was checked as; `defPath` is what a released fighter plays with when it was built from its own art. */
-  checkedAs: { fighterId: string; name: string; ownArt: boolean; defPath?: string };
+  /** The engine character it was checked as; `defPath` is what a released fighter plays with when it was built from its own art, `outfits` how many colour schemes that build has. */
+  checkedAs: { fighterId: string; name: string; ownArt: boolean; defPath?: string; outfits?: number };
   smoke: SmokeResult;
   /** Null when the smoke test failed: the rest wasn't run. */
   template: TemplateResult | null;
@@ -94,7 +94,11 @@ const pct = (share: number) => `${(share * 100).toFixed(1)}%`;
 /** One line per check, for the staff page and logs. */
 export function describeChecks(r: CheckResults): string[] {
   const lines = [
-    `Checked as ${r.checkedAs.name}${r.checkedAs.ownArt ? "" : " (its archetype's template, with the template's art: this fighter's own art isn't built into a character yet)"}.`,
+    `Checked as ${r.checkedAs.name}${
+      r.checkedAs.ownArt
+        ? `, built from its own art${(r.checkedAs.outfits ?? 1) > 1 ? ` in ${r.checkedAs.outfits} outfits (its alternate colour sheets)` : ""}`
+        : " (its archetype's template, with the template's art: this fighter's own art isn't built into a character yet)"
+    }.`,
     `Smoke test: ${r.smoke.ok ? "passed" : "FAILED"}. ${r.smoke.detail}`,
   ];
   if (r.template) lines.push(`Template check: ${r.template.ok ? "passed (moves and numbers are within its archetype's limits)" : `FAILED. ${r.template.findings.join("; ")}`}.`);

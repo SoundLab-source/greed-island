@@ -71,7 +71,7 @@ async function claimNext(db: Db, now: Date): Promise<CheckRow | null> {
 async function castFor(db: Db, submissionId: string) {
   const sub = await db.submission.findUniqueOrThrow({
     where: { id: submissionId },
-    select: { id: true, number: true, archetype: true, fighterName: true, community: true, files: { where: { role: "SPRITES" }, select: { sha256: true, width: true, height: true } } },
+    select: { id: true, number: true, archetype: true, fighterName: true, community: true, files: { where: { role: { in: ["SPRITES", "PORTRAIT", "PALETTE"] } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { role: true, sha256: true, width: true, height: true } } },
   });
   const roster = await db.fighter.findMany({ where: { enabled: true, source: "ROSTER" }, orderBy: { id: "asc" } });
   const standIn = pickStandIn(roster, sub.archetype);
@@ -99,7 +99,17 @@ export async function runNextSubmissionCheck(db: Db, deps: CheckRunnerDeps, cloc
     if (!deps.source) throw new CheckError("this server has no game engine to run the checks with (IKEMEN_DIR isn't set)");
     const cast = await castFor(db, run.submissionId);
     // Built from its own art when its sprite sheet is drawn on the guide; otherwise checked as its template.
-    const own = deps.ownArt ? await deps.ownArt({ ...cast.sub, sprites: cast.sub.files }) : null;
+    const { files, ...sub } = cast.sub;
+    const image = ({ sha256, width, height }: (typeof files)[number]) => ({ sha256, width, height });
+    const portrait = files.find((f) => f.role === "PORTRAIT");
+    const own = deps.ownArt
+      ? await deps.ownArt({
+          ...sub,
+          sprites: files.filter((f) => f.role === "SPRITES").map(image),
+          portrait: portrait ? image(portrait) : null,
+          alternates: files.filter((f) => f.role === "PALETTE").map(image),
+        })
+      : null;
     const artFindings =
       own?.kind === "problems" ? own.problems
       : own?.kind === "none" ? [own.problem]
@@ -117,6 +127,7 @@ export async function runNextSubmissionCheck(db: Db, deps: CheckRunnerDeps, cloc
       { source: deps.source, parallel: deps.parallel, referenceRecords: deps.referenceRecords, ...(deps.signal ? { signal: deps.signal } : {}) },
     );
     if (deps.signal?.aborted) return null;
+    if (own?.kind === "built") results.checkedAs.outfits = own.outfits;
     if (results.template && artFindings.length) results.template = { ok: false, findings: [...artFindings, ...results.template.findings] };
     // A fighter with no template of its archetype would play as someone else's character: that's a finding.
     if (!cast.standIn.id.startsWith(TEMPLATE_ID_PREFIX) && results.template) {

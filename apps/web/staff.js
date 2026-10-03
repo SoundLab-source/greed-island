@@ -56,15 +56,15 @@ function checksBlock(s) {
   return `<div><strong>Automatic checks:</strong> <span class="${c.status === "FAILED" || c.status === "ERROR" ? "error" : ""}">${esc(CHECK_LABELS[c.status] ?? c.status)}</span>
     <span class="muted">${busy ? `asked ${when(c.createdAt)}` : `finished ${when(c.finishedAt)}`}${c.requestedBy ? `, asked for by ${esc(c.requestedBy)}` : ""}</span> ${busy ? "" : again}
     ${c.error ? `<br><span class="error">${esc(c.error)}</span>` : ""}${lines ? `<ul>${lines}</ul>` : ""}
-    ${c.results?.checkedAs?.ownArt ? `<img data-card="${s.id}" alt="the fighter as built" style="max-height:160px;image-rendering:pixelated;border:1px solid #ccc">` : ""}</div>`;
+    ${c.results?.checkedAs?.ownArt ? Array.from({ length: c.results.checkedAs.outfits ?? 1 }, (_, i) => `<img data-card="${s.id}" data-outfit="${i + 1}" alt="the fighter as built${i ? `, outfit ${i + 1}` : ""}" title="${i ? `outfit ${i + 1}` : "main colours"}" style="max-height:160px;image-rendering:pixelated;border:1px solid #ccc;margin-right:4px">`).join("") : ""}</div>`;
 }
 
-// The picture of a submission's fighter as built from its own art (needs the session header, like the images).
+// The pictures of a submission's fighter as built from its own art, one per outfit (needs the session header, like the images).
 async function showCards() {
   for (const img of document.querySelectorAll("img[data-card]")) {
-    const key = `card:${img.dataset.card}`;
+    const key = `card:${img.dataset.card}:${img.dataset.outfit}`;
     if (!thumbs.has(key)) {
-      const res = await fetch(`/api/staff/submissions/${img.dataset.card}/card`, { headers: { authorization: `Bearer ${token()}` } });
+      const res = await fetch(`/api/staff/submissions/${img.dataset.card}/card?outfit=${img.dataset.outfit}`, { headers: { authorization: `Bearer ${token()}` } });
       thumbs.set(key, res.ok ? URL.createObjectURL(await res.blob()) : "");
     }
     img.src = thumbs.get(key);

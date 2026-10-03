@@ -32,6 +32,7 @@ import {
   parseSalt,
   SIDEGRADES,
   ARCHETYPES,
+  FILE_ROLE_RULES,
   FILE_ROLES,
   isStaff,
   RIGHTS_BASES,
@@ -492,11 +493,13 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     deps.onCheckQueued?.();
     return send(reply, await submissionDetail(db, sub.id, { id: userId, staff: false }));
   });
-  // Staff: the picture of a submission's fighter as built from its own art (by its automatic checks).
-  app.get<{ Params: { id: string } }>("/api/staff/submissions/:id/card", async (req, reply) => {
+  // Staff: the picture of a submission's fighter as built from its own art (by its automatic checks), in its main colours or `?outfit=2` onwards.
+  app.get<{ Params: { id: string }; Querystring: { outfit?: string } }>("/api/staff/submissions/:id/card", async (req, reply) => {
     await requireStaffViewer(req, "review");
+    const outfit = z.coerce.number().int().min(1).max(1 + FILE_ROLE_RULES.PALETTE.max).default(1).parse(req.query.outfit);
     const sub = await db.submission.findUnique({ where: { id: uuid.parse(req.params.id) }, select: { number: true } });
-    const bytes = sub && deps.ikemenDir ? await readFile(path.join(deps.ikemenDir, "chars", submissionCharacterId(sub.number), "card.png")).catch(() => null) : null;
+    const file = outfit === 1 ? "card.png" : `card-${outfit}.png`;
+    const bytes = sub && deps.ikemenDir ? await readFile(path.join(deps.ikemenDir, "chars", submissionCharacterId(sub.number), file)).catch(() => null) : null;
     if (!bytes) throw new HttpError(404, "NOT_FOUND", "this submission's fighter hasn't been built");
     return reply.type("image/png").header("cache-control", "private, no-cache").send(bytes);
   });
