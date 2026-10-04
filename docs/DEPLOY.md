@@ -163,7 +163,7 @@ Before telling anyone the address:
 
 ## Linux (systemd)
 
-The same jobs as user units, with the screen session logged in automatically (and Xvfb untested: see [ikemen-notes.md](ikemen-notes.md)). In `~/.config/systemd/user/greed-island.service`:
+The same jobs as user units, with the screen session logged in automatically, or on a server with no screen, a virtual one: [SETUP.md](SETUP.md) §3 has the packages, the virtual screen and sound, and capturing them (tried in Docker 2026-10-03; the overlay through OBS there isn't yet). In `~/.config/systemd/user/greed-island.service`:
 
 ```ini
 [Unit]

@@ -44,7 +44,7 @@ First real run: 2026-09-29, macOS arm64 (Apple M4 Max), `pnpm match:once --sim`,
 | Several engines at once | RUN (macOS arm64, 2026-10-02) | Six IKEMEN processes started together from the same folder each finish their own fight (own `-log`, `-config`, `-salty.events` paths): 200 fights, 6 at a time at 100×, in 68 seconds, none failed. |
 | Window placement (macOS) | RUN (local) | Launched by the runner (a background process), the game window opens **behind** the app in front: 1280x720 windowed, owner "I.K.E.M.E.N-Go", bundle `com.github.ikemen-engine.ikemen-go`. Activating the process with AppKit (`NSRunningApplication.activateWithOptions`, via `osascript -l JavaScript`) brings it to the front; with `GI_GAME_TO_FRONT=true` the runner does this 2.5 s after launch (front within ~2 s; fights continued normally, e.g. #114, #129; 2026-09-29). |
 | macOS Gatekeeper | RUN (local) | The v1.0.0 macOS release is unsigned (`spctl`: "no usable signature") and downloads arrive quarantined, so macOS blocks the binary until the user allows it once (e.g. by opening `Ikemen_GO.command`, which removes the quarantine flag itself). |
-| Headless | UNVERIFIED | SDL video init is mandatory (`src/main.go:113`, `src/system.go`); there is no headless flag in the parser. Linux servers need Xvfb (+ Mesa for GL). Not tested. |
+| Headless | SOURCE, RUN | SDL video init is mandatory (`src/main.go:113`, `src/system.go`); there is no headless flag in the parser. On Linux it runs on a virtual X screen (Xvfb) with OpenGL in software (Mesa llvmpipe, OpenGL 4.5): the official `Ikemen_GO_Linux` (x86-64, linked against its own `lib/` copies of SDL2 and ffmpeg plus the system's GL, X11, GTK 3, ALSA and PulseAudio libraries) ran a sim fight to the end with our event mod, and a live fight at about real time, in Docker under x86-64 emulation on an M4 Mac (2026-10-03; `deploy/linux/Dockerfile`, docs/SETUP.md §3). With no sound device it prints ALSA errors and carries on; with a PulseAudio null sink its sound can be recorded. |
 
 ## 2. Lua: mods and hooks
 
@@ -149,5 +149,5 @@ Still open:
 1. Whether commas in `Common.Lua` values are split (our line has none, so it doesn't matter yet).
 2. Exit codes when the engine crashes or is killed on a real build (runner handles any exit without `match_end` as a crash).
 3. A draw or double-KO round in a real match (event and `-log` shape for `winnerSide: 0`).
-4. Xvfb on Linux.
+4. Xvfb on Linux: tried in Docker (§1 "Headless"); OBS with the overlay on a Linux virtual screen is not.
 5. macOS: opening the `.app` from Finder runs it translocated (read-only copy), which fails with "open save/stats.json: read-only file system". Launching the binary directly with `cwd = IKEMEN_DIR`, as the runner does, works once the user has approved the app.

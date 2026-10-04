@@ -119,7 +119,7 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 - Optional engineering: make "capture only the game window" work, so a Mac in daily use can stream without the game taking focus.
 
 **Also needed before a public stream**
-- Running on a Linux server with a virtual display (Xvfb): written up, not yet tried.
+- Running on a Linux server with a virtual display (Xvfb): ✅ tried in Docker on this Mac (2026-10-03, `deploy/linux/Dockerfile`): the official Linux build runs fights with our event mod at real speed with software graphics, and ffmpeg records picture and sound at a steady 30 fps ([SETUP.md](docs/SETUP.md) §3). Not yet: the overlay (OBS on the server's virtual screen), and a push to Twitch.
 - Replace or license the characters: Kung Fu Man and the 8 house characters built from it are **non-commercial only**. Stage licences also need checking.
 - ✅ Twitch and YouTube rules on play-money betting, read 2026-10-03 ([DEPLOY.md](docs/DEPLOY.md) §6): Twitch's gambling ban is about real-money slots, roulette and dice sites, so a Salt stream fits (Salty Bet has run there since 2013); YouTube age-restricts even play-money betting and NFT content, and doesn't want viewers sent to uncertified betting sites, so Twitch first. For the lawyer to confirm.
 

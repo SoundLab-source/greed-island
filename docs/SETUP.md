@@ -72,17 +72,36 @@ pnpm staff:role you@example.com admin
 
 ## 3. Linux server (24/7 stream)
 
-IKEMEN needs a display and OpenGL. On a server, give it a virtual one:
+IKEMEN has no headless mode: on a server it needs a virtual screen, OpenGL in software and, for sound, a sound server with no speakers. **Tried 2026-10-03** in Docker on this Mac (`deploy/linux/Dockerfile`: Debian 12, the official `Ikemen_GO-v1.0.0-linux.zip` x86-64 build under emulation): a fast sim fight finished with every event from our mod; a normal-speed fight ran at about real time with software OpenGL (Mesa llvmpipe, OpenGL 4.5), and ffmpeg recorded it at a steady 30 fps (600 frames in 20 s, none dropped) with its sound. A real x86-64 server runs it natively, so faster.
+
+The packages (Debian/Ubuntu; the Dockerfile has the same list, from `ldd Ikemen_GO_Linux`):
+
+```bash
+sudo apt-get install -y --no-install-recommends libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libx11-6 libxext6 libxcursor1 libxinerama1 libxi6 libxfixes3 libxrandr2 libxss1 libxxf86vm1 libdrm2 libgbm1 libwayland-client0 libwayland-cursor0 libwayland-egl1 libxkbcommon0 libdecor-0-0 libgtk-3-0 libasound2 libpulse0 xvfb xauth mesa-utils ffmpeg pulseaudio pulseaudio-utils
+```
+
+The virtual screen and sound, as the user that runs the stream (not root):
 
 ```bash
 Xvfb :99 -screen 0 1280x720x24 &
 export DISPLAY=:99
-glxinfo -B | grep -i "renderer"   # Mesa llvmpipe works without a GPU; a GPU is better for a steady 60 fps
+glxinfo -B | grep -i renderer        # "llvmpipe": OpenGL in software, no GPU needed
+pulseaudio --daemonize --exit-idle-time=-1
+pactl load-module module-null-sink sink_name=stream
+pactl set-default-sink stream
 ```
 
-Then run `ENGINE_MODE=live pnpm dev` as above, with `IKEMEN_DIR` pointing at the Linux release. Sound needs an audio server even with no speakers, e.g. PulseAudio with a null sink (`pactl load-module module-null-sink sink_name=stream`).
+Then run `ENGINE_MODE=live pnpm dev` as above, with `IKEMEN_DIR` pointing at the Linux release (the runner finds `Ikemen_GO_Linux` by itself). Copy in our generated characters and stages (`pnpm templates:build`, `pnpm stages:build`) and the event mod (`pnpm ikemen:install-mod`). Without sound, ALSA prints errors to the game's stderr at start; they're harmless.
 
-**UNVERIFIED:** nothing on Linux has been run yet (see `docs/ikemen-notes.md` §7). Do one `pnpm match:once` there before trusting it.
+Capturing it (this part was tried; the push to Twitch at the end wasn't, for want of a stream key):
+
+```bash
+ffmpeg -f x11grab -draw_mouse 0 -video_size 1280x720 -framerate 30 -i :99 -f pulse -i stream.monitor \
+  -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k -g 60 -pix_fmt yuv420p \
+  -c:a aac -b:a 128k -f flv "rtmp://live.twitch.tv/app/$TWITCH_STREAM_KEY"
+```
+
+`-draw_mouse 0` keeps the virtual screen's mouse cursor out of the picture. That streams the fights only: the betting screen between fights and the fight bar are web pages (`overlay.html`), which need OBS running on the same virtual screen (`obs --startstreaming --minimize-to-tray`, with a browser source; the OBS build has to include browser sources). **Not tried yet.**
 
 ## 4. Adding characters and stages
 
