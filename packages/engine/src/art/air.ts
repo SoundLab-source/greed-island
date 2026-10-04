@@ -56,3 +56,36 @@ export function writeAir(actions: readonly AirAction[], header = ""): string {
   }
   return `${lines.join("\n")}\n`;
 }
+
+export interface FrameBoxes {
+  clsn1: Box[];
+  clsn2: Box[];
+}
+
+/** The boxes of each frame of each action in an .air file as `writeAir` writes them (boxes apply to the next frame only). */
+export function readAirBoxes(text: string): Map<number, FrameBoxes[]> {
+  const out = new Map<number, FrameBoxes[]>();
+  let frames: FrameBoxes[] | null = null;
+  let pending: FrameBoxes = { clsn1: [], clsn2: [] };
+  for (const raw of text.split("\n")) {
+    const line = raw.replace(/;.*/, "").trim();
+    if (!line) continue;
+    const begin = /^\[Begin Action (-?\d+)\]$/i.exec(line);
+    if (begin) {
+      frames = [];
+      out.set(Number(begin[1]), frames);
+      pending = { clsn1: [], clsn2: [] };
+      continue;
+    }
+    const box = /^Clsn([12])\[\d+\]\s*=\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)$/i.exec(line);
+    if (box) {
+      (box[1] === "1" ? pending.clsn1 : pending.clsn2).push([Number(box[2]), Number(box[3]), Number(box[4]), Number(box[5])]);
+      continue;
+    }
+    if (frames && /^-?\d+\s*,\s*-?\d+\s*,/.test(line)) {
+      frames.push(pending);
+      pending = { clsn1: [], clsn2: [] };
+    }
+  }
+  return out;
+}
