@@ -77,9 +77,14 @@ describe("ikemen runner", () => {
 
   it("kills a hung engine (escalating to SIGKILL) and reports a timeout", async () => {
     const started = Date.now();
-    const outcome = await source("hang", 500).run(spec("hang"));
-    expect(outcome.kind).toBe("engine_timeout");
+    const outcome = await source("hang", 500, { isScreenLocked: async () => false }).run(spec("hang"));
+    expect(outcome).toEqual({ kind: "engine_timeout", detail: "killed after 500 ms" });
     expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it("names a locked screen as the likely cause of a timeout", async () => {
+    const outcome = await source("hang", 300, { isScreenLocked: async () => true }).run(spec("hang-locked"));
+    expect(outcome).toMatchObject({ kind: "engine_timeout", detail: expect.stringContaining("the screen is locked") });
   });
 
   it("falls back to -log when the event mod wrote nothing", async () => {

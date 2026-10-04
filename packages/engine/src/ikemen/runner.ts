@@ -17,6 +17,7 @@ import { buildArgs, runConfigIni, type RunPaths } from "./args.ts";
 import { deriveCharacter, pruneDerived, readConstants } from "./derive.ts";
 import { findIkemenBinary, isModInstalled } from "./install.ts";
 import { outcomeFromLog } from "./log.ts";
+import { screenLocked } from "./screen.ts";
 import { activateMacApp } from "./window.ts";
 
 /** How many per-fight character copies (attack/defense upgrades) to keep on disk. */
@@ -49,6 +50,8 @@ export interface IkemenSourceOptions {
   bringToFrontDelayMs?: number;
   /** How to bring a process to the front (tests replace it). */
   activate?: (pid: number) => unknown;
+  /** Whether the screen is locked, checked when a fight times out (tests replace it). */
+  isScreenLocked?: () => Promise<boolean>;
 }
 
 /** Reads complete lines appended to a file since the last call. */
@@ -225,7 +228,11 @@ export function createIkemenSource(options: IkemenSourceOptions): EventSource {
         : `exit code ${info?.code ?? "?"}${info?.signal ? `, signal ${info.signal}` : ""}`;
       const meta = { mode: options.mode, durationMs: Date.now() - startedAt, exit: exitDetail };
 
-      if (timedOut) return finish({ kind: "engine_timeout", detail: `killed after ${options.timeoutMs} ms` }, meta);
+      if (timedOut) {
+        // A locked screen keeps a new engine from starting at all (docs/ikemen-notes.md §1): say so where the void shows.
+        const locked = (await (options.isScreenLocked ?? screenLocked)()) ? " (the screen is locked: macOS doesn't let the game start)" : "";
+        return finish({ kind: "engine_timeout", detail: `killed after ${options.timeoutMs} ms${locked}` }, meta);
+      }
       if (run.signal?.aborted) return finish({ kind: "engine_crash", detail: "aborted" }, meta);
 
       const outcome = tracker.outcome(exitDetail);

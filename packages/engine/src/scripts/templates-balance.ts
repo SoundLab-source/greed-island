@@ -18,6 +18,7 @@ import { summarize, summarizeSides } from "../balance/stats.ts";
 import { loadEngineConfig } from "../config.ts";
 import { matchDetailFromLog } from "../ikemen/log.ts";
 import { createIkemenSource } from "../ikemen/runner.ts";
+import { waitForUnlockedScreen } from "../ikemen/screen.ts";
 import { loadRoster } from "../roster/schema.ts";
 import { TEMPLATES } from "../templates/index.ts";
 import type { FightSpec } from "../types.ts";
@@ -88,10 +89,22 @@ process.once("SIGINT", () => {
   console.log("\nStopping after the fights in progress…");
   abort.abort();
 });
+/** Whether the "screen is locked" pause has been announced (several fights wait for it at once). */
+let pausedForLock = false;
 const startedAt = Date.now();
 const results = await runSeries(
   plan,
   async (fight) => {
+    // A locked screen keeps new fights from starting (docs/ikemen-notes.md §1): wait for it instead of failing them all.
+    await waitForUnlockedScreen({
+      signal: abort.signal,
+      onWait: () => {
+        if (!pausedForLock) console.log("  Paused: the screen is locked, and macOS won't start the game until it's unlocked.");
+        pausedForLock = true;
+      },
+    });
+    pausedForLock = false;
+    if (abort.signal.aborted) return { outcome: { kind: "engine_crash" as const, detail: "aborted" }, detail: null };
     const fightId = randomUUID();
     const side = (id: string) => {
       const f = fighters.find((x) => x.id === id)!;
