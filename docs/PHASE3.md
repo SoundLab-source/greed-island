@@ -180,6 +180,20 @@ Started 2026-10-03, on the owner's go-ahead to source free sprites for new chara
 
 **All ten together (2026-10-04):** a round robin of the five templates and five house fighters, 30 fights a pairing (1,350 fights): Hurricane Orchid 56.3% (then trimmed, above), Feral Lynx 53.7%, Bruiser 52.6%, Thunder Peony 52.2%, Jade Serpent 50.0%, Brawler 48.5%, Wrestler 48.1%, Silver Crane 47.8%, Striker 45.9%, Sage 44.8% (leaning weak, but within what 270 fights can tell apart).
 
+### More bodies: the Bad Company sheets
+
+Added 2026-10-04. Puffolotti's **Bad Company** pack (CC0, art/SOURCES.md) is about twenty more models (soldiers, punks, a big bruiser) on **exactly Universal Prototype 2's layout**: the same pose in the same cell, each sheet with its own cell size, ground point, scale and palette. So every move set on that sheet works on these bodies: `onBody(spec, art)` (`templates/bad-company.ts`) swaps the art source and drops the colours (each model's palette slots are its own, listed with it). Each model is measured once: its ground point and size against Universal Prototype 2's on the same cells, which sets its localcoord so it stands the same height on screen; its specks of stray colour; and which palette slots are skin, hair, shirt, trousers, gloves and boots. Five are used, one per archetype, so every archetype now has three fighters:
+
+| Fighter | Model | Base | What's its own | Balance (300 fights against the other ten) |
+|---|---|---|---|---|
+| **Crimson Mongoose** (ALL_ROUNDER) | Banderas, a red-haired punk | Brawler | Kickboxing: the sheet's boxing guard, a jab, a stepping cross, an overhand rush and an uppercut (the Brawler's kicks kept); a raised fist to win. Outfits: Crimson, Cobalt, Golden, Venom Mongoose | 66% with the Brawler's numbers (his hunched guard is a small target), **53.3%** at 930 life, attack 94 |
+| **Iron Bison** (HEAVY) | Adler, a big bruiser | Bruiser | Stands taller than everyone: the Bruiser's moves as they are. Outfits: Iron, Black, White, Red Bison | 69% at 12% taller (his reach), **55.0%** at 5% taller |
+| **Neon Gorilla** (GRAPPLER) | Boston, a shirtless punk with a pink mohawk | Wrestler | A wide, knuckles-low stance, an open-handed lunge, a long lunging charge; the Wrestler's throws. Outfits: Neon, Silverback, Jungle, Royal Gorilla | 65% with the Wrestler's numbers, then 870 life, attack 93: **46.7%** |
+| **Violet Hornet** (RUSHDOWN) | Rourke, in a tank top | Striker | A flying side kick for his rush, arms crossed to start. Outfits: Violet, Wasp, Ghost, Night Hornet | 45% with the Striker's numbers, then 3% more life and attack 101: **47.3%** |
+| **Sapphire Mantis** (ZONER) | Fontaine, in navy | Sage | A swaying kung fu stance, a spear hand on one leg, a crane kata to start and win; the Sage's energy palm. Outfits: Sapphire, Jade, Ivory, Ember Mantis | **48.3%** with the Sage's numbers |
+
+**Learned:** a stance that crouches low or wide makes a smaller target and is worth about 15 points (Feral Lynx, Crimson Mongoose and Neon Gorilla each won 65-67% before about 12% less life and 7-8 less attack); a bigger body is worth even more through reach (Iron Bison). Moves drawn in the air or with a step need hand-made hitboxes round the fist or foot, since the automatic box compares the frame with the one before it and catches the moving legs.
+
 ## NFTs as fighters
 
 The owner's direction (2026-09-29), for step 7 and after the templates exist.
