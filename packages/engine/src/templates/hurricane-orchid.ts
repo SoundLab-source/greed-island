@@ -27,8 +27,8 @@ export const HURRICANE_ORCHID: TemplateSpec = {
   id: "gi-hurricane-orchid",
   name: "Hurricane Orchid",
   // A little more life and punch than the Wrestler, for the new model (her coat makes a wider target): the Wrestler's
-  // own moves won 42% on it (balance tool, 2026-10-03).
-  constants: { ...wrestler.constants, life: Math.round(wrestler.constants.life * 1.08), attack: wrestler.constants.attack + 3 },
+  // own moves won 42% on it (balance tool, 2026-10-03). With 8% more life she won 56% among all ten fighters, so 5%.
+  constants: { ...wrestler.constants, life: Math.round(wrestler.constants.life * 1.05), attack: wrestler.constants.attack + 3 },
   // A magenta coat (29-32) over the gold trim, as a luchadora's.
   colors: { 29: "#c0307a", 30: "#94245e", 31: "#651840", 32: "#330c20" },
   palettes: [
