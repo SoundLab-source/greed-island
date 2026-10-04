@@ -170,7 +170,7 @@ Started 2026-10-03, on the owner's go-ahead to source free sprites for new chara
 
 **Feral Lynx** (ALL_ROUNDER, rare): the sheet's feral style on the Brawler's base. A bouncing crouch for a stance, a claws-out prowl for a walk, a swipe and a lunging claw for punches, a snap kick and a long leaning kick, and three specials: a sprinting pounce into a two-handed claw, a rising claw against jumps, and a flip kick; she roars to start and to win (or leaps and somersaults). Four outfits: Feral Lynx, Snow Lynx, Shadow Lynx, Rust Lynx. Balance: her low crouch is a small target, high attacks passing over her, so with the Brawler's numbers she won 67%; with less life and punch (920, 93) **49.0% over 400 fights**. Seen in a real fight against Jade Serpent: claw combos up to 7 hits and her roar.
 
-**Next on this sheet:** a sumo (squat stance, shiko stomp, slaps and charge; cells 5246-5379).
+**Thunder Peony** (HEAVY, rare): sumo, on the Bruiser's base. The sumo crouch for a stance, a pushing shuffle for a walk, tsuppari thrusts, an overhead slap, the shiko leg raise as her big kick, a low leg sweep, the tachiai charge (through projectiles, like the Bruiser's shoulder charge), a rising palm and a lunging two-handed push; she stamps the shiko to start and to win. Four outfits: Thunder Peony, Storm Peony, Plum Blossom, Golden Peony. Balance: **51.0% over 400 fights** with the Bruiser's numbers as they are (she beats the Striker 69% and the Bruiser beats her 64%, uneven pairs like some among the templates). Seen in a real fight.
 
 ## NFTs as fighters
 
