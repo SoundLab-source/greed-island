@@ -112,6 +112,154 @@ export const ROURKE = badCompany("rourke", {
   localcoord: 509,
 });
 
+/**
+ * Alvarez: blond, in a brown shirt and ochre trousers, with dark brown gloves
+ * and boots. Drawn the Universal Prototype 2 model's size. Colours: skin 5-8,
+ * hair 9-12, eyes and brows 16, shirt 25-28, trousers 29-32, boots 37-48,
+ * gloves 49-52. Specks: greens (17-20), greys (21-24), dark reds (33-36), dark
+ * blues (68, 70, 72).
+ */
+export const ALVAREZ = badCompany("alvarez", {
+  file: "alvarez_big_spritesheet.png",
+  sha256: "ab1872e630a0215cd1a8e1c7d61957bef21ce1a7bd0a385b7e10f05be76b5da7",
+  cellWidth: 320,
+  cellHeight: 249,
+  axis: { x: 165, y: 227 },
+  stray: [17, 18, 19, 20, 21, 22, 23, 24, 33, 34, 35, 36, 68, 70, 72],
+  localcoord: 506,
+});
+
+/**
+ * Stevenson: ginger, in olive fatigues, with dark green gloves and brown
+ * boots. Drawn about 4% bigger than the Universal Prototype 2 model. Colours:
+ * skin 5-8, hair 9-12, eyes and brows 16, shirt 25-28, trousers 29-32, boots
+ * 37-48, gloves 49-52. Specks: greys (1-4), cyans (17-20), dark blues (68,
+ * 70, 72).
+ */
+export const STEVENSON = badCompany("stevenson", {
+  file: "stevenson_big_spritesheet.png",
+  sha256: "f5c538c21e8b93747064abe1f5f5caa473ffeb811b84c85ab1f2c6e62780a64c",
+  cellWidth: 336,
+  cellHeight: 256,
+  axis: { x: 173, y: 233 },
+  stray: [1, 2, 3, 4, 17, 18, 19, 20, 68, 70, 72],
+  localcoord: 526,
+});
+
+/**
+ * Wayne: a big bald man in khaki and dark olive. Drawn about 9% bigger than
+ * the Universal Prototype 2 model. Colours: skin 5-8, eyes and brows 16, shirt
+ * 25-28, trousers 29-32, boots 37-48, gloves 49-52. Specks: browns (9-12,
+ * 17-20), greys (21-24), dark blues (68, 72).
+ */
+export const WAYNE = badCompany("wayne", {
+  file: "wayne_big_spritesheet.png",
+  sha256: "f64275dfeb536cc35173cb7f5be3b9fce0a9348a533fbc3662b05cb23b66f166",
+  cellWidth: 348,
+  cellHeight: 264,
+  axis: { x: 178, y: 240 },
+  stray: [9, 10, 11, 12, 17, 18, 19, 20, 21, 22, 23, 24, 68, 70, 72],
+  localcoord: 550,
+});
+
+/**
+ * Jones: purple hair, olive fatigues. Drawn about 9% bigger than the
+ * Universal Prototype 2 model. Colours: skin 5-8, eyes and brows 16, shirt
+ * 25-28, trousers 29-32, boots 37-48, gloves 49-52, hair 53-56. Specks:
+ * browns (9-12), cyans (17-20), greys (21-24), olives (33-36), dark blues
+ * (68, 70, 72).
+ */
+export const JONES = badCompany("jones", {
+  file: "jones_big_spritesheet.png",
+  sha256: "74e0779d405b9e75200bdcd5bc958ef39ea94a54b6d93ed2c23e785433358def",
+  cellWidth: 348,
+  cellHeight: 264,
+  axis: { x: 178, y: 240 },
+  stray: [9, 10, 11, 12, 17, 18, 19, 20, 21, 22, 23, 24, 33, 34, 35, 36, 68, 70, 72],
+  localcoord: 552,
+});
+
+/**
+ * Reinhold: a slight, bald man in olive fatigues. Drawn about 2% smaller than
+ * the Universal Prototype 2 model. Colours: skin 5-8, eyes and brows 16,
+ * shirt 25-28, trousers 29-32, boots 37-48, gloves 49-52. Specks: browns
+ * (9-12), reds (17-20), greys (21-24, 33-36), dark blues (68, 72).
+ */
+export const REINHOLD = badCompany("reinhold", {
+  file: "reinhold_big_spritesheet.png",
+  sha256: "fe475bbeadfe31ed6842f39742bb8cc7b670323cb459e2149180883e73e4eef3",
+  cellWidth: 313,
+  cellHeight: 250,
+  axis: { x: 161, y: 228 },
+  stray: [9, 10, 11, 12, 17, 18, 19, 20, 21, 22, 23, 24, 33, 34, 35, 36, 68, 70, 72],
+  localcoord: 496,
+});
+
+/**
+ * Kelly: spiky brown hair, olive fatigues. Drawn about 11% bigger than the
+ * Universal Prototype 2 model. Colours: skin 5-8, hair 9-12, eyes and brows
+ * 16, shirt 25-28, trousers 29-32, boots 37-48, gloves 49-52. Specks: cyans
+ * (17-20), greys (21-24, 33-36), dark blues (68, 70, 72).
+ */
+export const KELLY = badCompany("kelly", {
+  file: "kelly_big_spritesheet_0.png",
+  sha256: "3ae37bbcc894fff09fe065e5c6c8a1df746fa853361e2609da636f671951b546",
+  cellWidth: 357,
+  cellHeight: 264,
+  axis: { x: 184, y: 240 },
+  stray: [17, 18, 19, 20, 21, 22, 23, 24, 33, 34, 35, 36, 68, 70, 72],
+  localcoord: 561,
+});
+
+/**
+ * Madeira: a broad man in olive fatigues and a cap. Drawn about 11% bigger
+ * than the Universal Prototype 2 model. Colours: skin 5-8, hair 9-12, eyes and
+ * brows 16, shirt 25-28, trousers 29-32, boots 37-48, gloves 49-52, cap 53-56.
+ * Specks: cyans (17-20), greys (21-24), olives (33-36), dark blues (68, 72).
+ */
+export const MADEIRA = badCompany("madeira", {
+  file: "madeira_big_spritesheet.png",
+  sha256: "776ce3cd7ab248e16dbb8388dffba705ceb90cf0d51caccf3f5173d2eeed08f6",
+  cellWidth: 355,
+  cellHeight: 267,
+  axis: { x: 181, y: 242 },
+  stray: [17, 18, 19, 20, 21, 22, 23, 24, 33, 34, 35, 36, 68, 70, 72],
+  localcoord: 561,
+});
+
+/**
+ * Dundee: grey-haired, in olive fatigues and a cap. Drawn the Universal
+ * Prototype 2 model's size. Colours: skin 5-8, hair 9-12, eyes and brows 16,
+ * shirt 25-28, trousers 29-32, boots 37-48, gloves 49-52, cap 53-56. Specks:
+ * browns (17-20), greys (21-24, 33-36), dark blues (68, 72).
+ */
+export const DUNDEE = badCompany("dundee", {
+  file: "dundee_big_spritesheet_0.png",
+  sha256: "799fe2e089a588a6ecc1491f75c8dc4f5cc33859156423dd820ba98b06e3364a",
+  cellWidth: 321,
+  cellHeight: 251,
+  axis: { x: 165, y: 229 },
+  stray: [17, 18, 19, 20, 21, 22, 23, 24, 33, 34, 35, 36, 68, 70, 72],
+  localcoord: 509,
+});
+
+/**
+ * Callaghan: an older man in khaki and a cap. Drawn about 2% smaller than the
+ * Universal Prototype 2 model. Colours: skin 5-8, hair 9-12, eyes and brows
+ * 16, shirt 25-28, trousers 29-32, boots 37-48, gloves 49-52, cap 53-56.
+ * Specks: cyans (17-20), greys (21-24), dark olives (33-36), dark blues (68,
+ * 70, 72).
+ */
+export const CALLAGHAN = badCompany("callaghan", {
+  file: "callaghan_big_spritesheet_0.png",
+  sha256: "04d71e12ee42ce6847d6e8e6577347d32ee6ca06418c5c9da0db308d0adeb939",
+  cellWidth: 313,
+  cellHeight: 247,
+  axis: { x: 160, y: 226 },
+  stray: [17, 18, 19, 20, 21, 22, 23, 24, 33, 34, 35, 36, 68, 70, 72],
+  localcoord: 498,
+});
+
 /** A move set on the Universal Prototype 2 layout, on another body: its own art, and no colours yet (each model's palette is its own). */
 export function onBody(spec: TemplateSpec, art: ArtSource): TemplateSpec {
   return { ...spec, art, colors: {}, palettes: [] };

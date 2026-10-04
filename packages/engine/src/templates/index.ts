@@ -1,15 +1,24 @@
 import { ALL_ROUNDER } from "./all-rounder.ts";
+import { AMETHYST_JAGUAR } from "./amethyst-jaguar.ts";
+import { BRONZE_MONKEY } from "./bronze-monkey.ts";
+import { COPPER_TIGER } from "./copper-tiger.ts";
 import { CRIMSON_MONGOOSE } from "./crimson-mongoose.ts";
-import { GRAPPLER } from "./grappler.ts";
+import { ELDER_TORTOISE } from "./elder-tortoise.ts";
 import { FERAL_LYNX } from "./feral-lynx.ts";
+import { GRANITE_RHINO } from "./granite-rhino.ts";
+import { GRAPPLER } from "./grappler.ts";
 import { HEAVY } from "./heavy.ts";
 import { HURRICANE_ORCHID } from "./hurricane-orchid.ts";
 import { IRON_BISON } from "./iron-bison.ts";
 import { JADE_SERPENT } from "./jade-serpent.ts";
+import { MOSS_WOLF } from "./moss-wolf.ts";
 import { NEON_GORILLA } from "./neon-gorilla.ts";
+import { OLIVE_BADGER } from "./olive-badger.ts";
 import { RUSHDOWN } from "./rushdown.ts";
+import { RUSSET_FOX } from "./russet-fox.ts";
 import { SAPPHIRE_MANTIS } from "./sapphire-mantis.ts";
 import { SILVER_CRANE } from "./silver-crane.ts";
+import { SLATE_FALCON } from "./slate-falcon.ts";
 import { THUNDER_PEONY } from "./thunder-peony.ts";
 import { VIOLET_HORNET } from "./violet-hornet.ts";
 import { ZONER } from "./zoner.ts";
@@ -26,7 +35,7 @@ export const TEMPLATES: readonly TemplateSpec[] = [ALL_ROUNDER, RUSHDOWN, HEAVY,
  * on them, and the checks don't use them): their own looks and styles, from
  * other free sprite sheets (art/SOURCES.md).
  */
-export const HOUSE_FIGHTERS: readonly TemplateSpec[] = [JADE_SERPENT, FERAL_LYNX, THUNDER_PEONY, HURRICANE_ORCHID, SILVER_CRANE, CRIMSON_MONGOOSE, IRON_BISON, NEON_GORILLA, VIOLET_HORNET, SAPPHIRE_MANTIS];
+export const HOUSE_FIGHTERS: readonly TemplateSpec[] = [JADE_SERPENT, FERAL_LYNX, THUNDER_PEONY, HURRICANE_ORCHID, SILVER_CRANE, CRIMSON_MONGOOSE, IRON_BISON, NEON_GORILLA, VIOLET_HORNET, SAPPHIRE_MANTIS, COPPER_TIGER, RUSSET_FOX, GRANITE_RHINO, AMETHYST_JAGUAR, SLATE_FALCON, BRONZE_MONKEY, MOSS_WOLF, OLIVE_BADGER, ELDER_TORTOISE];
 
 /** Everything `pnpm templates:build` builds. */
 export const BUILT_FIGHTERS: readonly TemplateSpec[] = [...TEMPLATES, ...HOUSE_FIGHTERS];

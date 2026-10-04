@@ -28,8 +28,9 @@ export const VIOLET_HORNET: TemplateSpec = {
   }),
   id: "gi-violet-hornet",
   name: "Violet Hornet",
-  // A little more life and punch than the Striker: with his numbers he won 45% in the balance tool (2026-10-04).
-  constants: { ...striker.constants, life: Math.round(striker.constants.life * 1.03), attack: striker.constants.attack + 1 },
+  // More life and punch than the Striker: with his numbers he won 45% in the balance tool (2026-10-04), and with 3% more
+  // life and attack 101, 41% among fifteen fighters.
+  constants: { ...striker.constants, life: Math.round(striker.constants.life * 1.06), attack: striker.constants.attack + 2 },
   // A hornet: violet hair (53-56), a yellow tank top (25-28) and black trousers (29-32).
   colors: {
     53: "#8a3ad1", 54: "#6a2ca0", 55: "#481e6e", 56: "#240f37",

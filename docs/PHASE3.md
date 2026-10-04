@@ -182,7 +182,7 @@ Started 2026-10-03, on the owner's go-ahead to source free sprites for new chara
 
 ### More bodies: the Bad Company sheets
 
-Added 2026-10-04. Puffolotti's **Bad Company** pack (CC0, art/SOURCES.md) is about twenty more models (soldiers, punks, a big bruiser) on **exactly Universal Prototype 2's layout**: the same pose in the same cell, each sheet with its own cell size, ground point, scale and palette. So every move set on that sheet works on these bodies: `onBody(spec, art)` (`templates/bad-company.ts`) swaps the art source and drops the colours (each model's palette slots are its own, listed with it). Each model is measured once: its ground point and size against Universal Prototype 2's on the same cells, which sets its localcoord so it stands the same height on screen; its specks of stray colour; and which palette slots are skin, hair, shirt, trousers, gloves and boots. Five are used, one per archetype, so every archetype now has three fighters:
+Added 2026-10-04. Puffolotti's **Bad Company** pack (CC0, art/SOURCES.md) is about twenty more models (soldiers, punks, a big bruiser) on **exactly Universal Prototype 2's layout**: the same pose in the same cell, each sheet with its own cell size, ground point, scale and palette. So every move set on that sheet works on these bodies: `onBody(spec, art)` (`templates/bad-company.ts`) swaps the art source and drops the colours (each model's palette slots are its own, listed with it). Each model is measured once: its ground point and size against Universal Prototype 2's on the same cells, which sets its localcoord so it stands the same height on screen; its specks of stray colour; and which palette slots are skin, hair, shirt, trousers, gloves and boots. Fourteen are used. The first five have move sets of their own, one per archetype:
 
 | Fighter | Model | Base | What's its own | Balance (300 fights against the other ten) |
 |---|---|---|---|---|
@@ -191,8 +191,24 @@ Added 2026-10-04. Puffolotti's **Bad Company** pack (CC0, art/SOURCES.md) is abo
 | **Neon Gorilla** (GRAPPLER) | Boston, a shirtless punk with a pink mohawk | Wrestler | A wide, knuckles-low stance, an open-handed lunge, a long lunging charge; the Wrestler's throws. Outfits: Neon, Silverback, Jungle, Royal Gorilla | 65% with the Wrestler's numbers, then 870 life, attack 93: **46.7%** |
 | **Violet Hornet** (RUSHDOWN) | Rourke, in a tank top | Striker | A flying side kick for his rush, arms crossed to start. Outfits: Violet, Wasp, Ghost, Night Hornet | 45% with the Striker's numbers, then 3% more life and attack 101: **47.3%** |
 | **Sapphire Mantis** (ZONER) | Fontaine, in navy | Sage | A swaying kung fu stance, a spear hand on one leg, a crane kata to start and win; the Sage's energy palm. Outfits: Sapphire, Jade, Ivory, Ember Mantis | **48.3%** with the Sage's numbers |
+| **Copper Tiger** (RUSHDOWN) | Alvarez, blond | Striker | Muay Thai: a stepping knee, a clinch-and-knee rush, a flying knee against jumps, an elbow raised to win. Outfits: Copper, Snow, Shadow, Jade Tiger | 22% when the knees replaced kicks without their reach; with the snap kick kept, the knee stepping in (in the side kick's place) and a longer clinch surge: then 6% more life and attack 102, **49.7%** |
+| **Russet Fox** (ALL_ROUNDER) | Stevenson, ginger | Brawler | Karate: a guard, a long lunging palm thrust, a bow to start. Outfits: Russet, Arctic, Black, Desert Fox | **49.7%** with the Brawler's numbers |
 
-**Learned:** a stance that crouches low or wide makes a smaller target and is worth about 15 points (Feral Lynx, Crimson Mongoose and Neon Gorilla each won 65-67% before about 12% less life and 7-8 less attack); a bigger body is worth even more through reach (Iron Bison). Moves drawn in the air or with a step need hand-made hitboxes round the fist or foot, since the automatic box compares the frame with the one before it and catches the moving legs.
+The other nine share a style with an earlier fighter, on a body and look of their own (like the shared styles of fighting-game rosters):
+
+| Fighter | Model | Style of | Balance |
+|---|---|---|---|
+| **Granite Rhino** (HEAVY) | Wayne, big and bald | Thunder Peony's sumo | 56% with her numbers; 1060 life, attack 103: **54.3%** |
+| **Amethyst Jaguar** (GRAPPLER) | Jones, purple hair | Hurricane Orchid's lucha libre | 68% with her numbers; 930 life, attack 97: **47.3%** |
+| **Slate Falcon** (ZONER) | Reinhold, slight and bald | Silver Crane's taekwondo | 44% with her numbers; 1110 life, attack 103: **54.7%** |
+| **Bronze Monkey** (RUSHDOWN) | Kelly, spiky hair | Jade Serpent's capoeira | 38% with the Striker's numbers; 980 life, attack 104: **47.3%** |
+| **Moss Wolf** (ALL_ROUNDER) | Madeira, broad, in a cap | Feral Lynx's feral style | **51.7%** with her numbers |
+| **Olive Badger** (GRAPPLER) | Dundee, grey-haired, in a cap | Neon Gorilla's wide stance and throws | 37% with his numbers; 950 life, attack 98: **48.7%** |
+| **Elder Tortoise** (ZONER) | Callaghan, older, in khaki | Sapphire Mantis's kung fu | 45% with the Sage's numbers; 1082 life, attack 101: **48.7%** |
+
+Each has four outfits on the roster. With the templates and the earlier house fighters, every archetype has four or five fighters (24 in all).
+
+**Learned:** the same moves win differently on different bodies, so every fighter gets its own balance run: Hurricane Orchid's extra life (for her coat) made the coatless Amethyst Jaguar win 68%, and the same move sets on bigger or smaller bodies moved 5-12 points either way. A stance that crouches low or wide makes a smaller target and is worth about 15 points (Feral Lynx, Crimson Mongoose and Neon Gorilla each won 65-67% before about 12% less life and 7-8 less attack); a bigger body is worth even more through reach (Iron Bison). Moves drawn in the air or with a step need hand-made hitboxes round the fist or foot, since the automatic box compares the frame with the one before it and catches the moving legs.
 
 ## NFTs as fighters
 

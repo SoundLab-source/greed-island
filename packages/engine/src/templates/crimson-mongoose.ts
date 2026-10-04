@@ -36,8 +36,9 @@ export const CRIMSON_MONGOOSE: TemplateSpec = {
   id: "gi-crimson-mongoose",
   name: "Crimson Mongoose",
   // His hunched, bobbing guard is a small target and his punches reach a little further than the Brawler's: with the
-  // Brawler's numbers he won 66% in the balance tool (2026-10-04), so less life and punch.
-  constants: { ...brawler.constants, life: 930, attack: 94 },
+  // Brawler's numbers he won 66% in the balance tool (2026-10-04), so less life and punch (930 and 94 won 56% among
+  // fifteen fighters, so a little less again).
+  constants: { ...brawler.constants, life: 910, attack: 93 },
   // Red boxing gloves (49-52) and black boots (37-40) on the grey shirt, black trousers and red hair he's drawn with.
   colors: { 49: "#d13a32", 50: "#a02b25", 51: "#6e1d19", 52: "#370e0c", 37: "#505050", 38: "#3a3a3a", 39: "#262626", 40: "#121212" },
   palettes: [
