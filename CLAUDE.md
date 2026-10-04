@@ -12,7 +12,7 @@ Phase 3: Community roster (see DESIGN.md §13): all seven steps of its plan are 
 ## Layout
 - `packages/shared`: types, event schemas, odds math, Glicko-2
 - `packages/db`: Prisma schema, migrations, ledger
-- `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`), fighter templates and the art pipeline (PNG, SFF, AIR, collision boxes)
+- `packages/engine`: roster, runner, event sources (`live`, `sim`, `fake`), fighter templates and the art pipeline (PNG, GIF, SFF, AIR, collision boxes)
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
 - `apps/web`: the player site (plain HTML/JS, no build step; shared `site.css`/`site.js`): home = watch and bet (`index.html`), `shop.html`, `fighters.html`, `fighter.html`, `rankings.html`, `vote.html`, `account.html`, `how-to-play.html`, `terms.html`, `privacy.html`; plus the stream overlay (`overlay.html`) for OBS, the staff page (`staff.html`), the fighter submission page (`submit.html`) and the plain dev page (`dev.html`)
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`

@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { writeAir, type AirAction, type AirFrame, type Box } from "../art/air.ts";
 import { hitbox, hurtboxes } from "../art/clsn.ts";
+import { gifSheet, readGif } from "../art/gif.ts";
 import { readSff, writeSff, type SffPalette, type SffSprite } from "../art/sff.ts";
 import { bounds, crop, isCellSource, scale, sheetCells, type CellSource, type IndexedImage, type Sheet } from "../art/sheet.ts";
 import { readPng, writePng } from "../art/png.ts";
@@ -47,9 +48,10 @@ export async function loadTemplateSheet(spec: TemplateSpec, file: string): Promi
   const bytes = await readFile(file);
   const sha = createHash("sha256").update(bytes).digest("hex");
   if (sha !== spec.art.sha256) throw new Error(`${file}: checksum ${sha} does not match ${spec.art.sha256} (art/SOURCES.md)`);
-  const png = readPng(bytes);
-  if (png.colorType !== 3 || !png.palette) throw new Error(`${file}: expected a palette PNG`);
   const { cellWidth, cellHeight, columns, rows } = spec.art;
+  // An animated GIF of every frame is laid out on the grid first, frame n in cell n.
+  const png = /\.gif$/i.test(file) ? gifSheet(readGif(bytes), columns) : readPng(bytes);
+  if (png.colorType !== 3 || !png.palette) throw new Error(`${file}: expected a palette PNG`);
   if (png.width !== cellWidth * columns || png.height !== cellHeight * rows) throw new Error(`${file}: size does not match the grid`);
   const palette = new Uint8Array(768);
   palette.set(png.palette.subarray(0, 768));

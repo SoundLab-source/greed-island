@@ -208,6 +208,12 @@ The other nine share a style with an earlier fighter, on a body and look of thei
 
 Each has four outfits on the roster. With the templates and the earlier house fighters, every archetype has four or five fighters (24 in all).
 
+**All 24 together (2026-10-04):** a round robin with 10 fights a pairing (2,760 fights) had 21 of 24 between 45% and 55%. Granite Rhino (61%) and Hurricane Orchid (60%) were trimmed (to 1020 life, attack 101; and the Wrestler's life plus 2%, attack +2), and Olive Badger (44%) raised; checked again against all 23 others: Granite Rhino **47.4%**, Hurricane Orchid **55.2%**, Olive Badger (at 985 life, attack 100) **50.4%**.
+
+### An alien from an animated GIF
+
+**Gamma Gecko** (ZONER, rare; 2026-10-04): a hunched green-and-white alien who summons a gun to shoot, from Puffolotti's CC0 "meany looking alien" (art/SOURCES.md). The art comes as one animated GIF of 840 frames, not a sprite sheet, so the build now reads GIFs itself (`art/gif.ts`: frames laid out 30 to a row, frame n in cell n) and the frames were catalogued by hand into the engine's actions (`templates/alien.ts`). His frames aren't rendered on one ground line, so every animation is anchored on its lowest pixel. He keeps the Sage's numbers, AI and energy shot (fired from the summoned gun), with his own claw jabs and lunges, kicks, a rising claw, a flexing win, and an intro that turns round from his back. Four outfits: Gamma, Crimson, Void, Gold Gecko. Balance: drawn too big at first, his long limbs out-reached everyone and he won 83%; drawn 15% smaller with 900 life and attack 92, **54.3%** against the ten earliest fighters, **50.8%** against all 24.
+
 **Learned:** the same moves win differently on different bodies, so every fighter gets its own balance run: Hurricane Orchid's extra life (for her coat) made the coatless Amethyst Jaguar win 68%, and the same move sets on bigger or smaller bodies moved 5-12 points either way. A stance that crouches low or wide makes a smaller target and is worth about 15 points (Feral Lynx, Crimson Mongoose and Neon Gorilla each won 65-67% before about 12% less life and 7-8 less attack); a bigger body is worth even more through reach (Iron Bison). Moves drawn in the air or with a step need hand-made hitboxes round the fist or foot, since the automatic box compares the frame with the one before it and catches the moving legs.
 
 ## NFTs as fighters

@@ -5,6 +5,7 @@ import { COPPER_TIGER } from "./copper-tiger.ts";
 import { CRIMSON_MONGOOSE } from "./crimson-mongoose.ts";
 import { ELDER_TORTOISE } from "./elder-tortoise.ts";
 import { FERAL_LYNX } from "./feral-lynx.ts";
+import { GAMMA_GECKO } from "./gamma-gecko.ts";
 import { GRANITE_RHINO } from "./granite-rhino.ts";
 import { GRAPPLER } from "./grappler.ts";
 import { HEAVY } from "./heavy.ts";
@@ -35,7 +36,7 @@ export const TEMPLATES: readonly TemplateSpec[] = [ALL_ROUNDER, RUSHDOWN, HEAVY,
  * on them, and the checks don't use them): their own looks and styles, from
  * other free sprite sheets (art/SOURCES.md).
  */
-export const HOUSE_FIGHTERS: readonly TemplateSpec[] = [JADE_SERPENT, FERAL_LYNX, THUNDER_PEONY, HURRICANE_ORCHID, SILVER_CRANE, CRIMSON_MONGOOSE, IRON_BISON, NEON_GORILLA, VIOLET_HORNET, SAPPHIRE_MANTIS, COPPER_TIGER, RUSSET_FOX, GRANITE_RHINO, AMETHYST_JAGUAR, SLATE_FALCON, BRONZE_MONKEY, MOSS_WOLF, OLIVE_BADGER, ELDER_TORTOISE];
+export const HOUSE_FIGHTERS: readonly TemplateSpec[] = [JADE_SERPENT, FERAL_LYNX, THUNDER_PEONY, HURRICANE_ORCHID, SILVER_CRANE, CRIMSON_MONGOOSE, IRON_BISON, NEON_GORILLA, VIOLET_HORNET, SAPPHIRE_MANTIS, COPPER_TIGER, RUSSET_FOX, GRANITE_RHINO, AMETHYST_JAGUAR, SLATE_FALCON, BRONZE_MONKEY, MOSS_WOLF, OLIVE_BADGER, ELDER_TORTOISE, GAMMA_GECKO];
 
 /** Everything `pnpm templates:build` builds. */
 export const BUILT_FIGHTERS: readonly TemplateSpec[] = [...TEMPLATES, ...HOUSE_FIGHTERS];

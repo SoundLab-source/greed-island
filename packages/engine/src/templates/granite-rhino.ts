@@ -11,8 +11,9 @@ export const GRANITE_RHINO: TemplateSpec = {
   ...onBody(THUNDER_PEONY, WAYNE),
   id: "gi-granite-rhino",
   name: "Granite Rhino",
-  // A little less life and punch than Thunder Peony: on his broader body her sumo won 56% in the balance tool (2026-10-04).
-  constants: { ...THUNDER_PEONY.constants, life: 1060, attack: 103 },
+  // Less life and punch than Thunder Peony: on his broader body her sumo won 56% against the ten earliest fighters,
+  // and at 1060 and 103, 61% among 24 (balance tool, 2026-10-04).
+  constants: { ...THUNDER_PEONY.constants, life: 1020, attack: 101 },
   // A granite-grey shirt (25-28) over near-black trousers (29-32).
   colors: { 25: "#7a7d82", 26: "#5c5f63", 27: "#3e4043", 28: "#1f2022", 29: "#2a2a2e", 30: "#1f1f22", 31: "#151517", 32: "#0a0a0b" },
   palettes: [
