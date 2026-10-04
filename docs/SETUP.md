@@ -89,19 +89,28 @@ glxinfo -B | grep -i renderer        # "llvmpipe": OpenGL in software, no GPU ne
 pulseaudio --daemonize --exit-idle-time=-1
 pactl load-module module-null-sink sink_name=stream
 pactl set-default-sink stream
+# (deploy/linux/start-screens.sh does all this, plus OBS: below)
 ```
 
 Then run `ENGINE_MODE=live pnpm dev` as above, with `IKEMEN_DIR` pointing at the Linux release (the runner finds `Ikemen_GO_Linux` by itself). Copy in our generated characters and stages (`pnpm templates:build`, `pnpm stages:build`) and the event mod (`pnpm ikemen:install-mod`). Without sound, ALSA prints errors to the game's stderr at start; they're harmless.
 
-Capturing it (this part was tried; the push to Twitch at the end wasn't, for want of a stream key):
+**With the overlay: OBS on the server (tried 2026-10-03).** The betting screen and the fight bar are web pages, so the stream goes through OBS, as on the Mac. Use the OBS project's own Ubuntu build, which has browser sources (`sudo add-apt-repository ppa:obsproject/obs-studio && sudo apt-get install obs-studio`; `deploy/linux/Dockerfile.obs` is the whole machine on Ubuntu 22.04). Then, as the stream's user:
+
+```bash
+deploy/linux/start-screens.sh     # the game's screen (:99), OBS's (:98), sound, and OBS with its WebSocket server
+DISPLAY=:99 ENGINE_MODE=live pnpm dev   # or scripts/run-service.sh, which sets DISPLAY by itself on Linux
+GI_OBS_GAME_DISPLAY=:99 pnpm obs:setup  # once: the scenes, capturing the game's screen without the cursor
+```
+
+`start-screens.sh` reads `GI_OBS_PASSWORD` (and, if set, `GI_OBS_GAME_DISPLAY` and `GI_OBS_DISPLAY`) from `.env` and can be run again safely. OBS gets a screen of its own because Linux screen capture takes a whole screen: on the game's, OBS's own window would be in the picture. In Docker under emulation, `obs:setup` built both scenes, the Fight scene showed only the game with the fight bar over it, the Betting scene showed the live betting screen from the server, and a 15-second recording came out 1920x1080 H.264 at 60 fps with sound and no dropped output frames (OBS drew 36 frames a second there, with everything in software under emulation; a real server is faster, and 30 fps is plenty). Not tried: the push to Twitch (no stream key yet), and a real (not emulated) server.
+
+**Without the overlay**, ffmpeg alone can stream the game's screen and sound (tried as a recording; `-draw_mouse 0` keeps the cursor out):
 
 ```bash
 ffmpeg -f x11grab -draw_mouse 0 -video_size 1280x720 -framerate 30 -i :99 -f pulse -i stream.monitor \
   -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k -g 60 -pix_fmt yuv420p \
   -c:a aac -b:a 128k -f flv "rtmp://live.twitch.tv/app/$TWITCH_STREAM_KEY"
 ```
-
-`-draw_mouse 0` keeps the virtual screen's mouse cursor out of the picture. That streams the fights only: the betting screen between fights and the fight bar are web pages (`overlay.html`), which need OBS running on the same virtual screen (`obs --startstreaming --minimize-to-tray`, with a browser source; the OBS build has to include browser sources). **Not tried yet.**
 
 ## 4. Adding characters and stages
 

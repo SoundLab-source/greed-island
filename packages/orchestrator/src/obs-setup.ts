@@ -44,6 +44,23 @@ export async function macDisplayCaptureSettings(inputKind: string): Promise<Reco
   return { type: 0, display_uuid: uuid };
 }
 
+/**
+ * Linux (X11): capture the game's screen without the mouse cursor. On a server,
+ * the game gets a virtual screen of its own (`display`, e.g. ":99", from
+ * GI_OBS_GAME_DISPLAY) and OBS runs on another, so OBS's own window isn't in
+ * the picture (docs/SETUP.md §3).
+ */
+export function linuxDisplayCaptureSettings(inputKind: string, display: string | undefined): Record<string, unknown> {
+  if (inputKind !== "xshm_input") return {};
+  return { show_cursor: false, ...(display ? { advanced: true, server: display } : {}) };
+}
+
+/** Capture settings for whichever OBS this is: macOS's main display, or Linux's game screen. */
+export async function displayCaptureSettings(inputKind: string): Promise<Record<string, unknown>> {
+  if (inputKind === "xshm_input") return linuxDisplayCaptureSettings(inputKind, process.env["GI_OBS_GAME_DISPLAY"]?.trim() || undefined);
+  return macDisplayCaptureSettings(inputKind);
+}
+
 export async function setupObsScenes(obs: ObsClient, opts: ObsSetupOptions): Promise<void> {
   const log = opts.log ?? ((l: string) => console.log(l));
   const { width: WIDTH, height: HEIGHT, fps } = CANVAS;

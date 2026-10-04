@@ -2,7 +2,7 @@
 
 Facts the stream code relies on, with where they come from. Same legend as `ikemen-notes.md`:
 - **SOURCE**: confirmed in the official obs-websocket protocol document (`docs/generated/protocol.md` in github.com/obsproject/obs-websocket) or its source code (`src/Config.cpp`, `src/Config.h`), read 2026-09-29.
-- **RUN**: confirmed with a real OBS (OBS 32.2.2 with obs-websocket 5.7.4 on macOS 27, 2026-09-29).
+- **RUN**: confirmed with a real OBS (OBS 32.2.2 with obs-websocket 5.7.4 on macOS 27, 2026-09-29; on Linux, OBS 30.2.3 with obs-websocket 5.5.2 from ppa:obsproject/obs-studio on Ubuntu 22.04, in Docker under x86-64 emulation, 2026-10-03).
 - **UNVERIFIED**: not confirmed yet.
 - **OPEN**: a problem was seen and its cause isn't known yet.
 
@@ -38,3 +38,16 @@ The scene switcher is `packages/orchestrator/src/obs.ts`; its tests run against 
 | macOS permission | RUN | Screen Recording must be allowed for OBS (System Settings → Privacy & Security → Screen & System Audio Recording) and OBS restarted; the log then says "Permission for screen capture granted". macOS 27 also asks whether OBS may "bypass the system private window picker": the user answers that. |
 | Browser source transparency | RUN | The fight bar's transparent page lets the screen capture show through underneath. |
 | Browser sources rendering | RUN | Works after OBS was restarted. On the very first start, while OBS's first-run windows (permissions review, auto-configuration wizard) were open, no browser renderer process started and the overlay stayed blank even after closing them; restarting OBS fixed it. |
+
+## Linux (a server with no screen)
+
+| Item | Status | Finding |
+|---|---|---|
+| Which OBS | RUN | The OBS project's Ubuntu build (`ppa:obsproject/obs-studio`, OBS 30.2.3) ships `obs-browser.so` (browser sources), `obs-websocket.so` and `linux-capture.so`; it ran on Xvfb with Mesa's software OpenGL. `deploy/linux/Dockerfile.obs`. |
+| WebSocket settings | RUN | `~/.config/obs-studio/plugin_config/obs-websocket/config.json`, same keys as on macOS, written before OBS starts; obs-websocket 5.5.2 logged "Some configurations have been migrated from old config" and took the password. |
+| First-run wizard | RUN | Without `~/.config/obs-studio/global.ini` it opens the auto-configuration wizard (a window, not blocking the WebSocket server). `[General] FirstRun=true` there skips it (`deploy/linux/start-screens.sh`). |
+| Screen capture | RUN | The kind is `xshm_input` (`pnpm obs:setup` already looked for it). It captures a whole X screen, so on the game's screen OBS's own window and dialogs were in the picture; OBS on a second Xvfb screen and `{advanced: true, server: ":99"}` captures only the game's, and `show_cursor: false` hides the cursor (`linuxDisplayCaptureSettings`). |
+| Browser sources | RUN | The overlay loaded from the server and drew the live betting screen and the fight bar. |
+| Recording | RUN | `SetRecordDirectory`, `StartRecord`, `StopRecord`: 1920x1080 H.264 60 fps with AAC sound; `GetStats` showed 0 skipped output frames, 480 of 3,970 skipped render frames (36 fps) under emulation. |
+| Streaming to Twitch from Linux | UNVERIFIED | Not tried yet (no stream key). |
+

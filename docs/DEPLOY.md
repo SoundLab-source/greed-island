@@ -163,7 +163,7 @@ Before telling anyone the address:
 
 ## Linux (systemd)
 
-The same jobs as user units, with the screen session logged in automatically, or on a server with no screen, a virtual one: [SETUP.md](SETUP.md) §3 has the packages, the virtual screen and sound, and capturing them (tried in Docker 2026-10-03; the overlay through OBS there isn't yet). In `~/.config/systemd/user/greed-island.service`:
+The same jobs as user units, with the screen session logged in automatically, or on a server with no screen, virtual ones: [SETUP.md](SETUP.md) §3 has the packages, `deploy/linux/start-screens.sh` (the game's screen, OBS's, sound and OBS) and capturing them, all tried in Docker on 2026-10-03 (the push to Twitch isn't yet). Run `start-screens.sh` before the stream, e.g. as an `ExecStartPre=` line of the unit below; `run-service.sh` points the game at its screen (`DISPLAY=:99`) by itself. In `~/.config/systemd/user/greed-island.service`:
 
 ```ini
 [Unit]

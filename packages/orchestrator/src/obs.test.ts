@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { WebSocketServer, type WebSocket as ServerSocket } from "ws";
 import { FightBus } from "./bus.ts";
 import { connectObs, loadObsConfig, ObsSceneSwitcher, obsAuthentication, sceneForState, type ObsClient, type ObsConfig } from "./obs.ts";
-import { setupObsScenes } from "./obs-setup.ts";
+import { linuxDisplayCaptureSettings, setupObsScenes } from "./obs-setup.ts";
 import type { FightState } from "./state-machine.ts";
 
 /**
@@ -93,6 +93,14 @@ function setup(obs: FakeObs, over: Partial<ObsConfig> = {}) {
   const state = (s: FightState) => bus.publish({ type: "fight_state", fightId: "f", number: 1, state: s, version: 0 });
   return { bus, logs, state, stop: () => switcher.stop() };
 }
+
+describe("linuxDisplayCaptureSettings", () => {
+  it("captures the game's own screen without the cursor, and leaves other kinds alone", () => {
+    expect(linuxDisplayCaptureSettings("xshm_input", ":99")).toEqual({ show_cursor: false, advanced: true, server: ":99" });
+    expect(linuxDisplayCaptureSettings("xshm_input", undefined)).toEqual({ show_cursor: false });
+    expect(linuxDisplayCaptureSettings("screen_capture", ":99")).toEqual({});
+  });
+});
 
 describe("sceneForState", () => {
   it("shows the fight only while the engine runs", () => {

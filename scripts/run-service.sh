@@ -9,6 +9,10 @@ export PATH="$HOME/.local/node/bin:$HOME/.docker/bin:/usr/local/bin:/opt/homebre
 # Defaults for the stream machine; .env or the plist can override them.
 export ENGINE_MODE="${ENGINE_MODE:-live}"
 export GI_GAME_TO_FRONT="${GI_GAME_TO_FRONT:-true}"
+# A Linux server: the game draws on its virtual screen (deploy/linux/start-screens.sh).
+if [[ "$(uname)" == Linux && -z "${DISPLAY:-}" ]]; then
+  export DISPLAY="${GI_OBS_GAME_DISPLAY:-:99}"
+fi
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] starting Greed Island (engine: $ENGINE_MODE)"
 

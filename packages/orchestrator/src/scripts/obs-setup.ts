@@ -4,7 +4,7 @@
 // missing and never deletes anything.
 import { loadRepoEnv } from "@greed-island/db";
 import { connectObs, loadObsConfig, ObsRequestError, type ObsClient } from "../obs.ts";
-import { macDisplayCaptureSettings, setupObsScenes } from "../obs-setup.ts";
+import { displayCaptureSettings, setupObsScenes } from "../obs-setup.ts";
 
 loadRepoEnv();
 const cfg = loadObsConfig();
@@ -25,11 +25,12 @@ try {
     fightScene: cfg.fightScene,
     bettingScene: cfg.bettingScene,
     overlayUrl: (scene) => `${overlayBase}?scene=${scene}${site ? `&site=${encodeURIComponent(site)}` : ""}`,
-    captureSettings: macDisplayCaptureSettings,
+    captureSettings: displayCaptureSettings,
   });
   console.log(`
 Done. Next:
   1. macOS: allow Screen Recording for OBS (System Settings → Privacy & Security → Screen & System Audio Recording), then restart OBS.
+     Linux server: OBS captures the screen named by GI_OBS_GAME_DISPLAY (the game's virtual screen, e.g. :99); see docs/SETUP.md §3.
   2. Run \`ENGINE_MODE=live pnpm dev\` (or plain \`pnpm dev\` to try the overlay with fake fights): OBS switches scenes by itself.
   3. The overlay loads from ${overlayBase}; it shows a blank page until \`pnpm dev\` is running.`);
 } catch (err) {
