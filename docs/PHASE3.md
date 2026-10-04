@@ -168,7 +168,9 @@ Started 2026-10-03, on the owner's go-ahead to source free sprites for new chara
 
 **Jade Serpent** (RUSHDOWN, rare): capoeira. The ginga for a stance and walk, the martelo and armada kicks, the rasteira sweep, a flying kick, a cartwheel kick (aú batido), a rising handstand kick (a hand-made hitbox over the raised leg, since it reaches up rather than forward) and the parafuso; a cartwheel intro, a backflip and a compass kick to win. Four outfits: Jade Serpent, Coral Viper, Night Adder, Ivory Cobra. Balance (2026-10-03): the first version won 12%; testing one change at a time found the cause: her compass-kick special left her bent over with her hands on the floor (27% with it, 47% without), so it became a win pose. On the new model the Striker's own moves won 45% (her coat makes a wider target), so she has more life and punch than the Striker (950, 102): **48.5% over 400 fights** against the five templates. Seen in a real fight: the jade coat, flying kicks, cartwheels and combos.
 
-**Next on this sheet:** a feral fighter (prowl, claws, pounce, flips; cells 3878-4216) and a sumo (squat stance, shiko stomp, slaps and charge; cells 5246-5379).
+**Feral Lynx** (ALL_ROUNDER, rare): the sheet's feral style on the Brawler's base. A bouncing crouch for a stance, a claws-out prowl for a walk, a swipe and a lunging claw for punches, a snap kick and a long leaning kick, and three specials: a sprinting pounce into a two-handed claw, a rising claw against jumps, and a flip kick; she roars to start and to win (or leaps and somersaults). Four outfits: Feral Lynx, Snow Lynx, Shadow Lynx, Rust Lynx. Balance: her low crouch is a small target, high attacks passing over her, so with the Brawler's numbers she won 67%; with less life and punch (920, 93) **49.0% over 400 fights**. Seen in a real fight against Jade Serpent: claw combos up to 7 hits and her roar.
+
+**Next on this sheet:** a sumo (squat stance, shiko stomp, slaps and charge; cells 5246-5379).
 
 ## NFTs as fighters
 

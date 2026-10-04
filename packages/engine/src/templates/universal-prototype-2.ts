@@ -17,7 +17,7 @@
  * is 506 rather than 544: on screen the two models stand the same height,
  * and speeds and reach (in 320-wide units) mean the same.
  */
-import type { AnimSpec, ArtSource, Cells, TemplateSpec } from "./spec.ts";
+import type { AnimSpec, ArtSource, AttackSpec, Cells, HitSpec, TemplateSpec } from "./spec.ts";
 import { UNIVERSAL_PROTOTYPE } from "./universal-prototype.ts";
 
 /** A first-sheet cell's place on this sheet. */
@@ -75,3 +75,27 @@ export function withMoves(spec: TemplateSpec, over: { anims?: readonly AnimSpec[
   for (const a of over.attacks ?? []) attacks.set(a.state, a);
   return { ...spec, anims: [...anims.values()], attacks: [...attacks.values()] };
 }
+
+/** first..last, inclusive. */
+export const cellRange = (first: number, last: number): number[] => Array.from({ length: last - first + 1 }, (_, i) => first + i);
+
+/**
+ * One of `base`'s moves redrawn with new frames: the same state, command, hit
+ * numbers and AI, with new cells and ticks, the frames its hit is live on,
+ * and optionally a new name, movement, anchor or hit details (a hand-made box).
+ */
+export function redrawMove(
+  base: TemplateSpec,
+  state: number,
+  name: string,
+  cells: number[],
+  ticks: number[],
+  frames: number[],
+  extra: Partial<Omit<AttackSpec, "anim" | "hits">> & { anchor?: "feet"; hit?: Partial<HitSpec> } = {},
+): AttackSpec {
+  const move = base.attacks.find((a) => a.state === state);
+  if (!move) throw new Error(`${base.name} has no state ${state}`);
+  const { anchor, hit, ...rest } = extra;
+  return { ...move, ...rest, name, anim: { action: state, cells, ticks, ...(anchor ? { anchor } : {}) }, hits: [{ ...move.hits[0]!, ...hit, frames }] };
+}
+

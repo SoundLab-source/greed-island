@@ -9,25 +9,11 @@
  * before it hits match the Striker's), so she plays about as strong.
  */
 import { RUSHDOWN } from "./rushdown.ts";
-import type { AttackSpec, HitSpec, TemplateSpec } from "./spec.ts";
-import { portToUp2, withMoves } from "./universal-prototype-2.ts";
+import type { TemplateSpec } from "./spec.ts";
+import { cellRange, portToUp2, redrawMove, withMoves } from "./universal-prototype-2.ts";
 
-const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+const range = cellRange;
 const striker = portToUp2(RUSHDOWN);
-
-/** A Striker move redrawn: same state, command, hit numbers and AI, new frames (and hit frames, name, movement). */
-function redraw(state: number, name: string, cells: number[], ticks: number[], frames: number[], extra: Partial<AttackSpec> & { anchor?: "feet"; hit?: Partial<HitSpec> } = {}): AttackSpec {
-  const base = striker.attacks.find((a) => a.state === state);
-  if (!base) throw new Error(`the Striker has no state ${state}`);
-  const { anchor, hit, ...rest } = extra;
-  return {
-    ...base,
-    ...rest,
-    name,
-    anim: { action: state, cells, ticks, ...(anchor ? { anchor } : {}) },
-    hits: [{ ...base.hits[0]!, ...hit, frames }],
-  };
-}
 
 export const JADE_SERPENT: TemplateSpec = {
   ...withMoves(striker, {
@@ -41,14 +27,14 @@ export const JADE_SERPENT: TemplateSpec = {
       { action: 195, cells: [3165, 3166, 3167, 3168, 3167], ticks: [5, 5, 5, 20, 6], comment: "taunt: come on" },
     ],
     attacks: [
-      redraw(210, "Martelo", range(3373, 3379), [2, 3, 3, 3, 4, 3, 3], [3, 4]),
-      redraw(240, "Armada", range(3300, 3309), [1, 1, 2, 2, 2, 3, 3, 3, 3, 3], [5, 6]),
-      redraw(440, "Rasteira", range(3294, 3299), [6, 4, 3, 2, 2, 1], [1, 2]),
-      redraw(630, "Flying Kick", range(3346, 3351), [3, 3, 8, 6, 5, 5], [2, 3], { anchor: "feet" }),
+      redrawMove(striker, 210, "Martelo", range(3373, 3379), [2, 3, 3, 3, 4, 3, 3], [3, 4]),
+      redrawMove(striker, 240, "Armada", range(3300, 3309), [1, 1, 2, 2, 2, 3, 3, 3, 3, 3], [5, 6]),
+      redrawMove(striker, 440, "Rasteira", range(3294, 3299), [6, 4, 3, 2, 2, 1], [1, 2]),
+      redrawMove(striker, 630, "Flying Kick", range(3346, 3351), [3, 3, 8, 6, 5, 5], [2, 3], { anchor: "feet" }),
       // The cartwheel travels; the kick lands as she comes down, the leg reaching far forward (3245).
-      redraw(1000, "Au Batido", range(3239, 3246), [2, 2, 2, 2, 2, 2, 8, 4], [6], { moves: [{ frame: 1, x: 5 }, { frame: 6, x: 0 }] }),
+      redrawMove(striker, 1000, "Au Batido", range(3239, 3246), [2, 2, 2, 2, 2, 2, 8, 4], [6], { moves: [{ frame: 1, x: 5 }, { frame: 6, x: 0 }] }),
       // Up from the floor with one leg straight up, then arcing forward: the hit is that leg, above her (a hand-made box, since it reaches up more than forward).
-      redraw(1100, "Rising Handstand Kick", range(3188, 3194), [2, 2, 4, 5, 6, 3, 3], [2, 3, 4], { hit: { box: [-5, -196, 46, -140] } }),
+      redrawMove(striker, 1100, "Rising Handstand Kick", range(3188, 3194), [2, 2, 4, 5, 6, 3, 3], [2, 3, 4], { hit: { box: [-5, -196, 46, -140] } }),
       // The Striker's jumping spin kick is capoeira's parafuso. (The compass kick tried here instead left her
       // bent over with her hands on the floor for too long: 27% against 47% in the balance tool. It's a win pose now.)
       { ...striker.attacks.find((a) => a.state === 1200)!, name: "Parafuso" },
