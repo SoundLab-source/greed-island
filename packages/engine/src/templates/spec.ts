@@ -81,7 +81,10 @@ export interface HitSpec {
   trip?: boolean;
   /** Launch speed when knocking down or hitting in the air: x (away), y (up), 320 units. */
   launch?: readonly [number, number];
-  /** Hand-made hitbox instead of the automatic one, relative to the axis in sheet pixels. */
+  /**
+   * Hand-made hitbox instead of the automatic one, relative to the axis in sheet pixels: where the limb is drawn in
+   * its cell (an animation anchored on its feet moves the box with the frame).
+   */
   box?: Box;
 }
 

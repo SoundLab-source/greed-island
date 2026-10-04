@@ -23,6 +23,7 @@ The game needs a real screen, so the machine stays logged in and is used only fo
 
 - **Log in automatically:** System Settings → Users & Groups → automatic login for the user that runs the stream (it needs FileVault off on that Mac). After a power cut, the machine comes back by itself.
 - **Never sleep:** System Settings → Energy / Displays: prevent automatic sleeping, and keep the display on (the game and OBS draw to it). A MacBook also has to stay plugged in with its lid open.
+- **Never lock the screen:** System Settings → Lock Screen: never start the screen saver, never turn the display off, and don't require a password after them. While the screen is locked macOS keeps a new game window from starting: each fight waits until the runner gives up after 3 minutes and voids it (seen on this Mac, 2026-10-04: with the screen locked, every new fight stalled; [ikemen-notes.md](ikemen-notes.md) §1).
 - **A steady connection, no VPN:** the tunnel (section 4) needs to reach Cloudflare; a VPN or a phone hotspot can block or drop it.
 - **Docker Desktop starts at login:** Docker Desktop → Settings → General → Start Docker Desktop when you sign in.
 - **IKEMEN allowed once:** open the game once and approve it in Privacy & Security ([SETUP.md](SETUP.md)).
