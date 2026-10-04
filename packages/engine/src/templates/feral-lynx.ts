@@ -39,8 +39,9 @@ export const FERAL_LYNX: TemplateSpec = {
   id: "gi-feral-lynx",
   name: "Feral Lynx",
   // Her low crouch is a small target (high attacks pass over her), so she has less life and punch than the
-  // Brawler: with his numbers she won 67% in the balance tool (2026-10-03).
-  constants: { ...brawler.constants, life: 920, attack: 93 },
+  // Brawler: with his numbers she won 67% in the balance tool; with these, 49% against the templates and 55% in an
+  // eight-fighter round robin before a last trim (2026-10-03).
+  constants: { ...brawler.constants, life: 890, attack: 92 },
   // A tawny coat (29-32) and darker trim (33-36).
   colors: {
     29: "#c08a3e", 30: "#96692c", 31: "#66461c", 32: "#33230e",

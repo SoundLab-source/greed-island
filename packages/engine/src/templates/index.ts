@@ -2,8 +2,10 @@ import { ALL_ROUNDER } from "./all-rounder.ts";
 import { GRAPPLER } from "./grappler.ts";
 import { FERAL_LYNX } from "./feral-lynx.ts";
 import { HEAVY } from "./heavy.ts";
+import { HURRICANE_ORCHID } from "./hurricane-orchid.ts";
 import { JADE_SERPENT } from "./jade-serpent.ts";
 import { RUSHDOWN } from "./rushdown.ts";
+import { SILVER_CRANE } from "./silver-crane.ts";
 import { THUNDER_PEONY } from "./thunder-peony.ts";
 import { ZONER } from "./zoner.ts";
 import type { TemplateSpec } from "./spec.ts";
@@ -19,7 +21,7 @@ export const TEMPLATES: readonly TemplateSpec[] = [ALL_ROUNDER, RUSHDOWN, HEAVY,
  * on them, and the checks don't use them): their own looks and styles, from
  * other free sprite sheets (art/SOURCES.md).
  */
-export const HOUSE_FIGHTERS: readonly TemplateSpec[] = [JADE_SERPENT, FERAL_LYNX, THUNDER_PEONY];
+export const HOUSE_FIGHTERS: readonly TemplateSpec[] = [JADE_SERPENT, FERAL_LYNX, THUNDER_PEONY, HURRICANE_ORCHID, SILVER_CRANE];
 
 /** Everything `pnpm templates:build` builds. */
 export const BUILT_FIGHTERS: readonly TemplateSpec[] = [...TEMPLATES, ...HOUSE_FIGHTERS];
