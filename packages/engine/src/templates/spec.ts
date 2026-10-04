@@ -195,7 +195,7 @@ export interface AiSpec {
 }
 
 export interface TemplateSpec {
-  /** Character folder and roster id: gi-tpl-<archetype>. */
+  /** Character folder and roster id: gi-tpl-<archetype> for a template, gi-<name> for another house fighter built the same way. */
   id: string;
   name: string;
   archetype: Archetype;
@@ -278,7 +278,7 @@ export function checkSpec(spec: TemplateSpec): string[] {
   for (const p of [{ name: "main", colors: spec.colors ?? {} }, ...spec.palettes]) for (const [i, c] of Object.entries(p.colors)) {
     if (!/^#[0-9a-f]{6}$/i.test(c) || Number(i) < 1 || Number(i) > 255) problems.push(`palette ${p.name}: bad entry ${i} = ${c}`);
   }
-  if (!/^gi-tpl-[a-z-]+$/.test(spec.id)) problems.push(`id ${spec.id} should look like gi-tpl-<archetype>`);
+  if (!/^gi-[a-z0-9-]+$/.test(spec.id)) problems.push(`id ${spec.id} should look like gi-tpl-<archetype> (a template) or gi-<name>`);
   return problems;
 }
 

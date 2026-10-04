@@ -1,5 +1,5 @@
 // `pnpm templates:build [--preview] [id...]`: build the fighter templates (packages/engine/src/templates)
-// into $IKEMEN_DIR/chars/gi-tpl-*. --preview also writes contact sheets of every animation to
+// into $IKEMEN_DIR/chars/gi-tpl-*, and the house fighters built the same way (HOUSE_FIGHTERS) into chars/gi-*. --preview also writes contact sheets of every animation to
 // runs/templates/<id>/ (hurtboxes blue, hitboxes red). The sprite sheets come from art/sources/
 // (not in git; art/SOURCES.md says where to get them).
 import { loadRepoEnv, REPO_ROOT } from "@greed-island/db";
@@ -8,7 +8,7 @@ import path from "node:path";
 import type { Sheet } from "../art/sheet.ts";
 import { loadTemplateSheet } from "../templates/art.ts";
 import { templateFiles, writeTemplate } from "../templates/build.ts";
-import { TEMPLATES } from "../templates/index.ts";
+import { BUILT_FIGHTERS } from "../templates/index.ts";
 import { previewPages } from "../templates/preview.ts";
 import { loadRoster } from "../roster/schema.ts";
 
@@ -21,14 +21,14 @@ if (!ikemenDir) {
   console.error("IKEMEN_DIR is not set. Add IKEMEN_DIR=/path/to/your/Ikemen_GO to .env");
   process.exit(1);
 }
-const unknown = only.filter((id) => !TEMPLATES.some((t) => t.id === id));
+const unknown = only.filter((id) => !BUILT_FIGHTERS.some((t) => t.id === id));
 if (unknown.length) {
-  console.error(`Unknown template(s): ${unknown.join(", ")}. Known: ${TEMPLATES.map((t) => t.id).join(", ")}`);
+  console.error(`Unknown template(s): ${unknown.join(", ")}. Known: ${BUILT_FIGHTERS.map((t) => t.id).join(", ")}`);
   process.exit(1);
 }
 const roster = await loadRoster();
 const sheets = new Map<string, Sheet>();
-for (const spec of TEMPLATES.filter((t) => only.length === 0 || only.includes(t.id))) {
+for (const spec of BUILT_FIGHTERS.filter((t) => only.length === 0 || only.includes(t.id))) {
   let sheet = sheets.get(spec.art.id);
   if (!sheet) {
     sheet = await loadTemplateSheet(spec, path.join(REPO_ROOT, spec.art.file)).catch((e: Error) => {

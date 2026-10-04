@@ -4,7 +4,9 @@ import type { Sheet } from "../art/sheet.ts";
 import { buildTemplateArt } from "./art.ts";
 import { templateFiles } from "./build.ts";
 import { commandsFile, constantsFile, statesFile, unitScale } from "./cns.ts";
-import { TEMPLATES } from "./index.ts";
+import { HOUSE_FIGHTERS, TEMPLATES } from "./index.ts";
+import { RUSHDOWN } from "./rushdown.ts";
+import { onUp2, portToUp2, UNIVERSAL_PROTOTYPE_2, withMoves } from "./universal-prototype-2.ts";
 import { checkSpec, REQUIRED_ACTIONS, type TemplateSpec } from "./spec.ts";
 import { ALL_ROUNDER } from "./all-rounder.ts";
 import { GRAPPLER } from "./grappler.ts";
@@ -16,6 +18,28 @@ import { measureReach } from "./reach.ts";
 describe("template specs", () => {
   it.each(TEMPLATES.map((t) => [t.id, t] as const))("%s is complete and consistent", (_id, spec) => {
     expect(checkSpec(spec)).toEqual([]);
+  });
+
+  it.each(HOUSE_FIGHTERS.map((t) => [t.id, t] as const))("house fighter %s is complete and consistent, and not a template", (_id, spec) => {
+    expect(checkSpec(spec)).toEqual([]);
+    expect(spec.id).toMatch(/^gi-(?!tpl-)[a-z0-9-]+$/); // the checks and releases take gi-tpl-* for templates
+    expect(TEMPLATES.some((t) => t.id === spec.id || t.name === spec.name)).toBe(false);
+  });
+
+  it("moves a template to the second Universal Prototype sheet, one cell later, and overrides its moves", () => {
+    expect(onUp2([1, 5])).toEqual([2, 6]);
+    expect(onUp2({ from: 10, to: 3 })).toEqual({ from: 11, to: 4 });
+    const ported = portToUp2(RUSHDOWN);
+    expect(ported.art).toBe(UNIVERSAL_PROTOTYPE_2);
+    expect(ported.anims.find((a) => a.action === 0)!.cells).toEqual(onUp2(RUSHDOWN.anims.find((a) => a.action === 0)!.cells));
+    expect(ported.attacks[0]!.anim.cells).toEqual(onUp2(RUSHDOWN.attacks[0]!.anim.cells));
+    expect(ported.portrait).toEqual({ cell: RUSHDOWN.portrait.cell + 1 });
+    expect(UNIVERSAL_PROTOTYPE_2.standardSprites["5000,0"]).toBe(63);
+    const over = withMoves(ported, { anims: [{ action: 0, cells: [7], ticks: 5 }], attacks: [{ ...ported.attacks[0]!, name: "New" }] });
+    expect(over.anims.find((a) => a.action === 0)!.cells).toEqual([7]);
+    expect(over.anims).toHaveLength(ported.anims.length);
+    expect(over.attacks.find((a) => a.state === ported.attacks[0]!.state)!.name).toBe("New");
+    expect(checkSpec(over)).toEqual([]);
   });
 
   it("one template per archetype, all five", () => {

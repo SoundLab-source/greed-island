@@ -160,6 +160,16 @@ Built 2026-10-02. A community draws its fighter on its archetype's template, and
 
 **Still open** (the owner's call): every frame is a lot of drawing (about 190). A smaller set of key poses reused across moves would cut that down, at the cost of smoother animation. Measured on the five templates (2026-10-03): near-identical frames sharing a drawing (silhouettes overlapping 80% or more, hit and catch frames kept apart) leave 150 to 177 frames; only each animation's first, hitting and last frame, with 4 for walking and running, leaves 113 to 119. About 80 animations each need at least a pose of their own.
 
+## House fighters from more free art
+
+Started 2026-10-03, on the owner's go-ahead to source free sprites for new characters that fit the game. The five templates are one model (the first Universal Prototype: the same man in different clothes). **Universal Prototype 2** (Puffolotti, CC0, art/SOURCES.md) is a second model, a woman in a long coat, with the first sheet's animations redrawn (cell n there is n + 1 here, checked by outline on all 454 cells the templates use) plus whole fighting styles the first doesn't have: capoeira, a feral crouch, sumo and more (catalogue in `packages/engine/src/templates/universal-prototype-2.ts`).
+
+**How a new fighter is made.** It starts as a template moved onto the new model (`portToUp2`: every cell plus one; drawn 7% smaller, so its localcoord is 506 and it stands as tall on screen), keeping the template's numbers and AI, then swaps in its own stance, walk, intro, win poses and signature moves (`withMoves`), each taking the place of a template move with the same job, hit numbers and about the same timing. It's a house fighter (`HOUSE_FIGHTERS`), built by `pnpm templates:build` like the templates but not one of them: communities don't draw on it, and the checks and releases don't use it (its id isn't `gi-tpl-*`). Then the balance tool, against the five templates.
+
+**Jade Serpent** (RUSHDOWN, rare): capoeira. The ginga for a stance and walk, the martelo and armada kicks, the rasteira sweep, a flying kick, a cartwheel kick (aú batido), a rising handstand kick (a hand-made hitbox over the raised leg, since it reaches up rather than forward) and the parafuso; a cartwheel intro, a backflip and a compass kick to win. Four outfits: Jade Serpent, Coral Viper, Night Adder, Ivory Cobra. Balance (2026-10-03): the first version won 12%; testing one change at a time found the cause: her compass-kick special left her bent over with her hands on the floor (27% with it, 47% without), so it became a win pose. On the new model the Striker's own moves won 45% (her coat makes a wider target), so she has more life and punch than the Striker (950, 102): **48.5% over 400 fights** against the five templates. Seen in a real fight: the jade coat, flying kicks, cartwheels and combos.
+
+**Next on this sheet:** a feral fighter (prowl, claws, pounce, flips; cells 3878-4216) and a sumo (squat stance, shiko stomp, slaps and charge; cells 5246-5379).
+
 ## NFTs as fighters
 
 The owner's direction (2026-09-29), for step 7 and after the templates exist.
