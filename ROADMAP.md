@@ -103,6 +103,8 @@ All on 2026-09-29. Each step was committed with its tests passing and checked on
 
 ## What's next
 
+- **More house fighters on new bodies (started 2026-10-04):** the CC0 "Bad Company" pack (art/SOURCES.md) has about 20 male fighters on exactly Universal Prototype 2's cell layout, so every UP2 move set can go on a new body. Banderas (punk) and Adler (big bruiser) are downloaded and measured; next: an `ArtSource` for each (cell size, ground point, scale), outfits from their palette slots, a move set per fighter (the sheet's boxing and kickboxing at 3480-3877 are still unused), then the balance tool.
+
 **To go live (details in [DEPLOY.md](docs/DEPLOY.md))**
 1. ✅ Rehearsal on this Mac: the site through a Cloudflare test tunnel, with the Twitch channel on the watch page.
 2. **You:** create a Cloudflare account and buy the domain there (Domain Registration → Register Domains), so it's on Cloudflare from the start. **Then us:** `cloudflared tunnel login` (you approve it in the browser), create the tunnel, point `play.<your domain>` at it, and confirm live updates pass through it.
