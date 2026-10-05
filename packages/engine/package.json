@@ -16,6 +16,8 @@
     "templates:build": "tsx src/scripts/templates-build.ts",
     "templates:balance": "tsx src/scripts/templates-balance.ts",
     "templates:compare": "tsx src/scripts/templates-compare.ts",
+    "mugen:import": "tsx src/scripts/mugen-import.ts",
+    "mugen:scan": "tsx src/scripts/mugen-scan.ts",
     "templates:sample-art": "tsx src/scripts/templates-sample-art.ts",
     "stages:build": "tsx src/scripts/stages-build.ts"
   },

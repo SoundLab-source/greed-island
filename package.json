@@ -32,6 +32,8 @@
     "templates:build": "pnpm --filter @greed-island/engine run templates:build",
     "templates:balance": "pnpm --filter @greed-island/engine run templates:balance",
     "templates:compare": "pnpm --filter @greed-island/engine run templates:compare",
+    "mugen:import": "pnpm --filter @greed-island/engine run mugen:import",
+    "mugen:scan": "pnpm --filter @greed-island/engine run mugen:scan",
     "templates:sample-art": "pnpm --filter @greed-island/engine run templates:sample-art",
     "stages:build": "pnpm --filter @greed-island/engine run stages:build"
   },

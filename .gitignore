@@ -48,6 +48,10 @@ looks/
 # Downloaded art (sources listed in art/SOURCES.md); never committed
 art/sources/
 
+# Downloaded MUGEN characters (listed in packages/engine/mugen.json); never committed
+/mugen/
+/test characters mugen/
+
 # Local preview config (machine-specific paths)
 .claude/launch.json
 

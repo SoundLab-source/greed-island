@@ -1,0 +1,25 @@
+{
+  "$comment": "MUGEN characters from the web, none cleared for commercial use (fan-made, often from commercial games): roster.json marks them commercialUse false, so GI_COMMERCIAL_ONLY=true keeps them off stream. Only this recipe is committed; put each downloaded file in mugen/ (repo root, not in git) and run `pnpm mugen:import`, which checks the checksum and installs it into IKEMEN_DIR/chars/<id>/. `name` is what the stream and the game's health bar show.",
+  "characters": [
+    {
+      "id": "mugen-silly-barney",
+      "name": "Silly Barney",
+      "archetype": "ALL_ROUNDER",
+      "file": "barney.zip",
+      "sha256": "706f3727b7781a48d9f1f358fdb8c0a7a47bc987bec295aade8b34f54998e133",
+      "source": "https://mugenarchive.com/",
+      "author": "XboxRob11",
+      "notes": "A joke Barney the Dinosaur (2007, remade 2017); the file's own displayname is an insult, so it gets ours. Downloaded by the owner; the exact page is still to note."
+    },
+    {
+      "id": "mugen-evil-barney",
+      "name": "Evil Barney",
+      "archetype": "HEAVY",
+      "file": "orochi-barney.zip",
+      "sha256": "f3a8a5027b9013f553d80ee52efd3e9929a1f5371904de410274e40b15d01009",
+      "source": "https://mugenarchive.com/",
+      "author": "Basher22",
+      "notes": "\"Barney the Dinosaur OROCHI\" (2011), a dark-palette edit with boosted life, attack and defence. Downloaded by the owner; the exact page is still to note."
+    }
+  ]
+}
