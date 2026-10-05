@@ -24,6 +24,10 @@ export const SCARLET_HAWK: TemplateSpec = {
   ...brawler,
   id: "gi-scarlet-hawk",
   name: "Scarlet Hawk",
+  // Less life and punch than the Brawler: his hit boxes cover his own limbs as well as the Brawler's zones, so with the
+  // Brawler's numbers he won 81% in the balance tool (2026-10-05); with 820 life and attack 88, 62%; with 730 and 83, 42%;
+  // with 775 and 85, 53% against the ten earliest fighters but 56% against all 26 others; with these, 47% and 48%.
+  constants: { ...ALL_ROUNDER.constants, life: 760, attack: 85 },
   anims: [
     a(0, [...range(4, 15), ...range(5, 14).reverse()], 5, "stand: a karate guard"),
     a(5, [4], 3, "turn"),
