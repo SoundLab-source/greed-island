@@ -10,7 +10,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { MARKER } from "../ikemen/derive.ts";
 import type { CellSource, Sheet } from "../art/sheet.ts";
-import { buildTemplateArt, cardImage, cellsOf, type TemplateArt } from "./art.ts";
+import { buildTemplateArt, cardImage, cellsOf, templatePalettes, type TemplateArt } from "./art.ts";
 import { guideImage, guideLayout, poseGuideImage } from "./guide.ts";
 import { fighterNumbers } from "./limits.ts";
 import { commandsFile, constantsFile, defFile, statesFile } from "./cns.ts";
@@ -36,8 +36,9 @@ export function templateFiles(spec: TemplateSpec, sheet: Sheet | CellSource): Te
     ["gi.cmd", Buffer.from(commandsFile(spec, reach), "latin1")],
     ["gi.air", Buffer.from(art.air, "latin1")],
     ["gi.sff", art.sff],
-    // The website's picture of the fighter (GET /api/fighters/:id/image).
+    // The website's picture of the fighter (GET /api/fighters/:id/image), and one per further outfit (?outfit=n).
     ["card.png", cardImage(spec, source)],
+    ...templatePalettes(spec, source.palette).slice(1).map((p): [string, Buffer] => [`card-${p.number}.png`, cardImage(spec, source, p.colors)]),
     // For community artists: every frame on one sheet to draw over (GET /api/guides/:archetype), and
     // the template's numbers, which a fighter drawn on it is checked against (templates/limits.ts).
     [GUIDE_FILE, guideImage(spec, source, guideLayout(spec))],

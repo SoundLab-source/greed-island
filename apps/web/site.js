@@ -125,6 +125,7 @@ window.GI = (() => {
   const PAGES = [
     ["/", "Watch"],
     ["/shop.html", "Shop"],
+    ["/roster.html", "Roster"],
     ["/fighters.html", "My fighters"],
     ["/rankings.html", "Rankings"],
     ["/vote.html", "Vote"],

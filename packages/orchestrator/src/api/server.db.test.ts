@@ -710,6 +710,49 @@ describe("fighter pictures", () => {
     }
   });
 
+  it("serves an outfit's picture with ?outfit=n, and the main one when that outfit has none", async () => {
+    const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    await mkdir(nodePath.join(ikemen, "chars", "f1"), { recursive: true });
+    await writeFile(nodePath.join(ikemen, "chars", "f1", "card.png"), png(4, 8, 7));
+    await writeFile(nodePath.join(ikemen, "chars", "f1", "card-2.png"), png(6, 8, 7));
+    const srv = await buildServer({ db, config, bus, mailer, ikemenDir: ikemen });
+    try {
+      const width = async (q: string) => (await srv.inject({ method: "GET", url: `/api/fighters/f1/image${q}` })).rawPayload.readUInt32BE(16);
+      expect(await width("")).toBe(4);
+      expect(await width("?outfit=2")).toBe(6);
+      expect(await width("?outfit=3")).toBe(4); // no card-3.png: the main picture
+      expect((await srv.inject({ method: "GET", url: "/api/fighters/f1/image?outfit=0" })).statusCode).toBe(400);
+    } finally {
+      await srv.close();
+      await rm(ikemen, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("roster gallery", () => {
+  it("lists the fighters on the stream with their outfits and special moves", async () => {
+    const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    await mkdir(nodePath.join(ikemen, "chars", "f1"), { recursive: true });
+    await writeFile(nodePath.join(ikemen, "chars", "f1", "numbers.json"), JSON.stringify({ life: 1000, moves: [{ name: "Jab", kind: "normal" }, { name: "Fireball", kind: "special" }, { name: "Suplex", kind: "throw" }] }));
+    await db.$transaction((tx) => createCharacter(tx, { rosterKey: "f1-blue", fighterId: "f1", name: "Blue f1", palette: 2 }, ratingSettings));
+    await db.fighter.create({ data: { id: "off", displayName: "Off", archetype: "ZONER", defPath: "chars/off/off.def", licenseNote: "test", enabled: false } });
+    const srv = await buildServer({ db, config, bus, mailer, ikemenDir: ikemen });
+    try {
+      const roster = (await srv.inject({ method: "GET", url: "/api/roster" })).json();
+      expect(roster.map((f: { id: string }) => f.id).sort()).toEqual(["f1", "f2"]);
+      const f1 = roster.find((f: { id: string }) => f.id === "f1");
+      expect(f1).toMatchObject({ name: "f1", archetype: "ALL_ROUNDER", life: 1000, owned: 0, specials: [{ name: "Fireball", kind: "special" }, { name: "Suplex", kind: "throw" }] });
+      expect(f1.outfits.map((o: { name: string; palette: number }) => [o.name, o.palette])).toEqual([["Char f1", 1], ["Blue f1", 2]]);
+      // No numbers file: no moves, and no error.
+      expect(roster.find((f: { id: string }) => f.id === "f2")).toMatchObject({ specials: [], life: null });
+    } finally {
+      await srv.close();
+      await rm(ikemen, { recursive: true, force: true });
+    }
+  });
+
   it("shows staff a submission's fighter as built, in each outfit", async () => {
     const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));
     const { mkdir, writeFile } = await import("node:fs/promises");

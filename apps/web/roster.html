@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roster · Greed Island</title>
+  <link rel="stylesheet" href="site.css">
+  <style>
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 18px; }
+    .filters button { background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .filters button:hover { color: var(--ink); }
+    .filters button.on { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+    .filters button .n { opacity: 0.6; margin-left: 4px; font-weight: 600; }
+    .filters input { margin-left: auto; min-width: 180px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; }
+    .roster { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
+    .fighter { --tone: var(--gold); background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: grid; align-content: start; transition: transform 0.15s ease, border-color 0.15s ease; }
+    .fighter:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--tone) 45%, transparent); }
+    .fighter[data-archetype="RUSHDOWN"] { --tone: var(--red); }
+    .fighter[data-archetype="ZONER"] { --tone: var(--blue); }
+    .fighter[data-archetype="ALL_ROUNDER"] { --tone: var(--green); }
+    .fighter[data-archetype="HEAVY"] { --tone: #b07cff; }
+    .fighter[data-archetype="GRAPPLER"] { --tone: var(--gold); }
+    .stage { position: relative; height: 230px; display: grid; place-items: end center; padding-bottom: 10px; background: radial-gradient(ellipse at 50% 92%, color-mix(in srgb, var(--tone) 28%, transparent), transparent 62%), linear-gradient(180deg, var(--panel), var(--bg)); }
+    .stage img, .stage .silhouette { max-height: 205px; max-width: 86%; image-rendering: pixelated; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.55)); }
+    .stage .silhouette { font-size: 72px; color: var(--line); height: 205px; display: grid; place-items: center; }
+    .stage .badge { position: absolute; top: 10px; left: 10px; }
+    .stage .rarity { position: absolute; top: 10px; right: 10px; }
+    .body { padding: 12px 14px 14px; display: grid; gap: 9px; }
+    .body h3 { margin: 0; font-size: 19px; letter-spacing: 0.2px; }
+    .arche { color: var(--tone); font-size: 12px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+    .outfits { display: flex; gap: 6px; }
+    .outfits button { width: 46px; height: 52px; padding: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; display: grid; place-items: end center; }
+    .outfits button { overflow: hidden; }
+    .outfits button img { max-width: 40px; max-height: 46px; object-fit: contain; image-rendering: pixelated; }
+    .outfits button.on { border-color: var(--tone); box-shadow: 0 0 0 1px var(--tone) inset; }
+    .outfit-name { font-size: 13px; color: var(--dim); min-height: 1.2em; }
+    .outfit-name b { color: var(--ink); }
+    .moves { display: flex; flex-wrap: wrap; gap: 5px; }
+    .moves span { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); background: var(--panel); }
+    .moves span.throw { color: var(--ink); border-color: color-mix(in srgb, var(--tone) 40%, transparent); }
+    .card-foot { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .card-foot a { color: var(--tone); font-weight: 700; text-decoration: none; }
+    .card-foot a:hover { text-decoration: underline; }
+    .credit { font-size: 11px; color: var(--dim); line-height: 1.4; }
+    .credit summary { cursor: pointer; }
+    .count { color: var(--dim); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="spread">
+      <div>
+        <h1>Roster</h1>
+        <p class="lead">Every fighter on the stream. Each comes in several outfits, and every outfit is a character of its own, with its own record. Pick an outfit to see it.</p>
+      </div>
+      <span id="count" class="count"></span>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div id="roster" class="roster"><p class="muted">Loading the roster…</p></div>
+  </main>
+  <script src="site.js"></script>
+  <script src="roster.js"></script>
+</body>
+</html>

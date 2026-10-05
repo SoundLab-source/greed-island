@@ -77,6 +77,7 @@ import {
 import { leaderboard, recentSeasons, seasonView } from "./season-views.ts";
 import { latestCheck, mySubmissions, submissionDetail, submissionRules } from "./submission-views.ts";
 import { ballotView } from "./ballot-views.ts";
+import { rosterView } from "./roster-view.ts";
 import { castVote, retractVote } from "../voting.ts";
 import {
   applyLook,
@@ -629,15 +630,19 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     return send(reply, view);
   });
   app.get("/api/characters", async (_req, reply) => send(reply, await characterRanking(db)));
+  // Every fighter on the stream with its outfits and special moves (the roster gallery).
+  app.get("/api/roster", async (_req, reply) => send(reply, await rosterView(db, deps.ikemenDir)));
   // A fighter's picture for the website: card.png in its own character folder
   // (written by pnpm templates:build); fighters without one get a 404 and the page shows a placeholder.
-  app.get<{ Params: { id: string } }>("/api/fighters/:id/image", async (req, reply) => {
+  // `?outfit=n` (2 onwards) is that outfit's picture (card-n.png), or the main one when it has none.
+  app.get<{ Params: { id: string }; Querystring: { outfit?: string } }>("/api/fighters/:id/image", async (req, reply) => {
     const fighter = await db.fighter.findUnique({ where: { id: z.string().min(1).max(100).parse(req.params.id) }, select: { defPath: true } });
+    const outfit = z.coerce.number().int().min(1).max(64).default(1).parse(req.query.outfit);
     if (!fighter || !deps.ikemenDir) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
     const chars = path.resolve(deps.ikemenDir, "chars");
     const file = path.resolve(deps.ikemenDir, path.dirname(fighter.defPath), "card.png");
     if (!file.startsWith(chars + path.sep)) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
-    const bytes = await readFile(file).catch(() => null);
+    const bytes = (outfit > 1 ? await readFile(path.join(path.dirname(file), `card-${outfit}.png`)).catch(() => null) : null) ?? (await readFile(file).catch(() => null));
     if (!bytes) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
     return reply.type("image/png").header("cache-control", "public, max-age=3600").send(bytes);
   });

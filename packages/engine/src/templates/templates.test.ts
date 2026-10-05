@@ -300,6 +300,13 @@ describe("template art", () => {
     const a = templateFiles(tinySpec(), tinySheet());
     const b = templateFiles(tinySpec(), tinySheet());
     expect(a.hash).toBe(b.hash);
-    expect([...a.files.keys()].sort()).toEqual(["card.png", "gi-states.cns", "gi-tpl-test.def", "gi.air", "gi.cmd", "gi.cns", "gi.sff", "guide.png", "numbers.json", "pose-guide.png"]);
+    expect([...a.files.keys()].sort()).toEqual(["card-2.png", "card-3.png", "card-4.png", "card.png", "gi-states.cns", "gi-tpl-test.def", "gi.air", "gi.cmd", "gi.cns", "gi.sff", "guide.png", "numbers.json", "pose-guide.png"]);
+  });
+
+  it("writes a picture per outfit, each in its own colours", () => {
+    const spec = { ...tinySpec(), palettes: [{ name: "Blue", colors: { 1: "#0000ff" } }, { name: "Green", colors: { 1: "#00ff00" } }] };
+    const files = templateFiles(spec, tinySheet()).files;
+    expect([...files.keys()].filter((k) => k.startsWith("card"))).toEqual(["card.png", "card-2.png", "card-3.png"]);
+    expect(files.get("card-2.png")).not.toEqual(files.get("card-3.png"));
   });
 });
