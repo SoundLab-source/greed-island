@@ -298,6 +298,13 @@ export function checkSpec(spec: TemplateSpec): string[] {
   for (const p of [{ name: "main", colors: spec.colors ?? {} }, ...spec.palettes]) for (const [i, c] of Object.entries(p.colors)) {
     if (!/^#[0-9a-f]{6}$/i.test(c) || Number(i) < 1 || Number(i) > 255) problems.push(`palette ${p.name}: bad entry ${i} = ${c}`);
   }
+  for (const p of spec.looks ?? []) {
+    if (p.art.columns !== spec.art.columns || p.art.rows !== spec.art.rows) problems.push(`look from ${p.art.id}: its sheet isn't on this one's layout`);
+    if (p.indices.length === 0) problems.push(`look from ${p.art.id}: no palette indices`);
+    for (const n of p.indices) if (!Number.isInteger(n) || n < 1 || n > 255) problems.push(`look from ${p.art.id}: bad palette index ${n}`);
+  }
+  // Mixed-in parts take palette slots from 100 up to the projectile colours at 240 (templates/mix.ts).
+  if ((spec.looks ?? []).reduce((n, p) => n + p.indices.length, 0) > 140) problems.push("the looks need more than 140 palette slots");
   if (!/^gi-[a-z0-9-]+$/.test(spec.id)) problems.push(`id ${spec.id} should look like gi-tpl-<archetype> (a template) or gi-<name>`);
   return problems;
 }

@@ -6,9 +6,10 @@ import { loadRepoEnv, REPO_ROOT } from "@greed-island/db";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Sheet } from "../art/sheet.ts";
-import { loadTemplateSheet } from "../templates/art.ts";
+import { loadArtSheet } from "../templates/art.ts";
 import { templateFiles, writeTemplate } from "../templates/build.ts";
-import { BUILT_FIGHTERS } from "../templates/index.ts";
+import { BUILT_FIGHTERS, type ArtSource, type TemplateSpec } from "../templates/index.ts";
+import { lookCells } from "../templates/mix.ts";
 import { previewPages } from "../templates/preview.ts";
 import { loadRoster } from "../roster/schema.ts";
 
@@ -27,17 +28,26 @@ if (unknown.length) {
   process.exit(1);
 }
 const roster = await loadRoster();
+const todo = BUILT_FIGHTERS.filter((t) => only.length === 0 || only.includes(t.id));
+// Each sheet is loaded once (with the checksum check) and let go once no fighter still to build uses it: a sheet is
+// about half a gigabyte unpacked. A fighter's looks (TemplateSpec.looks) need their models' sheets too.
+const artOf = (spec: TemplateSpec): ArtSource[] => [spec.art, ...(spec.looks ?? []).map((p) => p.art)];
 const sheets = new Map<string, Sheet>();
-for (const spec of BUILT_FIGHTERS.filter((t) => only.length === 0 || only.includes(t.id))) {
-  let sheet = sheets.get(spec.art.id);
+async function sheetOf(art: ArtSource): Promise<Sheet> {
+  let sheet = sheets.get(art.id);
   if (!sheet) {
-    sheet = await loadTemplateSheet(spec, path.join(REPO_ROOT, spec.art.file)).catch((e: Error) => {
-      console.error(`${spec.art.file}: ${e.message}\nDownload it first (art/SOURCES.md).`);
+    sheet = await loadArtSheet(art, path.join(REPO_ROOT, art.file)).catch((e: Error) => {
+      console.error(`${art.file}: ${e.message}\nDownload it first (art/SOURCES.md).`);
       process.exit(1);
     });
-    sheets.set(spec.art.id, sheet);
+    sheets.set(art.id, sheet);
   }
-  const out = templateFiles(spec, sheet);
+  return sheet;
+}
+for (const [n, spec] of todo.entries()) {
+  for (const art of artOf(spec)) await sheetOf(art);
+  const cells = lookCells(spec, sheets.get(spec.art.id)!, (art) => sheets.get(art.id)!);
+  const out = templateFiles(spec, cells);
   const r = await writeTemplate(ikemenDir, spec, out);
   const listed = roster.fighters.some((f) => f.id === spec.id && f.def === r.defPath);
   console.log(`  ${r.status.padEnd(9)} ${spec.name.padEnd(10)} ${spec.archetype.padEnd(12)} ${r.defPath}  (${out.art.slots.size} sprites, ${out.art.actions.length} animations)${listed ? "" : "  (not in roster.json yet)"}`);
@@ -48,5 +58,7 @@ for (const spec of BUILT_FIGHTERS.filter((t) => only.length === 0 || only.includ
     for (const [i, page] of pages.entries()) await writeFile(path.join(dir, `preview-${i + 1}.png`), page);
     console.log(`            preview: ${path.relative(REPO_ROOT, dir)}/preview-1..${pages.length}.png`);
   }
+  const later = new Set(todo.slice(n + 1).flatMap((t) => artOf(t).map((a) => a.id)));
+  for (const id of sheets.keys()) if (!later.has(id)) sheets.delete(id);
 }
 console.log("Done. Next: pnpm match:once --p1 <template id> --p2 kfm to watch one, or pnpm roster:smoke.");

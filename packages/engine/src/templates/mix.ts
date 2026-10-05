@@ -8,8 +8,9 @@
  * head in every pose this way; parts on the limbs (gloves) follow less well,
  * since the models' proportions differ.
  */
-import type { CellSource, IndexedImage } from "../art/sheet.ts";
-import type { ArtSource, LookPart } from "./spec.ts";
+import { isCellSource, sheetCells, type CellSource, type IndexedImage, type Sheet } from "../art/sheet.ts";
+import { cellsOf } from "./art.ts";
+import type { ArtSource, LookPart, TemplateSpec } from "./spec.ts";
 
 /** The first palette slot a mixed-in part's colours go to (the sheets use 1-72; 240-245 draw projectiles). */
 export const MIX_FIRST_SLOT = 100;
@@ -17,6 +18,22 @@ export const MIX_FIRST_SLOT = 100;
 export interface MixPart extends LookPart {
   /** The part model's cells (stray specks already cleaned). */
   cells: CellSource;
+}
+
+/** The slots a fighter's looks use: MIX_FIRST_SLOT up to below the projectile colours. */
+export const MIX_SLOTS = 240 - MIX_FIRST_SLOT;
+
+/**
+ * A fighter's frames with its looks pasted on (TemplateSpec.looks), or its own frames if it has none. `sheetOf`
+ * gives each part model's sheet (cleaned here of that model's stray colours).
+ */
+export function lookCells(spec: TemplateSpec, base: Sheet | CellSource, sheetOf: (art: ArtSource) => Sheet | CellSource): CellSource {
+  const own = cellsOf(spec, base);
+  if (!spec.looks?.length) return own;
+  return mixLooks(own, spec.art, spec.looks.map((p) => {
+    const sheet = sheetOf(p.art);
+    return { ...p, cells: isCellSource(sheet) ? sheet : sheetCells(sheet, p.art.stray) };
+  }));
 }
 
 /** Where each part's palette indices go in the mixed palette: part i, index n → slot. */
@@ -29,7 +46,7 @@ export function mixSlots(parts: readonly LookPart[]): Map<number, number>[] {
 export function mixLooks(base: CellSource, baseArt: ArtSource, parts: readonly MixPart[]): CellSource {
   const slots = mixSlots(parts);
   const last = Math.max(MIX_FIRST_SLOT - 1, ...slots.flatMap((m) => [...m.values()]));
-  if (last >= 240) throw new Error(`the mixed-in parts need ${last - MIX_FIRST_SLOT + 1} palette slots, more than fit below 240`);
+  if (last >= MIX_FIRST_SLOT + MIX_SLOTS) throw new Error(`the mixed-in parts need ${last - MIX_FIRST_SLOT + 1} palette slots, more than the ${MIX_SLOTS} there are`);
   const palette = base.palette.slice();
   parts.forEach((p, i) => {
     for (const [from, to] of slots[i]!) palette.set(p.cells.palette.subarray(from * 3, from * 3 + 3), to * 3);

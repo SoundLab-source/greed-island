@@ -220,6 +220,17 @@ Each has four outfits on the roster. With the templates and the earlier house fi
 
 **Learned:** the same moves win differently on different bodies, so every fighter gets its own balance run: Hurricane Orchid's extra life (for her coat) made the coatless Amethyst Jaguar win 68%, and the same move sets on bigger or smaller bodies moved 5-12 points either way. A stance that crouches low or wide makes a smaller target and is worth about 15 points (Feral Lynx, Crimson Mongoose and Neon Gorilla each won 65-67% before about 12% less life and 7-8 less attack); a bigger body is worth even more through reach (Iron Bison). Moves drawn in the air or with a step need hand-made hitboxes round the fist or foot, since the automatic box compares the frame with the one before it and catches the moving legs.
 
+### Mixed looks: joke fighters (2026-10-05)
+
+Because the Bad Company sheets share one layout, a part of one model can be pasted onto another frame by frame (`templates/mix.ts`, `TemplateSpec.looks`): the part's palette indices (a hair ramp, a cap) from the same cell of its own sheet, scaled by the two models' localcoords and set on the feet, in palette slots of its own from 100, so outfits recolour it. Hair and caps sit on the head in every pose; parts on the limbs would follow less well, since the models' proportions differ. The first two, for fun:
+
+| Fighter | Body + part | Style | What's its own | Balance (against the 27 others) |
+|---|---|---|---|---|
+| **Midlife Crisis** (HEAVY) | Wayne, big and bald, + Boston's pink mohawk; a black band tee and jeans | The Bruiser's moves as they are | A breakdance windmill into the splits to start, then up off the floor; the splits or arms wide to win; hands on knees catching his breath as his taunt. Outfits: Midlife Crisis, Silver Fox, Red Convertible, Festival Dad | 38.9% with the Bruiser's numbers (a big target without Iron Bison's height and reach); **49.3%** at 1190 life, attack 111 |
+| **Napoleon Complex** (GRAPPLER) | Reinhold, slight and bald, + Madeira's army cap; the emperor's navy coat and white breeches | The Wrestler's moves and throws as they are | Points the charge to start; a raised fist or pointing onward to win; points at the fallen. Outfits: Napoleon Complex, Imperial Guard, Elba Exile, Waterloo | 43.2% with the Wrestler's numbers, 44.8% at 1010 and 103; **51.5%** over 810 fights at 1040 life, attack 105 |
+
+Seen in a real fight against each other: the windmill and the splits, the mohawk and cap on every frame, Napoleon body-slamming the bigger man and pointing onward over him.
+
 ## NFTs as fighters
 
 The owner's direction (2026-09-29), for step 7 and after the templates exist.

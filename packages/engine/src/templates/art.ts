@@ -13,7 +13,7 @@ import { readSff, writeSff, type SffPalette, type SffSprite } from "../art/sff.t
 import { bounds, crop, isCellSource, scale, sheetCells, type CellSource, type IndexedImage, type Sheet } from "../art/sheet.ts";
 import { readPng, writePng } from "../art/png.ts";
 import { PROJECTILE_COLORS, PROJECTILE_SLOTS, projectileArt } from "./projectile.ts";
-import { cellList, checkSpec, ticksOf, type AnimSpec, type TemplateSpec, type ThrowSpec } from "./spec.ts";
+import { cellList, checkSpec, ticksOf, type AnimSpec, type ArtSource, type TemplateSpec, type ThrowSpec } from "./spec.ts";
 
 export interface TemplateArt {
   sff: Buffer;
@@ -45,10 +45,15 @@ export function cellsOf(spec: TemplateSpec, from: Sheet | CellSource): CellSourc
 export const FACE_SIZES = { small: 42, large: 128 } as const;
 
 export async function loadTemplateSheet(spec: TemplateSpec, file: string): Promise<Sheet> {
+  return loadArtSheet(spec.art, file);
+}
+
+/** A sprite sheet (or a GIF laid out as one), checked against its checksum and grid. */
+export async function loadArtSheet(art: ArtSource, file: string): Promise<Sheet> {
   const bytes = await readFile(file);
   const sha = createHash("sha256").update(bytes).digest("hex");
-  if (sha !== spec.art.sha256) throw new Error(`${file}: checksum ${sha} does not match ${spec.art.sha256} (art/SOURCES.md)`);
-  const { cellWidth, cellHeight, columns, rows } = spec.art;
+  if (sha !== art.sha256) throw new Error(`${file}: checksum ${sha} does not match ${art.sha256} (art/SOURCES.md)`);
+  const { cellWidth, cellHeight, columns, rows } = art;
   // An animated GIF of every frame is laid out on the grid first, frame n in cell n.
   const png = /\.gif$/i.test(file) ? gifSheet(readGif(bytes), columns) : readPng(bytes);
   if (png.colorType !== 3 || !png.palette) throw new Error(`${file}: expected a palette PNG`);

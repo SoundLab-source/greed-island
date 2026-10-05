@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { CellSource } from "../art/sheet.ts";
-import { MIX_FIRST_SLOT, mixLooks, mixSlots } from "./mix.ts";
-import type { ArtSource } from "./spec.ts";
+import { MIX_FIRST_SLOT, lookCells, mixLooks, mixSlots } from "./mix.ts";
+import { checkSpec, type ArtSource } from "./spec.ts";
+import { tinySpec } from "./templates.test.ts";
 
 const art = (localcoord: number, axis: { x: number; y: number }): ArtSource => ({
   id: "t", file: "t.png", sha256: "", cellWidth: 8, cellHeight: 8, columns: 1, rows: 1, axis, stray: [], localcoord, credit: "", standardSprites: {},
@@ -45,6 +46,23 @@ describe("mixLooks", () => {
     expect(mixSlots([{ art: art(320, { x: 0, y: 0 }), indices: [53, 54] }, { art: art(320, { x: 0, y: 0 }), indices: [9] }]).map((m) => [...m])).toEqual([
       [[53, MIX_FIRST_SLOT], [54, MIX_FIRST_SLOT + 1]],
       [[9, MIX_FIRST_SLOT + 2]],
+    ]);
+  });
+
+  it("gives a fighter its looks from each part model's sheet, and checks the parts in the spec", () => {
+    const base = tinySpec();
+    const partArt = { ...base.art, id: "part" };
+    const spec = { ...base, looks: [{ art: partArt, indices: [53] }] };
+    const asked: string[] = [];
+    const plain = lookCells(base, body, () => { throw new Error("no looks, no sheets"); });
+    expect(plain).toBe(body);
+    const mixed = lookCells(spec, body, (a) => (asked.push(a.id), other));
+    expect(asked).toEqual(["part"]);
+    expect(mixed.cell(0).pixels).toContain(MIX_FIRST_SLOT);
+    expect(checkSpec(spec)).toEqual([]);
+    expect(checkSpec({ ...spec, looks: [{ art: { ...partArt, rows: 1 }, indices: [0] }] })).toEqual([
+      "look from part: its sheet isn't on this one's layout",
+      "look from part: bad palette index 0",
     ]);
   });
 });
