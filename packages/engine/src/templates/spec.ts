@@ -215,6 +215,23 @@ export interface TemplateSpec {
   palettes: readonly PaletteSpec[];
   /** Cell used for the portrait (lifebar face); the box around the head is found from the pixels unless given (cell pixels). */
   portrait: { cell: number; box?: readonly [number, number, number, number] };
+  /**
+   * Parts of other models pasted onto this one's frames (templates/mix.ts): hair, a cap. Each part's colours get
+   * their own palette slots from MIX_FIRST_SLOT on, in the order listed, so `colors` and outfits can recolour them.
+   */
+  looks?: readonly LookPart[];
+}
+
+/**
+ * Part of another model's look: the pixels of these palette indices, from the same cell of `art` (a sheet on the
+ * same layout, so the same pose), scaled to this model's size and aligned at the feet.
+ */
+export interface LookPart {
+  art: ArtSource;
+  /** The part's palette indices on its own sheet (e.g. a hair ramp). */
+  indices: readonly number[];
+  /** Move the part by this many pixels of this model's sheet (down and right are positive), to sit it better. */
+  nudge?: { x?: number; y?: number };
 }
 
 export interface PaletteSpec {
