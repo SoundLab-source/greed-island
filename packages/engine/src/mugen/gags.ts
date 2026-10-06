@@ -4,7 +4,7 @@
  * "explosion": out of nowhere, a big cartoon explosion (fx/explosion.ts, played
  * from our effect pack) goes off where the opponent stands, for 45% of their
  * life: it can't be blocked (a HitDef with no guardflag can't be guarded:
- * vendor/Ikemen-GO src/char.go:705) and knocks them down. The hit is an
+ * vendor/Ikemen-GO src/char.go:705) and knocks them down, to Counter-Strike 1.6's AWP shot. The hit is an
  * unseen projectile placed on the opponent (Projectile postype = p2) whose
  * animation is one big hitbox. The AI sets it off at random, at most once a
  * round (about one round in three). A hit during the 20-tick wind-up stops it.
@@ -45,6 +45,12 @@ export function gagStates(gags: readonly Gag[]): string {
     "removetime = -2",
     "sprpriority = 6",
     "ownpal = 1",
+    "",
+    "; The AWP shot (silent if the pack was built without it).",
+    `[State ${EXPLOSION_STATE}, sound]`,
+    "type = PlaySnd",
+    "trigger1 = Time = 20",
+    `value = ${FX_EXPLOSION}, 0`,
     "",
     `[State ${EXPLOSION_STATE}, flash]`,
     "type = AllPalFX",

@@ -24,7 +24,8 @@ import { GAGS, gagAir, gagStates, gagTriggers, type Gag } from "./gags.ts";
 import type { CodeFile } from "./cheats.ts";
 
 /** What the marker remembers of the recipe beyond the archive, so a new AI, AI choice or stats reinstall the character. */
-const aiTag = (entry: MugenEntry) => `${entry.ai}:${AI_VERSION}:${JSON.stringify(entry.data ?? {})}:${entry.gags.join(",")}`;
+const aiTag = (entry: MugenEntry) =>
+  `${entry.ai}:${AI_VERSION}:${JSON.stringify(entry.data ?? {})}:${createHash("sha256").update(gagStates(entry.gags) + gagAir(entry.gags)).digest("hex").slice(0, 12)}`;
 
 const run = promisify(execFile);
 
@@ -184,10 +185,9 @@ async function addAi(dir: string, defText: string, entry: MugenEntry): Promise<I
 /**
  * Our gags into the installed character: their states in a file of their own (the next free st key), their
  * animation appended to its .air, the AI's triggers at the top of its [Statedef -1], and our effect pack (built
- * if needed) in its [Files] fx. Returns the new .def text.
+ * by installMugen) in its [Files] fx. Returns the new .def text.
  */
-async function addGags(ikemenDir: string, dir: string, defText: string, gags: readonly Gag[]): Promise<string> {
-  await writeFxPack(ikemenDir);
+async function addGags(dir: string, defText: string, gags: readonly Gag[]): Promise<string> {
   const files = parseIni(defText).get("files") ?? new Map<string, string>();
   const stKey = Array.from({ length: 99 }, (_, i) => `st${i + 1}`).find((k) => !files.has(k))!;
   await writeFile(path.join(dir, "gi-gags.cns"), gagStates(gags), "latin1");
@@ -217,6 +217,8 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
   const dest = path.join(ikemenDir, "chars", entry.id);
   const marker = path.join(dest, MARKER);
   const defPath = `chars/${entry.id}/${entry.id}.def`;
+  // Our effect pack, for characters with gags: rebuilt when it changes (its sound downloaded, say), installed or not.
+  if (entry.gags.length) await writeFxPack(ikemenDir);
   if (existsSync(dest)) {
     if (!existsSync(marker)) throw new Error(`${dest} exists and wasn't made by Greed Island; not touching it`);
     const previous = JSON.parse(await readFile(marker, "utf8")) as { sha256?: string; name?: string; ai?: string };
@@ -242,7 +244,7 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
     // The game's health bar shows the .def's displayname, so it carries our name too.
     let defText = patchIni(fixed.text, "Info", { displayname: `"${entry.name}"` });
     const ai = await addAi(staged, fixed.text, entry);
-    if (entry.gags.length) defText = await addGags(ikemenDir, staged, defText, entry.gags);
+    if (entry.gags.length) defText = await addGags(staged, defText, entry.gags);
     await writeFile(path.join(staged, `${entry.id}.def`), defText, "latin1");
     const cns = parseIni(fixed.text).get("files")?.get("cns");
     if (entry.data && cns && existsSync(path.join(staged, cns))) {
