@@ -9,6 +9,7 @@
       "sha256": "706f3727b7781a48d9f1f358fdb8c0a7a47bc987bec295aade8b34f54998e133",
       "source": "https://mugenarchive.com/",
       "author": "XboxRob11",
+      "data": { "life": 1030, "attack": 102 },
       "notes": "A joke Barney the Dinosaur (2007, remade 2017); the file's own displayname is an insult, so it gets ours. Downloaded by the owner; the exact page is still to note."
     },
     {
@@ -19,7 +20,8 @@
       "sha256": "f3a8a5027b9013f553d80ee52efd3e9929a1f5371904de410274e40b15d01009",
       "source": "https://mugenarchive.com/",
       "author": "Basher22",
-      "notes": "\"Barney the Dinosaur OROCHI\" (2011), a dark-palette edit with boosted life, attack and defence. Downloaded by the owner; the exact page is still to note."
+      "data": { "life": 1150, "attack": 109, "defence": 100 },
+      "notes": "\"Barney the Dinosaur OROCHI\" (2011), a dark-palette edit with boosted life, attack and defence (1500, 150, 125): with our AI he won 91% against our 29 fighters, so back to normal numbers. Downloaded by the owner; the exact page is still to note."
     }
   ]
 }

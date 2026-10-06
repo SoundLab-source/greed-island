@@ -36,6 +36,11 @@ for (const entry of recipe.characters.filter((c) => only.length === 0 || only.in
   console.log(`  ${r.status.padEnd(9)} ${entry.name.padEnd(24)} ${r.defPath}  (cheat scan: ${cheats} cheats, ${found.length - cheats} to check)`);
   for (const [key, name] of Object.entries(r.changed)) console.log(`            file name fixed: ${key} = ${name}`);
   for (const m of r.missing) console.log(`            MISSING file: ${m}`);
+  if (r.ai?.by === "own") console.log("            AI: its own");
+  if (r.ai?.by === "ours") {
+    const kinds = Object.entries(Object.groupBy(r.ai.attacks, (a) => a.kind)).map(([kind, list]) => `${list!.length} ${kind}`);
+    console.log(`            AI: ours, using ${r.ai.attacks.length} attacks (${kinds.join(", ") || "none found"})`);
+  }
   const { fighter, character } = rosterEntries(entry, r.defPath);
   if (!roster.fighters.some((f) => f.id === fighter.id)) {
     roster.fighters.push(fighter);

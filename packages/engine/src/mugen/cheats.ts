@@ -49,7 +49,7 @@ const alwaysTrue = (t: string): boolean => /^\s*(1|time\s*>=\s*0|!?\s*0\s*=\s*0)
 /** A trigger tied to particular states or moments (an intro, a move), the usual reason for code in an always-running state. */
 const scoped = (t: string): boolean => /\b(stateno|prevstateno|anim|animelem|animtime|movecontact|movehit|roundstate|movetype|statetype|hitpausetime|ishelper)\b/i.test(t);
 
-function stripComment(line: string): string {
+export function stripComment(line: string): string {
   let quoted = false;
   for (let i = 0; i < line.length; i++) {
     if (line[i] === '"') quoted = !quoted;

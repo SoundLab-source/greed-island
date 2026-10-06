@@ -17,7 +17,12 @@ import { z } from "zod";
 import { MARKER } from "../ikemen/derive.ts";
 import { iniValue, parseIni, patchIni } from "../roster/ini.ts";
 import type { CharacterEntry, FighterEntry } from "../roster/schema.ts";
+import { TEMPLATES } from "../templates/index.ts";
+import { AI_VERSION, hasOwnAi, loadOrder, mugenAi, type AiAttack } from "./ai.ts";
 import type { CodeFile } from "./cheats.ts";
+
+/** What the marker remembers of the recipe beyond the archive, so a new AI, AI choice or stats reinstall the character. */
+const aiTag = (entry: MugenEntry) => `${entry.ai}:${AI_VERSION}:${JSON.stringify(entry.data ?? {})}`;
 
 const run = promisify(execFile);
 
@@ -34,6 +39,10 @@ export const MugenEntry = z.object({
   def: z.string().optional(),
   source: z.string().url(),
   author: z.string().min(1),
+  /** Whose AI fights: ours (mugen/ai.ts), the character's own, or ours only when it has none ("auto"). */
+  ai: z.enum(["auto", "ours", "own"]).default("auto"),
+  /** [Data] values to set in its constants, like our fighters' numbers: the balance knob (and the fix for boosted stats). */
+  data: z.object({ life: z.number().int().min(100).max(3000), attack: z.number().int().min(10).max(300), defence: z.number().int().min(10).max(300) }).partial().optional(),
   notes: z.string().optional(),
 });
 
@@ -142,6 +151,30 @@ export interface Installed {
   status: "installed" | "unchanged";
   changed: Record<string, string>;
   missing: string[];
+  /** Ours (with the attacks it uses), the character's own, or none at all. */
+  ai?: { by: "ours"; attacks: AiAttack[] } | { by: "own" };
+}
+
+/**
+ * Our AI into the installed character (unless it has its own and the recipe doesn't ask for ours): written into
+ * the file holding its [Statedef -1], with reach measured from its .air file.
+ */
+async function addAi(dir: string, defText: string, entry: MugenEntry): Promise<Installed["ai"]> {
+  const ini = parseIni(defText);
+  const files = ini.get("files") ?? new Map<string, string>();
+  const code: CodeFile[] = [];
+  for (const name of loadOrder(files)) if (existsSync(path.join(dir, name)) && !code.some((c) => c.name === name)) code.push({ name, text: await readFile(path.join(dir, name), "latin1") });
+  if (entry.ai === "own" || (entry.ai === "auto" && hasOwnAi(code))) return { by: "own" };
+  const anim = files.get("anim");
+  const air = anim && existsSync(path.join(dir, anim)) ? await readFile(path.join(dir, anim), "latin1") : "";
+  const cns = files.get("cns");
+  const constants = cns && existsSync(path.join(dir, cns)) ? parseIni(await readFile(path.join(dir, cns), "latin1")) : new Map();
+  const front = Number(iniValue(constants, "Size", "ground.front") ?? 16);
+  const localcoord = Number((iniValue(ini, "Info", "localcoord") ?? "320").split(",")[0]);
+  const spec = TEMPLATES.find((t) => t.archetype === entry.archetype)!.ai;
+  const ai = mugenAi({ files: code, air, front: Number.isFinite(front) ? front : 16, scale: (localcoord || 320) / 320, ai: spec });
+  await writeFile(path.join(dir, ai.file), ai.text, "latin1");
+  return { by: "ours", attacks: ai.attacks };
 }
 
 /**
@@ -158,8 +191,8 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
   const defPath = `chars/${entry.id}/${entry.id}.def`;
   if (existsSync(dest)) {
     if (!existsSync(marker)) throw new Error(`${dest} exists and wasn't made by Greed Island; not touching it`);
-    const previous = JSON.parse(await readFile(marker, "utf8")) as { sha256?: string; name?: string };
-    if (previous.sha256 === entry.sha256 && previous.name === entry.name) return { defPath, status: "unchanged", changed: {}, missing: [] };
+    const previous = JSON.parse(await readFile(marker, "utf8")) as { sha256?: string; name?: string; ai?: string };
+    if (previous.sha256 === entry.sha256 && previous.name === entry.name && previous.ai === aiTag(entry)) return { defPath, status: "unchanged", changed: {}, missing: [] };
   }
   const tmp = `${dest}.tmp-${process.pid}`;
   await rm(tmp, { recursive: true, force: true });
@@ -180,10 +213,16 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
     await rm(path.join(staged, path.posix.basename(def)));
     // The game's health bar shows the .def's displayname, so it carries our name too.
     await writeFile(path.join(staged, `${entry.id}.def`), patchIni(fixed.text, "Info", { displayname: `"${entry.name}"` }), "latin1");
-    await writeFile(path.join(staged, MARKER), JSON.stringify({ id: entry.id, name: entry.name, sha256: entry.sha256, source: entry.source, generatedBy: "pnpm mugen:import" }, null, 2) + "\n");
+    const ai = await addAi(staged, fixed.text, entry);
+    const cns = parseIni(fixed.text).get("files")?.get("cns");
+    if (entry.data && cns && existsSync(path.join(staged, cns))) {
+      const text = await readFile(path.join(staged, cns), "latin1");
+      await writeFile(path.join(staged, cns), patchIni(text, "Data", Object.fromEntries(Object.entries(entry.data).map(([k, v]) => [k, String(v)]))), "latin1");
+    }
+    await writeFile(path.join(staged, MARKER), JSON.stringify({ id: entry.id, name: entry.name, sha256: entry.sha256, ai: aiTag(entry), source: entry.source, generatedBy: "pnpm mugen:import" }, null, 2) + "\n");
     await rm(dest, { recursive: true, force: true });
     await rename(staged, dest);
-    return { defPath, status: "installed", changed: fixed.changed, missing: fixed.missing };
+    return { defPath, status: "installed", changed: fixed.changed, missing: fixed.missing, ai };
   } finally {
     await rm(tmp, { recursive: true, force: true });
     await rm(`${tmp}-char`, { recursive: true, force: true });
