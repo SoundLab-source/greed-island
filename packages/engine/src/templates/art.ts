@@ -14,6 +14,7 @@ import { bounds, crop, isCellSource, scale, sheetCells, type CellSource, type In
 import { readPng, writePng } from "../art/png.ts";
 import { PROJECTILE_COLORS, PROJECTILE_SLOTS, projectileArt } from "./projectile.ts";
 import { cellList, checkSpec, ticksOf, type AnimSpec, type ArtSource, type TemplateSpec, type ThrowSpec } from "./spec.ts";
+import { reservedGroups, standardSprites } from "./standard.ts";
 
 export interface TemplateArt {
   sff: Buffer;
@@ -32,6 +33,9 @@ export interface ArtOptions {
   /** Lifebar faces with their own palette (a community fighter's portrait); default cut from the portrait cell, in the character's colours. */
   portrait?: { small: IndexedImage; large: IndexedImage; palette: Uint8Array };
 }
+
+/** Added to a fighter's own animation's sprite group when that group is a standard one (5000 hit high → sprites 15000,n). */
+export const OWN_SPRITE_OFFSET = 10000;
 
 /** A portrait's own palette, apart from the character's colours 1,1 to 1,n, so choosing a colour doesn't repaint it. */
 export const PORTRAIT_PALETTE = { group: 9000, number: 0 } as const;
@@ -98,7 +102,7 @@ export function victimActions(t: ThrowSpec): AirAction[] {
   return [
     { action: t.state + 20, frames: [{ group: 5010, number: 0, ticks: -1 }], comment: `${t.name}: victim held (victim's sprites)` },
     { action: t.state + 21, frames: [{ group: 5030, number: 0, ticks: -1 }], comment: `${t.name}: victim lifted (victim's sprites)` },
-    { action: t.state + 22, frames: [{ group: 5030, number: 0, ticks: 8 }, { group: 5060, number: 0, ticks: -1 }], comment: `${t.name}: victim thrown (victim's sprites)` },
+    { action: t.state + 22, frames: [{ group: 5030, number: 0, ticks: 8 }, { group: 5030, number: 20, ticks: -1 }], comment: `${t.name}: victim thrown (victim's sprites)` },
   ];
 }
 
@@ -114,6 +118,9 @@ export function buildTemplateArt(spec: TemplateSpec, from: Sheet | CellSource, o
   };
   const slotOfCell = new Map<number, [number, number]>();
   const slots = new Map<string, number>();
+  // The fighter's own animations number their sprites after themselves, away from the standard groups other characters borrow.
+  const standard = spec.art.standardSprites;
+  const reserved = reservedGroups(standard);
   const hitFrames = new Map<number, Map<number, Box | undefined>>();
   for (const a of spec.attacks) {
     if (a.anim.action !== a.state) throw new Error(`${a.name}: its animation must use action ${a.state}`);
@@ -136,7 +143,7 @@ export function buildTemplateArt(spec: TemplateSpec, from: Sheet | CellSource, o
     const frames: AirFrame[] = list.map((c, i) => {
       let slot = slotOfCell.get(c);
       if (!slot) {
-        slot = [anim.action, i];
+        slot = [reserved.has(anim.action) ? anim.action + OWN_SPRITE_OFFSET : anim.action, i];
         slotOfCell.set(c, slot);
         slots.set(`${slot[0]},${slot[1]}`, c);
       }
@@ -174,15 +181,8 @@ export function buildTemplateArt(spec: TemplateSpec, from: Sheet | CellSource, o
     const b = bounds(img)!;
     sprites.push({ group, number, image: crop(img, b), axisX: axis.x - b.x0, axisY: axis.y - b.y0, palette: 0 });
   }
-  // Standard get-hit sprites for other characters' throws, unless a slot already has that number.
-  for (const [key, entry] of Object.entries(spec.art.standardSprites)) {
-    if (slots.has(key)) continue;
-    const [group, number] = key.split(",").map(Number) as [number, number];
-    const { cell: c, anchor } = typeof entry === "number" ? { cell: entry, anchor: undefined } : entry;
-    const img = cellImage(c);
-    const b = bounds(img)!;
-    sprites.push({ group, number, image: crop(img, b), axisX: axis.x - b.x0, axisY: anchor === "feet" ? b.y1 - b.y0 : axis.y - b.y0, palette: 0 });
-  }
+  // The standard get-hit sprites other characters' throws borrow (templates/standard.ts).
+  sprites.push(...standardSprites(standard, cellImage, axis));
   const palettes = [...(options.palettes ?? templatePalettes(spec, source.palette))];
   if (options.portrait) {
     const own = palettes.push({ ...PORTRAIT_PALETTE, colors: options.portrait.palette }) - 1;

@@ -146,7 +146,7 @@ Built 2026-10-02 (step 4, last part). Sending a submission for review queues a r
 
 Built 2026-10-02. A community draws its fighter on its archetype's template, and the server builds a real character from the drawing: the template's moves, timing, numbers and AI, with the community's art and collision boxes worked out from it.
 
-**The guide sheet.** `pnpm templates:build` writes one per template (`guide.png` in the template's folder; the submit page links to it for the chosen archetype, `GET /api/guides/:archetype`). Every frame the character uses, except its intro and win poses (drawn on the pose guide, below), is a box on one page, in sheet order, so frames of one move sit together: 179 to 206 frames, 4080 pixels wide and 2,552 to 3,016 tall (within the 4,096-pixel limit for submitted images). Each box shows the template's frame faded, the ground line, the ground point and the box's number; boxes are 240 x 232 pixels, room for every frame of every template.
+**The guide sheet.** `pnpm templates:build` writes one per template (`guide.png` in the template's folder; the submit page links to it for the chosen archetype, `GET /api/guides/:archetype`). Every frame the character uses, except its intro and win poses (drawn on the pose guide, below), is a box on one page, in sheet order, so frames of one move sit together: 176 to 203 frames, 4080 pixels wide and 2,552 to 2,784 tall (within the 4,096-pixel limit for submitted images). (179 to 206 until 2026-10-06, when three frames only the old get-hit sprite table used dropped out: "Making our own characters".) Each box shows the template's frame faded, the ground line, the ground point and the box's number; boxes are 240 x 232 pixels, room for every frame of every template.
 
 **What the artist does.** Draw on a new layer over the guide, the same pose in every box (feet on the line, centred on the cross, inside the box), hide the guide and export only their layer as a PNG of the same size with a transparent background, then add it to the submission as a sprite sheet. Up to 239 colours (the engine's palette; the rest of the 256 draw the transparent background and the projectile).
 
@@ -230,6 +230,53 @@ Because the Bad Company sheets share one layout, a part of one model can be past
 | **Napoleon Complex** (GRAPPLER) | Reinhold, slight and bald, + Madeira's army cap; the emperor's navy coat and white breeches | The Wrestler's moves and throws as they are | Points the charge to start; a raised fist or pointing onward to win; points at the fallen. Outfits: Napoleon Complex, Imperial Guard, Elba Exile, Waterloo | 43.2% with the Wrestler's numbers, 44.8% at 1010 and 103; **51.5%** over 810 fights at 1040 life, attack 105 |
 
 Seen in a real fight against each other: the windmill and the splits, the mohawk and cap on every frame, Napoleon body-slamming the bigger man and pointing onward over him.
+
+## Making our own characters (2026-10-06)
+
+The owner asked for the best way to make original characters, with Ryon Teaches Mugen's "Complete Character Creation | Part 1" (YouTube, May 2026, 84 minutes; the series has five parts, about 6.5 hours) as the reference. Part 1 was read in full from its captions; Parts 2-5 (animations, code, specials) weren't, since we generate all of that.
+
+**What the video teaches (Part 1: sprites).** The hand-made MUGEN way, with free tools:
+1. Pick the character and the gameplay (his example: Terry Bogard, Marvel vs. Capcom style).
+2. Tools: Fighter Factory 3 (the editor for every file, which also starts the game to test), LibreSprite (a free Aseprite) to check sprites are indexed 256-colour images with a transparent first colour, and convert them if not.
+3. Sprites ripped from commercial games (The Spriters Resource, Infinity MUGEN Team).
+4. Copy Kung Fu Man's folder, rename the files, edit the .def: names, `mugenversion = 1.1`, `localcoord` by the sprites' resolution (320x240, 640x480, 1280x720), palettes.
+5. Build the sprite file by hand in Fighter Factory, group by group, axis at the bottom middle.
+6. Align every sprite by hand against the stance with onion skin: feet on the floor line, and **the body's centre on the axis** (not the outstretched foot), or hit reactions jump; walks aligned on the torso; jumps and flips turn around the torso. He calls it the tedious half of the work (days for one character).
+7. **The required get-hit sprites** (5000-5070) are "a necessity": other characters' throws use them, including copies anchored on the waist and on the head. When the rip lacks a pose, duplicate, flip or rotate one.
+8. Palettes (import, or shift a hue in the palette editor), portraits (25 x 25 and 120 x 140), then animations: timing, simple hurtboxes, a hitbox over the fist kept a frame longer.
+
+**Compared with what we have.** Our builder already does almost all of Part 1 by itself:
+
+| Step | The video (by hand) | Greed Island (in code) |
+|---|---|---|
+| Editor | Fighter Factory, every file by hand | `pnpm templates:build` writes the sprite, animation, state and command files from a spec |
+| Art | Ripped from commercial games | Free (CC0) renders, owned outright; community art drawn on our guide sheets |
+| Colours and transparency | Checked and converted in LibreSprite | Automatic (palette images, index 0 transparent) |
+| Size (`localcoord`) | Picked by eye | Measured per model, so everyone stands the right height |
+| Alignment | Hours of onion-skinning | Automatic: the renders share one camera, so the body stays on the axis by construction; GIF frames are anchored on the feet |
+| Required get-hit sprites | Duplicated and rotated by hand | Automatic, waist and head copies included (fixed today: see below) |
+| Palettes | One or two hue shifts | Four outfits per fighter from colour ramps; NFT looks |
+| Portraits | Cut and pasted | Cut from the head automatically, or the community's own |
+| Collision boxes | Drawn on every frame | From the pixels, hand-made where a move needs it |
+| Code and AI (Parts 2-5) | Written by hand | Generated, with our own AI; imported MUGEN characters get it too |
+| Testing | Playing it | The balance tool: hundreds of fights in minutes |
+
+**The one lesson we were missing**, now fixed: our fighters had the base get-hit sprites but not the waist and head copies, and a few numbers held other frames (a tuck jump where "lying on the ground" belongs). A missing sprite isn't drawn, so our fighter vanished for moments when a MUGEN character threw them: Midlife Crisis logged it in 10 of his fights against MUGEN characters. Every fighter now has Kung Fu Man's full set (`templates/standard.ts`), poses the sheets lack turned in code as the video does, and the same 10 fights log nothing (ikemen-notes §7).
+
+**Where the hand-made way still wins: character.** A hand-made fighter has its own move list, timing, specials, supers and effects. Ours share five move skeletons with the same numbers, on purpose for balance. With the owner's direction of diversity over balance, that sameness is now our weakest point: 29 fighters that play like 5.
+
+**Ways to make original characters**, cheapest first:
+
+| Route | Cost per fighter | What it needs | What it gives |
+|---|---|---|---|
+| 1. More free bodies on our pipeline | Hours | Downloads (owner's yes): Puffolotti's Mustermenschen V1 (23 thugs, 33.2 MB), RJD, Verlaine Byron, Tasen aliens, alien ninja, armoured woman (2-3 MB each) | About 25-30 more fighters; same look and move skeletons |
+| 2. Moves and effects of their own, drawn in code | About a day for a set | Nothing to download | Signature specials and a super per fighter (beams, sparkles, fireballs, summons), like the explosion gag; fighters that play differently. Nyan Cat is the first |
+| 3. Parts, not frames (2D cut-out animation, as in Brawlhalla) | A big build once, then hours per fighter | An artist draws about 15 body parts once (or we draw them in code) | Any design (animals, robots, cartoon styles); the builder poses the parts on a shared skeleton for all ~80 animations and renders the sprites. Community fighters drop from ~190 frames to ~15 parts, and NFT trait kits become swapping a part |
+| 4. 3D renders (Blender with free animations) | A big build once | Blender, 3D models | Full move lists in one consistent 3D look; harder for 2D artists and NFT collections |
+| 5. Commissioned hand-drawn fighters on our guides | Weeks and a fee each | An artist | The most polished; for a few headliners |
+| 6. AI image generation | | | Fine for portraits, concept art and maybe the parts of route 3; not yet reliable for 190 frames that match |
+
+**Recommendation:** route 2 now (starting with Nyan Cat) and route 1 when you say yes to the downloads; then route 3 as the next big build, first proven with a fighter drawn entirely in code, then opened to artists and NFT trait kits. Route 5 for a few stars later; route 4 only if a 3D look is wanted.
 
 ## NFTs as fighters
 

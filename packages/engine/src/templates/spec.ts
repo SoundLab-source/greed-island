@@ -8,6 +8,7 @@
  * Man and most MUGEN characters), so numbers compare across characters; the
  * builder converts them to the character's own `localcoord`.
  */
+import type { StandardSprite } from "./standard.ts";
 import type { Archetype } from "@greed-island/shared";
 import type { Box } from "../art/air.ts";
 
@@ -28,11 +29,13 @@ export interface ArtSource {
   localcoord: number;
   credit: string;
   /**
-   * MUGEN's standard get-hit sprite numbers ("group,number" → cell), which
-   * other characters' throws borrow from their victim. `feet` re-grounds an
-   * airborne frame like AnimSpec.anchor.
+   * MUGEN's standard get-hit sprites ("group,number" → cell), which other
+   * characters' throws borrow from their victim: every one in
+   * REQUIRED_STANDARD (templates/standard.ts), whose waist and head copies
+   * the builder adds. `feet` re-grounds an airborne frame like
+   * AnimSpec.anchor; `rotate` turns the cell clockwise by that many degrees.
    */
-  standardSprites: Readonly<Record<string, number | { cell: number; anchor: "feet" }>>;
+  standardSprites: Readonly<Record<string, StandardSprite>>;
 }
 
 /** Cells of the sheet: a list, or an inclusive range (`to` below `from` plays backwards). */

@@ -234,8 +234,8 @@ describe("template art", () => {
     const art = buildTemplateArt(tinySpec(), tinySheet());
     const sprites = readSff(art.sff).sprites;
     const keys = sprites.map((s) => `${s.group},${s.number}`);
-    // Cells 0, 2, 3 and 1 (first used by actions 0, 41, 5110 and 200), the standard sprites and two portraits.
-    expect(keys).toEqual(["0,0", "41,0", "5110,0", "200,1", "5000,10", "5030,10", "9000,0", "9000,1"]);
+    // Cells 0, 2, 3 and 1 (first used by actions 0, 41, 5110 and 200), the standard sprites with their waist and head copies, and two portraits.
+    expect(keys).toEqual(["0,0", "41,0", "5110,0", "200,1", "5000,10", "5001,10", "5002,10", "5030,10", "5031,10", "5032,10", "9000,0", "9000,1"]);
     const stand = sprites[0]!;
     expect([stand.image.width, stand.image.height, stand.axisX, stand.axisY]).toEqual([10, 48, 5, 48]);
     // The stray speck at (0, 0) is gone: the trimmed stand sprite starts at the body.
