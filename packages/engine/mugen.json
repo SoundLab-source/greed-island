@@ -9,8 +9,13 @@
       "sha256": "706f3727b7781a48d9f1f358fdb8c0a7a47bc987bec295aade8b34f54998e133",
       "source": "https://mugenarchive.com/",
       "author": "XboxRob11",
-      "data": { "life": 1030, "attack": 102 },
-      "gags": ["explosion"],
+      "data": {
+        "life": 1030,
+        "attack": 102
+      },
+      "gags": [
+        "explosion"
+      ],
       "notes": "A joke Barney the Dinosaur (2007, remade 2017); the file's own displayname is an insult, so it gets ours. Downloaded by the owner; the exact page is still to note."
     },
     {
@@ -21,8 +26,213 @@
       "sha256": "f3a8a5027b9013f553d80ee52efd3e9929a1f5371904de410274e40b15d01009",
       "source": "https://mugenarchive.com/",
       "author": "Basher22",
-      "data": { "life": 1150, "attack": 109, "defence": 100 },
+      "data": {
+        "life": 1150,
+        "attack": 109,
+        "defence": 100
+      },
       "notes": "\"Barney the Dinosaur OROCHI\" (2011), a dark-palette edit with boosted life, attack and defence (1500, 150, 125): with our AI he won 91% against our 29 fighters, so back to normal numbers. Downloaded by the owner; the exact page is still to note."
+    },
+    {
+      "id": "mugen-pepsiman",
+      "name": "Pepsiman",
+      "archetype": "RUSHDOWN",
+      "file": "pepsiman.zip",
+      "sha256": "8ba0d4f4c2e233a406ec639e0fcf70dab96f89e6c087c0f4d3b5c6b40c5938ca",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=39803",
+      "author": "suteneko",
+      "notes": "Pepsi's commercial mascot, a clumsy oaf: his moves are obstacles he trips over, plus a parry and a heal. Has its own AI."
+    },
+    {
+      "id": "mugen-big-chungus",
+      "name": "Big Chungus",
+      "archetype": "HEAVY",
+      "file": "big_chungus.zip",
+      "sha256": "864e6bf8a13395e68e7de9e4516bc90b2c21cd7f81b31bb8e7abc9d43f60fa6d",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=104429",
+      "author": "RoyalKnight787",
+      "notes": "The meme rabbit, a sprite swap of a joke Elmo character (intro included). Has its own AI."
+    },
+    {
+      "id": "mugen-cracker-volley",
+      "name": "Cracker Volley",
+      "archetype": "ALL_ROUNDER",
+      "file": "crackervolley.zip",
+      "sha256": "a9fe99fb70986b2b629623b5bbee273853caac89a6645fd2fa3f9923724d69b0",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=49383",
+      "author": "Fino",
+      "notes": "Young Joseph Joestar's clacker volley meme (original Joseph by Men's Club). Has its own AI."
+    },
+    {
+      "id": "mugen-among-drip",
+      "name": "Among Drip",
+      "archetype": "ALL_ROUNDER",
+      "file": "Amog_Drip_NEW.zip",
+      "sha256": "bf3dc13fb7d792bef4a39f5f1dd13293c2170289914a5cc327eb9f8fec90c173",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=152613",
+      "author": "ghiacio",
+      "notes": "The Among Us drip meme (updated 2021, new move and intro). Has its own AI."
+    },
+    {
+      "id": "mugen-dio-garfield",
+      "name": "DIO Garfield",
+      "archetype": "RUSHDOWN",
+      "file": "DIO_Garfield.rar",
+      "sha256": "e0e34ecaa85bb8c9aae1c8852b578737165e71ed63fc41563ff59b9ae48170b7",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=116618",
+      "author": "Warusaki, Siguel",
+      "notes": "Garfield as DIO (JoJo), on a full DIO base: 1,023 sprites. Has its own AI."
+    },
+    {
+      "id": "mugen-dancing-banana",
+      "name": "Dancing Banana",
+      "archetype": "ALL_ROUNDER",
+      "file": "banana.zip",
+      "sha256": "b2751d325e33e229abc3a6ba134f584f642cf2a7ae60ed83cbdc90d704042f77",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=34652",
+      "author": "Iron Commando",
+      "notes": "Peanut Butter Jelly Time: the author says very good AI and pretty balanced."
+    },
+    {
+      "id": "mugen-ugandan-knuckles",
+      "name": "Ugandan Knuckles",
+      "archetype": "RUSHDOWN",
+      "file": "ugandanknuckles.rar",
+      "sha256": "184643f82cc6c687effd639011db2ee1d78cd45b1300b19a93b827433f269edb",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=77529",
+      "author": "EX Falchion",
+      "notes": "The VRChat meme: 'do you know de wey', brothers summoned to spit."
+    },
+    {
+      "id": "mugen-refrigerator",
+      "name": "Refrigerator",
+      "archetype": "ZONER",
+      "file": "freeze.zip",
+      "sha256": "b7d399ae5a109f8ebe7acc2c0c4a84cdc4d49a139927d211ba079d020bb89c4b",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=26460",
+      "author": "KUROGOMA",
+      "notes": "A fighting refrigerator that shoots jars and evil watermelons, and can parry."
+    },
+    {
+      "id": "mugen-sunky",
+      "name": "Sunky",
+      "archetype": "RUSHDOWN",
+      "file": "sunky_the_mugen_character.rar",
+      "sha256": "536b82e9af9e99ffbdbdc9c668cf2c17ef09d89b58af043110338b93f8aa2902",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=30687",
+      "author": "Pizzasause",
+      "notes": "Sunky, the parody Sonic."
+    },
+    {
+      "id": "mugen-nyan-cat",
+      "name": "Nyan Cat",
+      "archetype": "ZONER",
+      "file": "Nyan_Cat.rar",
+      "sha256": "4117f05fdf5d1065a8eef005417bb0f291496222ce3d8e95e232258cad1a4124",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=50461",
+      "author": "CyberAkumaTv",
+      "notes": "The rainbow Pop-Tart cat."
+    },
+    {
+      "id": "mugen-reisen-deadpool",
+      "name": "Reisen Deadpool Inaba",
+      "archetype": "ZONER",
+      "file": "RDI.rar",
+      "sha256": "16623fdc5a882c9fa7b8a91bcdd3eca7bf1e41e7850bead9ce1561b1215a27aa",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=6612",
+      "author": "or2=3",
+      "notes": "Touhou's Reisen as Deadpool: 1,055 sprites."
+    },
+    {
+      "id": "mugen-magic-geese",
+      "name": "Magic Geese",
+      "archetype": "GRAPPLER",
+      "file": "magigeese.zip",
+      "sha256": "0aed4c93f70631af27e3951f302419e49594064df57808cf83d054b79031f7d2",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=30928",
+      "author": "The_None",
+      "notes": "Geese Howard (Fatal Fury) quits being evil to become a stage musician, with Shadow the Hedgehog voice clips.",
+      "def": "magigeese/magigeese.def"
+    },
+    {
+      "id": "mugen-troll-face",
+      "name": "Troll Face",
+      "archetype": "ZONER",
+      "file": "Trollface.zip",
+      "sha256": "eb2845186c66c726e37d1a5429c8258366447c8bf8cf3fd8858afad83f1c7eeb",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=30049",
+      "author": "Yogurty14",
+      "notes": "The Troll Face meme: no body to hit, can't move, one button that's a one-hit KO with the Troll Song. A gag character by design."
+    },
+    {
+      "id": "mugen-windows-xp",
+      "name": "Windows XP",
+      "archetype": "ZONER",
+      "file": "NEW_XP.zip",
+      "sha256": "e1bb790e69a8ba8dd5b6af72ca1e61844dada34b229560e2f47ed262c6bbf4c6",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=71447",
+      "author": "Genesis",
+      "notes": "A computer running Windows XP: every button flashes it and plays the XP sound. A gag character by design."
+    },
+    {
+      "id": "mugen-google-chrome",
+      "name": "Google Chrome",
+      "archetype": "ZONER",
+      "file": "GoogleChrome.zip",
+      "sha256": "1542cfb962660c4b8a0168784405a6e89d646ef68e56c9a2a566a08674c029c1",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=30053",
+      "author": "FrancoIIIOliquino",
+      "notes": "Google Chrome, spamming projectiles and rolling at the opponent; its own AI is hard to beat. To fix."
+    },
+    {
+      "id": "mugen-ohko-yee",
+      "name": "OHKO Yee",
+      "archetype": "ALL_ROUNDER",
+      "file": "OHKOYee.zip",
+      "sha256": "9337a485c2ba446346f2798943c39531952acd5e7ed9e96366979a2addfa791d",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=13018",
+      "author": "unknown (MUGEN Archive)",
+      "notes": "The Yee dinosaur meme with one-hit KOs, made for old Windows MUGEN. To fix."
+    },
+    {
+      "id": "mugen-omega-tiger-woods",
+      "name": "Omega Tiger Woods",
+      "archetype": "ALL_ROUNDER",
+      "file": "mm_666.zip",
+      "sha256": "4b3b00cf5ab057c382f81e43991988e4897c28043b1b272f57211055f63a691f",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=21445",
+      "author": "Most_Mysterious",
+      "notes": "The original 2004 Omega Tiger Woods, broken by design. To fix."
+    },
+    {
+      "id": "mugen-chizuru",
+      "name": "Possibility of Chizuru",
+      "archetype": "ZONER",
+      "file": "possibility_of_Chizuru.zip",
+      "sha256": "0372289b7d0811c0891860177d4efa2ce289951358193491b8e62bdf7c3a612d",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=10321",
+      "author": "tokage",
+      "notes": "A crazy joke edit of KOF's Chizuru, very cheap by its author's own words. To fix."
+    },
+    {
+      "id": "mugen-ui-shaggy",
+      "name": "Ultra Instinct Shaggy",
+      "archetype": "RUSHDOWN",
+      "file": "Ultra_Instinct_Shaggy.zip",
+      "sha256": "7e5b63103b3d122b361f91e3a50cd342debca5b3e3a0930814009f651c0d2bce",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=89055",
+      "author": "Black Hazard",
+      "notes": "Shaggy from the viral edit, very cheap by its author's own words. To fix."
+    },
+    {
+      "id": "mugen-bonzibuddy",
+      "name": "BonziBUDDY",
+      "archetype": "HEAVY",
+      "file": "BonziBuddy.rar",
+      "sha256": "24f44aeaa28fc3cff229d919e84563d1915dd492f176d8be052bedce451ebfd8",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=169850",
+      "author": "Brergrsart",
+      "notes": "The purple ape, the final boss of Vargverse: super armour and very strong moves, made like an SNK/Marvel boss. To fix."
     }
   ]
 }

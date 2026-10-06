@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RosterFile } from "../roster/schema.ts";
-import { fixFileNames, loadMugen, MugenRecipe, rosterEntries, unsafeEntries } from "./import.ts";
+import { fixFileNames, loadMugen, MugenRecipe, PROGRAM_FILES, rosterEntries, unsafeEntries } from "./import.ts";
 
 describe("MUGEN imports", () => {
   it("refuses archive entries that would land outside their folder", () => {
@@ -29,5 +29,10 @@ describe("MUGEN imports", () => {
     const roster = RosterFile.parse({ fighters: entries.map((e) => e.fighter), stages: [], characters: entries.map((e) => e.character) });
     expect(roster.fighters.every((f) => f.commercialUse === false && f.id.startsWith("mugen-"))).toBe(true);
     expect(() => MugenRecipe.parse({ characters: [{ ...recipe.characters[0]!, file: "../x.zip" }] })).toThrow(/a file name/);
+  });
+
+  it("leaves programs out, but keeps a character's .cmd command lists", () => {
+    const files = ["Barney/Barney.cmd", "Barney/Barney.def", "Barney/setup.exe", "Barney/run.BAT", "Barney/x.dll", "Barney/notes.txt", "Barney/tool.sh"];
+    expect(files.filter((f) => PROGRAM_FILES.test(f))).toEqual(["Barney/setup.exe", "Barney/run.BAT", "Barney/x.dll", "Barney/tool.sh"]);
   });
 });

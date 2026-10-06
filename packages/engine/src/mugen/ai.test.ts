@@ -130,6 +130,8 @@ describe("MUGEN AI", () => {
     expect(hasOwnAi([{ name: "c.cmd", text: cmd }])).toBe(false);
     expect(hasOwnAi([{ name: "c.cmd", text: cmd + "\r\n[State -1, AI]\r\ntype = ChangeState\r\ntrigger1 = AILevel > 0\r\nvalue = 200" }])).toBe(true);
     expect(hasOwnAi([{ name: "c.cmd", text: '[Command]\nname = "CPU1"\ncommand = U,D,U,D' }])).toBe(true);
+    expect(hasOwnAi([{ name: "c.cmd", text: '[Command]\nname = "AI-007"\ncommand = U,D,U,D' }])).toBe(true);
+    expect(hasOwnAi([{ name: "c.cmd", text: '[Command]\nname = "aim_shot"\ncommand = x' }])).toBe(false);
     expect(hasOwnAi([{ name: "c.cmd", text: "; AILevel in a comment only" }])).toBe(false);
     expect(loadOrder(new Map([["cmd", "c.cmd"], ["st2", "b.cns"], ["st", "a.cns"], ["st10", "d.cns"], ["cns", "c.cns"]]))).toEqual(["a.cns", "b.cns", "d.cns", "c.cmd"]);
   });

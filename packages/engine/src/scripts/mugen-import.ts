@@ -24,19 +24,30 @@ if (unknown.length) {
 }
 const roster = JSON.parse(await readFile(ROSTER_PATH, "utf8")) as { fighters: { id: string }[]; characters: { key: string }[] };
 let added = 0;
+let failed = 0;
 for (const entry of recipe.characters.filter((c) => only.length === 0 || only.includes(c.id))) {
   const archive = path.join(REPO_ROOT, "mugen", entry.file);
   if (!existsSync(archive)) {
     console.log(`  missing   ${entry.name.padEnd(24)} put ${entry.file} in mugen/ (from ${entry.source})`);
     continue;
   }
-  const r = await installMugen(ikemenDir, entry, archive);
+  let r: Awaited<ReturnType<typeof installMugen>>;
+  try {
+    r = await installMugen(ikemenDir, entry, archive);
+  } catch (e) {
+    console.log(`  FAILED    ${entry.name.padEnd(24)} ${(e as Error).message.split("\n")[0]}`);
+    failed++;
+    continue;
+  }
   const found = scanCheats(await codeFiles(path.join(ikemenDir, r.defPath)));
   const cheats = found.filter((f) => f.level === "cheat").length;
   console.log(`  ${r.status.padEnd(9)} ${entry.name.padEnd(24)} ${r.defPath}  (cheat scan: ${cheats} cheats, ${found.length - cheats} to check)`);
   for (const [key, name] of Object.entries(r.changed)) console.log(`            file name fixed: ${key} = ${name}`);
   for (const m of r.missing) console.log(`            MISSING file: ${m}`);
+  for (const f of r.removed ?? []) console.log(`            left out (a program, not character data): ${f}`);
+  for (const f of r.unpackProblems ?? []) console.log(`            couldn't unpack: ${f}`);
   if (r.ai?.by === "own") console.log("            AI: its own");
+  if (r.ai?.by === "none") console.log("            AI: the engine's (no attacks of its own to drive: a gag character?)");
   if (r.ai?.by === "ours") {
     const kinds = Object.entries(Object.groupBy(r.ai.attacks, (a) => a.kind)).map(([kind, list]) => `${list!.length} ${kind}`);
     console.log(`            AI: ours, using ${r.ai.attacks.length} attacks (${kinds.join(", ") || "none found"})`);
@@ -52,4 +63,5 @@ if (added) {
   await writeFile(ROSTER_PATH, JSON.stringify(roster, null, 2) + "\n");
   console.log(`Added ${added} fighter(s) to roster.json (commercialUse: false).`);
 }
+if (failed) process.exitCode = 1;
 console.log("Next: pnpm mugen:scan <id> for the cheat details, pnpm match:once --p1 <id> --p2 gi-tpl-all-rounder --sim to try one.");

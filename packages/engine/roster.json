@@ -420,6 +420,226 @@
       "commercialUse": false,
       "enabled": true,
       "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-pepsiman",
+      "displayName": "Pepsiman",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-pepsiman/mugen-pepsiman.def",
+      "license": "MUGEN character by suteneko, from https://mugenarchive.com/forums/downloads.php?do=file&id=39803. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-big-chungus",
+      "displayName": "Big Chungus",
+      "archetype": "HEAVY",
+      "rarity": "RARE",
+      "def": "chars/mugen-big-chungus/mugen-big-chungus.def",
+      "license": "MUGEN character by RoyalKnight787, from https://mugenarchive.com/forums/downloads.php?do=file&id=104429. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-cracker-volley",
+      "displayName": "Cracker Volley",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-cracker-volley/mugen-cracker-volley.def",
+      "license": "MUGEN character by Fino, from https://mugenarchive.com/forums/downloads.php?do=file&id=49383. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-among-drip",
+      "displayName": "Among Drip",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-among-drip/mugen-among-drip.def",
+      "license": "MUGEN character by ghiacio, from https://mugenarchive.com/forums/downloads.php?do=file&id=152613. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-dio-garfield",
+      "displayName": "DIO Garfield",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-dio-garfield/mugen-dio-garfield.def",
+      "license": "MUGEN character by Warusaki, Siguel, from https://mugenarchive.com/forums/downloads.php?do=file&id=116618. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-dancing-banana",
+      "displayName": "Dancing Banana",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-dancing-banana/mugen-dancing-banana.def",
+      "license": "MUGEN character by Iron Commando, from https://mugenarchive.com/forums/downloads.php?do=file&id=34652. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-ugandan-knuckles",
+      "displayName": "Ugandan Knuckles",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-ugandan-knuckles/mugen-ugandan-knuckles.def",
+      "license": "MUGEN character by EX Falchion, from https://mugenarchive.com/forums/downloads.php?do=file&id=77529. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-refrigerator",
+      "displayName": "Refrigerator",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-refrigerator/mugen-refrigerator.def",
+      "license": "MUGEN character by KUROGOMA, from https://mugenarchive.com/forums/downloads.php?do=file&id=26460. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-sunky",
+      "displayName": "Sunky",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-sunky/mugen-sunky.def",
+      "license": "MUGEN character by Pizzasause, from https://mugenarchive.com/forums/downloads.php?do=file&id=30687. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-nyan-cat",
+      "displayName": "Nyan Cat",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-nyan-cat/mugen-nyan-cat.def",
+      "license": "MUGEN character by CyberAkumaTv, from https://mugenarchive.com/forums/downloads.php?do=file&id=50461. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": false,
+      "notes": "Switched off: its -2 state pauses the game, so the round never ends (engine timeout in a test fight, 2026-10-06). To fix, with moves of our own (sparkles, a lazer)."
+    },
+    {
+      "id": "mugen-reisen-deadpool",
+      "displayName": "Reisen Deadpool Inaba",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-reisen-deadpool/mugen-reisen-deadpool.def",
+      "license": "MUGEN character by or2=3, from https://mugenarchive.com/forums/downloads.php?do=file&id=6612. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-magic-geese",
+      "displayName": "Magic Geese",
+      "archetype": "GRAPPLER",
+      "rarity": "RARE",
+      "def": "chars/mugen-magic-geese/mugen-magic-geese.def",
+      "license": "MUGEN character by The_None, from https://mugenarchive.com/forums/downloads.php?do=file&id=30928. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-troll-face",
+      "displayName": "Troll Face",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-troll-face/mugen-troll-face.def",
+      "license": "MUGEN character by Yogurty14, from https://mugenarchive.com/forums/downloads.php?do=file&id=30049. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-windows-xp",
+      "displayName": "Windows XP",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-windows-xp/mugen-windows-xp.def",
+      "license": "MUGEN character by Genesis, from https://mugenarchive.com/forums/downloads.php?do=file&id=71447. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-google-chrome",
+      "displayName": "Google Chrome",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-google-chrome/mugen-google-chrome.def",
+      "license": "MUGEN character by FrancoIIIOliquino, from https://mugenarchive.com/forums/downloads.php?do=file&id=30053. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-ohko-yee",
+      "displayName": "OHKO Yee",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-ohko-yee/mugen-ohko-yee.def",
+      "license": "MUGEN character by unknown (MUGEN Archive), from https://mugenarchive.com/forums/downloads.php?do=file&id=13018. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": false,
+      "notes": "Switched off: made for old Windows MUGEN only; the test fight never ended (engine timeout, 2026-10-06)."
+    },
+    {
+      "id": "mugen-omega-tiger-woods",
+      "displayName": "Omega Tiger Woods",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-omega-tiger-woods/mugen-omega-tiger-woods.def",
+      "license": "MUGEN character by Most_Mysterious, from https://mugenarchive.com/forums/downloads.php?do=file&id=21445. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-chizuru",
+      "displayName": "Possibility of Chizuru",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-chizuru/mugen-chizuru.def",
+      "license": "MUGEN character by tokage, from https://mugenarchive.com/forums/downloads.php?do=file&id=10321. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-ui-shaggy",
+      "displayName": "Ultra Instinct Shaggy",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-ui-shaggy/mugen-ui-shaggy.def",
+      "license": "MUGEN character by Black Hazard, from https://mugenarchive.com/forums/downloads.php?do=file&id=89055. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-bonzibuddy",
+      "displayName": "BonziBUDDY",
+      "archetype": "HEAVY",
+      "rarity": "RARE",
+      "def": "chars/mugen-bonzibuddy/mugen-bonzibuddy.def",
+      "license": "MUGEN character by Brergrsart, from https://mugenarchive.com/forums/downloads.php?do=file&id=169850. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
     }
   ],
   "stages": [
@@ -1249,6 +1469,146 @@
       "key": "mugen-evil-barney",
       "fighter": "mugen-evil-barney",
       "name": "Evil Barney",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-pepsiman",
+      "fighter": "mugen-pepsiman",
+      "name": "Pepsiman",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-big-chungus",
+      "fighter": "mugen-big-chungus",
+      "name": "Big Chungus",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-cracker-volley",
+      "fighter": "mugen-cracker-volley",
+      "name": "Cracker Volley",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-among-drip",
+      "fighter": "mugen-among-drip",
+      "name": "Among Drip",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-dio-garfield",
+      "fighter": "mugen-dio-garfield",
+      "name": "DIO Garfield",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-dancing-banana",
+      "fighter": "mugen-dancing-banana",
+      "name": "Dancing Banana",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-ugandan-knuckles",
+      "fighter": "mugen-ugandan-knuckles",
+      "name": "Ugandan Knuckles",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-refrigerator",
+      "fighter": "mugen-refrigerator",
+      "name": "Refrigerator",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-sunky",
+      "fighter": "mugen-sunky",
+      "name": "Sunky",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-nyan-cat",
+      "fighter": "mugen-nyan-cat",
+      "name": "Nyan Cat",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-reisen-deadpool",
+      "fighter": "mugen-reisen-deadpool",
+      "name": "Reisen Deadpool Inaba",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-magic-geese",
+      "fighter": "mugen-magic-geese",
+      "name": "Magic Geese",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-troll-face",
+      "fighter": "mugen-troll-face",
+      "name": "Troll Face",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-windows-xp",
+      "fighter": "mugen-windows-xp",
+      "name": "Windows XP",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-google-chrome",
+      "fighter": "mugen-google-chrome",
+      "name": "Google Chrome",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-ohko-yee",
+      "fighter": "mugen-ohko-yee",
+      "name": "OHKO Yee",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-omega-tiger-woods",
+      "fighter": "mugen-omega-tiger-woods",
+      "name": "Omega Tiger Woods",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-chizuru",
+      "fighter": "mugen-chizuru",
+      "name": "Possibility of Chizuru",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-ui-shaggy",
+      "fighter": "mugen-ui-shaggy",
+      "name": "Ultra Instinct Shaggy",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-bonzibuddy",
+      "fighter": "mugen-bonzibuddy",
+      "name": "BonziBUDDY",
       "palette": 1,
       "enabled": true
     }

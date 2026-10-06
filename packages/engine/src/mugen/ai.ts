@@ -19,7 +19,7 @@
 import type { AiSpec } from "../templates/spec.ts";
 
 /** Changes whenever the generated AI does, so imported characters get the new one (pnpm mugen:import). */
-export const AI_VERSION = 7;
+export const AI_VERSION = 8;
 
 /** 0-1000 per tick: chance to jump over a projectile that's on its way from afar. */
 export const PROJECTILE_JUMP = 60;
@@ -178,7 +178,7 @@ function own(trigger: string, crouching: boolean): string {
 
 /** Does the character bring its own AI (it checks AILevel, or has the classic impossible "CPU" commands)? */
 export function hasOwnAi(files: readonly CodeFile[]): boolean {
-  return files.some((f) => /\bailevel\b/i.test(f.text.split(/\r?\n/).map(stripComment).join("\n")) || /^\s*name\s*=\s*"(cpu|ai)\d*"/im.test(f.text));
+  return files.some((f) => /\bailevel\b/i.test(f.text.split(/\r?\n/).map(stripComment).join("\n")) || /^\s*name\s*=\s*"(cpu|ai|com)[\s_-]*\d*"/im.test(f.text));
 }
 
 /** The engine's load order of a .def's state and command files: st, then st0, st1... (natural order), then cmd. */

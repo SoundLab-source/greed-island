@@ -76,14 +76,26 @@ export function unsafeEntries(entries: readonly string[]): string[] {
 
 /**
  * Unpack an archive (zip, rar, 7z: macOS and Linux tar read them through libarchive) into `dest`, after checking
- * every entry stays inside it.
+ * every entry stays inside it. Many MUGEN characters are Japanese, with file names in Shift-JIS that a modern file
+ * system refuses as they are: those are read as Shift-JIS (CP932) on a second try, and if some name still can't be
+ * written, what did unpack is kept (such files are readmes in practice) and the problems are returned.
  */
-export async function unpack(archive: string, dest: string): Promise<void> {
+export async function unpack(archive: string, dest: string): Promise<string[]> {
   const { stdout } = await run("tar", ["-tf", archive], { maxBuffer: 64 * 1024 * 1024 });
   const bad = unsafeEntries(stdout.split("\n").filter(Boolean));
   if (bad.length) throw new Error(`${path.basename(archive)}: entries outside the folder: ${bad.slice(0, 3).join(", ")}`);
-  await mkdir(dest, { recursive: true });
-  await run("tar", ["-xf", archive, "-C", dest], { maxBuffer: 64 * 1024 * 1024 });
+  let problems: string[] = [];
+  for (const extra of [[], ["--options", "hdrcharset=CP932"]]) {
+    await rm(dest, { recursive: true, force: true });
+    await mkdir(dest, { recursive: true });
+    try {
+      await run("tar", ["-xf", archive, ...extra, "-C", dest], { maxBuffer: 64 * 1024 * 1024 });
+      return [];
+    } catch (e) {
+      problems = String((e as { stderr?: string }).stderr ?? e).split("\n").filter((l) => l && !/Error exit delayed/.test(l));
+    }
+  }
+  return problems;
 }
 
 export async function sha256(file: string): Promise<string> {
@@ -100,6 +112,12 @@ export async function listFiles(dir: string, prefix = ""): Promise<string[]> {
   }
   return out;
 }
+
+/**
+ * Programs and scripts a character never needs (its .cmd files are command lists, not Windows batch files): left
+ * out of the installed character, so nothing runnable from a download sits in the engine folder.
+ */
+export const PROGRAM_FILES = /\.(exe|dll|bat|com|scr|msi|vbs|ps1|sh|command|app|jar|js|lnk|reg|pif)$/i;
 
 /** .def files are ASCII or latin1 in practice; latin1 keeps every byte. */
 const readDef = (file: string) => readFile(file, "latin1");
@@ -156,8 +174,12 @@ export interface Installed {
   status: "installed" | "unchanged";
   changed: Record<string, string>;
   missing: string[];
-  /** Ours (with the attacks it uses), the character's own, or none at all. */
-  ai?: { by: "ours"; attacks: AiAttack[] } | { by: "own" };
+  /** Ours (with the attacks it uses), the character's own, or none: no attack of its own to drive (a gag character), left to the engine. */
+  ai?: { by: "ours"; attacks: AiAttack[] } | { by: "own" } | { by: "none" };
+  /** Program files in the download that were left out. */
+  removed?: string[];
+  /** Files the archive holds that couldn't be unpacked (odd file names); the rest was. */
+  unpackProblems?: string[];
 }
 
 /**
@@ -178,6 +200,8 @@ async function addAi(dir: string, defText: string, entry: MugenEntry): Promise<I
   const localcoord = Number((iniValue(ini, "Info", "localcoord") ?? "320").split(",")[0]);
   const spec = TEMPLATES.find((t) => t.archetype === entry.archetype)!.ai;
   const ai = mugenAi({ files: code, air, front: Number.isFinite(front) ? front : 16, scale: (localcoord || 320) / 320, ai: spec });
+  // Ours turns off the engine's random presses, so without attacks to drive it would only stand there.
+  if (ai.attacks.length === 0) return { by: "none" };
   await writeFile(path.join(dir, ai.file), ai.text, "latin1");
   return { by: "ours", attacks: ai.attacks };
 }
@@ -227,8 +251,11 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
   const tmp = `${dest}.tmp-${process.pid}`;
   await rm(tmp, { recursive: true, force: true });
   try {
-    await unpack(archive, tmp);
-    const all = await listFiles(tmp);
+    const unpackProblems = await unpack(archive, tmp);
+    const found = await listFiles(tmp);
+    const removed = found.filter((f) => PROGRAM_FILES.test(f));
+    for (const f of removed) await rm(path.join(tmp, f), { force: true });
+    const all = found.filter((f) => !PROGRAM_FILES.test(f));
     const defs = await characterDefs(tmp, all);
     const def = entry.def ? defs.find((d) => d.toLowerCase() === entry.def!.toLowerCase()) : defs.length === 1 ? defs[0] : undefined;
     if (!def) throw new Error(`${entry.file}: ${defs.length ? `${defs.length} characters inside (${defs.join(", ")}); say which with "def"` : "no character .def inside"}`);
@@ -254,7 +281,7 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
     await writeFile(path.join(staged, MARKER), JSON.stringify({ id: entry.id, name: entry.name, sha256: entry.sha256, ai: aiTag(entry), source: entry.source, generatedBy: "pnpm mugen:import" }, null, 2) + "\n");
     await rm(dest, { recursive: true, force: true });
     await rename(staged, dest);
-    return { defPath, status: "installed", changed: fixed.changed, missing: fixed.missing, ai };
+    return { defPath, status: "installed", changed: fixed.changed, missing: fixed.missing, ai, ...(removed.length ? { removed } : {}), ...(unpackProblems.length ? { unpackProblems } : {}) };
   } finally {
     await rm(tmp, { recursive: true, force: true });
     await rm(`${tmp}-char`, { recursive: true, force: true });
