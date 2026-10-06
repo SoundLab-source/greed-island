@@ -30,10 +30,10 @@ export async function tournamentBalance(db: Db | Tx, userId: string, tournamentI
   return account ? toSalt(account.balance) : null;
 }
 
-/** Everyone's T-Salt in a tournament with when they joined, for the podium and leaderboards. */
+/** Every player's T-Salt in a tournament with when they joined, for the podium and leaderboards (bot players aren't ranked). */
 export async function tournamentBalances(db: Db | Tx, tournamentId: string): Promise<{ userId: string; balance: Salt; joinedAt: Date }[]> {
   const rows = await db.account.findMany({
-    where: { tournamentId, kind: "USER" },
+    where: { tournamentId, kind: "USER", user: { kind: { not: "BOT" } } },
     select: { userId: true, balance: true, createdAt: true },
   });
   return rows.map((r) => ({ userId: r.userId!, balance: toSalt(r.balance), joinedAt: r.createdAt }));

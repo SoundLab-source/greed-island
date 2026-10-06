@@ -24,7 +24,7 @@ import { closeBallot, openBallotIfDue } from "./voting.ts";
 
 type SeasonRow = Prisma.SeasonGetPayload<object>;
 
-/** Salt won on settled Salt bets (not T-Salt) whose fight's result came in [from, to). */
+/** Salt won on settled Salt bets (not T-Salt) whose fight's result came in [from, to). Bot players aren't ranked. */
 export async function playerSeasonStats(db: Db | Tx, from: Date, to: Date): Promise<PlayerSeasonStat[]> {
   const rows = await db.$queryRaw<{ user_id: string; salt_won: Prisma.Decimal; bets: bigint }[]>`
     SELECT b."user_id",
@@ -32,6 +32,7 @@ export async function playerSeasonStats(db: Db | Tx, from: Date, to: Date): Prom
            COUNT(*) AS bets
     FROM "bet" b
     JOIN "fight" f ON f."id" = b."fight_id"
+    JOIN "user" u ON u."id" = b."user_id" AND u."kind" <> 'BOT'
     WHERE f."state" = 'SETTLED' AND f."tournament_match_id" IS NULL
       AND b."status" IN ('WON', 'LOST')
       AND f."closed_at" >= ${from} AND f."closed_at" < ${to}

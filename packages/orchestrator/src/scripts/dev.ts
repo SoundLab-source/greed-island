@@ -12,7 +12,8 @@ import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
 import { acquireOrchestratorLock } from "../lock.ts";
 import { loadObsConfig, ObsSceneSwitcher } from "../obs.ts";
-import { loadLocalVideo, loadSampleBets, ObsLocalVideo } from "../local-video.ts";
+import { loadLocalVideo, ObsLocalVideo } from "../local-video.ts";
+import { BotPlayers, loadBotCount } from "../bots.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { isProduction, productionProblems } from "../production.ts";
 import { reconcile } from "../reconcile.ts";
@@ -111,7 +112,7 @@ const checks = config.checks.enabled
       },
     )
   : null;
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), localVideo: loadLocalVideo(), sampleBets: loadSampleBets(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), localVideo: loadLocalVideo(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
@@ -127,6 +128,13 @@ if (loadLocalVideo() && !obsConfig) console.log("GI_LOCAL_VIDEO needs OBS: set G
 localVideo?.start(bus);
 
 await checks?.start();
+
+// Bot players bet on every fight so the watch page is never empty (GI_BOTS, 0 turns them off).
+const botCount = loadBotCount();
+const bots = botCount > 0 ? new BotPlayers({ db, config, bus, count: botCount, log: (m) => console.warn(m) }) : null;
+await bots?.ensure();
+bots?.start();
+if (bots) console.log(`${botCount} bot players bet alongside everyone (GI_BOTS)`);
 
 const orchestrator = new Orchestrator({ ...deps, source, log: (m) => console.log(m) });
 const running = orchestrator.run();
@@ -146,6 +154,7 @@ async function shutdown(code = 0) {
   await step(checks?.stop());
   obs?.stop();
   localVideo?.stop();
+  bots?.stop();
   await step(app.close());
   await step(lock.release());
   await step(db.$disconnect());

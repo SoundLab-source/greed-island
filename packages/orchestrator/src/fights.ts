@@ -238,7 +238,8 @@ async function runEffect(
     }
     case "LOCK_ODDS": {
       const l = await loadouts(tx, fight.id);
-      const bets = await tx.bet.findMany({ where: { fightId: fight.id, status: "OPEN" }, select: { side: true, stake: true } });
+      // The crowd is real players: bot players' bets don't count towards it (or the odds once they're blended with it).
+      const bets = await tx.bet.findMany({ where: { fightId: fight.id, status: "OPEN", user: { kind: { not: "BOT" } } }, select: { side: true, stake: true } });
       const stakes: Stake[] = bets.map((b) => ({ side: b.side as Side, amount: toSalt(b.stake) }));
       const locked = lockOdds(ratingOf(l[1]), ratingOf(l[2]), stakes, deps.config.odds);
       await tx.fightOdds.create({

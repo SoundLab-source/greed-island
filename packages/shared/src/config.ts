@@ -48,6 +48,16 @@ export interface Config {
   checks: CheckSettings & { enabled: boolean };
   voting: VotingConfig;
   nft: NftConfig;
+  bets: BetsDisplayConfig;
+}
+
+/** What everyone sees of each other's bets: names and stakes as they come in, and which side once betting closes. */
+export interface BetsDisplayConfig {
+  /**
+   * Open question: show which side each bet is on while betting is still open too. DESIGN §6 hides the crowd
+   * split until lock (to avoid herding, as Salty Bet does), so the default is false (GI_BETS_LIVE).
+   */
+  sidesLive: boolean;
 }
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
@@ -254,5 +264,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     staff: validateStaff({
       renameCooldownMs: numberFromEnv(env, "GI_RENAME_COOLDOWN_DAYS", DEFAULT_STAFF.renameCooldownMs / 86_400_000) * 86_400_000,
     }),
+    bets: { sidesLive: booleanFromEnv(env, "GI_BETS_LIVE", false) },
   };
 }

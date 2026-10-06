@@ -219,6 +219,25 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   const [s1, s2] = [await side(1), await side(2)];
   const h2h = await headToHead(db, f.side1CharacterId, f.side2CharacterId);
 
+  // Everyone's bets, bot players marked: names and stakes as they come in, sides once betting closes (or live: Config.bets).
+  const betsRevealed = config.bets.sidesLive || !["BOOKED", "BETTING_OPEN"].includes(f.state);
+  const betRows = await db.bet.findMany({
+    where: { fightId },
+    include: { user: { select: { id: true, displayName: true, kind: true } } },
+    orderBy: [{ stake: "desc" }, { updatedAt: "asc" }],
+  });
+  const bets = betRows.map((b) => ({
+    id: b.id,
+    name: playerName(b.user),
+    bot: b.user.kind === "BOT",
+    stake: b.stake.toFixed(0),
+    side: betsRevealed || b.userId === viewerId ? b.side : null,
+    mine: b.userId === viewerId,
+    at: b.updatedAt,
+  }));
+  const pool = { 1: 0n, 2: 0n };
+  for (const b of betRows) pool[b.side as Side] += toSalt(b.stake);
+
   let odds: unknown = null;
   if (f.odds) {
     const o = f.odds;
@@ -227,8 +246,9 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
       chancePct: { 1: o.chanceBp1 / 100, 2: o.chanceBp2 / 100 },
       multiplier: { 1: formatMultiplier(BigInt(o.multiplierBp1)), 2: formatMultiplier(BigInt(o.multiplierBp2)) },
       multiplierBp: { 1: String(o.multiplierBp1), 2: String(o.multiplierBp2) },
-      pool: { 1: o.pool1.toFixed(0), 2: o.pool2.toFixed(0) },
-      bettors: o.bettors,
+      // Everyone's stakes, bot players' too (the stored crowd numbers are real players' only).
+      pool: { 1: pool[1].toString(), 2: pool[2].toString() },
+      bettors: betRows.length,
       modelChancePct: { 1: o.modelChanceBp1 / 100, 2: o.modelChanceBp2 / 100 },
       crowdChancePct: o.crowdChanceBp1 === null ? null : { 1: o.crowdChanceBp1 / 100, 2: o.crowdChanceBp2! / 100 },
     };
@@ -290,6 +310,8 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
           ? { kind: "voided", reason: f.voidReason, detail: f.voidDetail }
           : null,
     myBet,
+    bets,
+    betsRevealed,
   };
 }
 

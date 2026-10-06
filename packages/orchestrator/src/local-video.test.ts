@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gameCrop } from "@greed-island/engine";
-import { ObsLocalVideo, loadLocalVideo, loadSampleBets } from "./local-video.ts";
+import { ObsLocalVideo, loadLocalVideo } from "./local-video.ts";
 import type { ObsClient, ObsConfig } from "./obs.ts";
 
 const cfg: ObsConfig = { url: "ws://obs", password: null, fightScene: "Fight", bettingScene: "Betting", reconnectMs: 10 };
@@ -40,12 +40,6 @@ describe("local video preview", () => {
     expect(loadLocalVideo({})).toBe(false);
     expect(loadLocalVideo({ GI_LOCAL_VIDEO: "true" })).toBe(true);
     expect(loadLocalVideo({ GI_LOCAL_VIDEO: "1" })).toBe(false);
-  });
-
-  it("shows sample bettors only when asked, and never in production", () => {
-    expect(loadSampleBets({ GI_SAMPLE_BETS: "true" })).toBe(true);
-    expect(loadSampleBets({ GI_SAMPLE_BETS: "true", GI_ENV: "production" })).toBe(false);
-    expect(loadSampleBets({})).toBe(false);
   });
 
   it("crops a Retina screen capture to the game's picture, title bar left out", () => {

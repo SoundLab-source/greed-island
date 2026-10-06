@@ -5,7 +5,7 @@ import { requestHash } from "./convert.ts";
 import type { User } from "./generated/prisma/client.ts";
 import { ensureAccounts, getBalance, lockUserAccount, openStakes, postTransaction, withIdempotency, withRetry } from "./ledger.ts";
 
-export type NewUser = { kind: "ANONYMOUS" } | { kind: "EMAIL"; email: string; displayName?: string };
+export type NewUser = { kind: "ANONYMOUS" } | { kind: "EMAIL"; email: string; displayName?: string } | { kind: "BOT"; displayName: string };
 
 export interface CreatedUser {
   user: User;
@@ -20,7 +20,9 @@ export async function createUserTx(tx: Tx, input: NewUser, economy: EconomyConfi
     data:
       input.kind === "EMAIL"
         ? { kind: "EMAIL", email: input.email.trim().toLowerCase(), displayName: input.displayName ?? null }
-        : { kind: "ANONYMOUS" },
+        : input.kind === "BOT"
+          ? { kind: "BOT", displayName: input.displayName }
+          : { kind: "ANONYMOUS" },
   });
   await ensureAccounts(tx, [{ kind: "USER", userId: user.id }]);
   if (economy.startingBalance > 0n) {

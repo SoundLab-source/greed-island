@@ -669,18 +669,18 @@ describe("live stream", () => {
     expect(overlay.body).toContain("overlay.js");
     for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css", "/staff.html", "/staff.js", "/submit.html", "/submit.js"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
     // The watch page embeds Twitch only when a channel is configured.
-    expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: false, sampleBets: false });
+    expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: false });
     expect((await app.inject({ method: "GET", url: "/" })).headers["permissions-policy"]).toMatch(/camera=\(\)/);
     const withTwitch = await buildServer({ db, config, bus, mailer, twitchChannel: "greed_island" });
     try {
-      expect((await withTwitch.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: "greed_island", localVideo: false, sampleBets: false });
+      expect((await withTwitch.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: "greed_island", localVideo: false });
     } finally {
       await withTwitch.close();
     }
     // The local preview (GI_LOCAL_VIDEO): the watch page plays OBS's Virtual Camera, so the page may use a camera.
     const local = await buildServer({ db, config, bus, mailer, localVideo: true });
     try {
-      expect((await local.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: true, sampleBets: false });
+      expect((await local.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: true });
       expect((await local.inject({ method: "GET", url: "/" })).headers["permissions-policy"]).toMatch(/camera=\(self\)/);
     } finally {
       await local.close();

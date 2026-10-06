@@ -84,6 +84,10 @@
 .bets-list li .dot { width: 6px; height: 18px; border-radius: 3px; }
 .bets-list li.r .dot { background: var(--red); }
 .bets-list li.b .dot { background: var(--blue); }
+.bets-list li.u .dot { background: var(--line); }
+.bets-list li .tag { margin-left: 6px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--dim); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; vertical-align: 1px; }
+.bets-list li .tag.you { border-color: var(--gold); color: var(--gold); }
+.bets-hidden { margin: 0; font-size: 11px; }
 .bets-list li .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bets-list li .amt { font-weight: 800; }
 .bets-list li.me { outline: 1px solid var(--gold); }

@@ -24,6 +24,8 @@ enum Asset {
 enum UserKind {
   ANONYMOUS
   EMAIL
+  /// A bot player (orchestrator/src/bots.ts): bets so the stream isn't empty; never signs in, never ranked.
+  BOT
 }
 
 /// Staff roles (phase 3). Only accounts with a verified email can be staff.
@@ -490,7 +492,8 @@ model FightLoadout {
   @@map("fight_loadout")
 }
 
-/// Odds as locked. Chances and multipliers are basis points (1/10000).
+/// Odds as locked. Chances and multipliers are basis points (1/10000). The crowd numbers (crowd chance, pools,
+/// bettors) are real players' only: bot players' bets are left out, so they can tune the crowd blend (DESIGN §6).
 model FightOdds {
   fightId        String   @id @map("fight_id") @db.Uuid
   fight          Fight    @relation(fields: [fightId], references: [id])

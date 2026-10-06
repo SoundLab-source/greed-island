@@ -47,7 +47,7 @@ import { readFile } from "node:fs/promises";
 import { installRateLimits, installSecurityHeaders, type RateLimitConfig } from "./security.ts";
 import path from "node:path";
 import { z } from "zod";
-import { placeFightBet } from "../betting.ts";
+import { announceBet, placeFightBet } from "../betting.ts";
 import type { BusEvent, FightBus } from "../bus.ts";
 import { answerChallenge, expireChallenges, sendChallenge, type ChallengeAnswer } from "../challenges.ts";
 import { setCosmetics } from "../cosmetics.ts";
@@ -124,8 +124,6 @@ export interface ApiDeps {
   twitchChannel?: string | null;
   /** GI_LOCAL_VIDEO: the watch page plays OBS's Virtual Camera instead of Twitch (local-video.ts). */
   localVideo?: boolean;
-  /** GI_SAMPLE_BETS: the watch page fills its bets list with sample bettors (a preview, never real bets). */
-  sampleBets?: boolean;
   /** Where submitted fighter images are stored. Defaults to GI_SUBMISSIONS_DIR or `submissions/`. */
   submissionStore?: SubmissionStore;
   /** Called when a run of the automatic checks was queued, so the worker looks now instead of at its next tick. */
@@ -329,6 +327,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const body = BetBody.parse(req.body);
     const stake = parseSalt(body.stake);
     const r = await placeFightBet(db, config, { userId, fightId, side: body.side, stake, idempotencyKey: body.idempotencyKey });
+    if (!r.replayed) await announceBet(db, config, bus, r.bet).catch((e: Error) => req.log.warn(`couldn't announce a bet: ${e.message}`));
     return send(reply, { bet: { ...r.bet, stake: r.bet.stake.toString(), returned: r.bet.returned?.toString() ?? null }, balance: r.balance, replayed: r.replayed });
   });
 
@@ -620,7 +619,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   });
 
   // What the watch page embeds.
-  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null, localVideo: deps.localVideo === true, sampleBets: deps.sampleBets === true }));
+  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null, localVideo: deps.localVideo === true }));
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db, config)));

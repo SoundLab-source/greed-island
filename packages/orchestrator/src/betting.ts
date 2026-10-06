@@ -5,9 +5,10 @@
  * in the fight are capped (DESIGN §6). Tournament fights are bet with the
  * tournament's T-Salt; a player's first tournament bet gives them their T-Salt.
  */
-import { LedgerRuleError, MAIN_BOOK, tournamentBook, type Salt, type Side } from "@greed-island/shared";
-import { grantTournamentSalt, placeBet, type Db, type PlaceBetResult } from "@greed-island/db";
+import { LedgerRuleError, MAIN_BOOK, playerName, tournamentBook, type Salt, type Side } from "@greed-island/shared";
+import { grantTournamentSalt, placeBet, type BetView, type Db, type PlaceBetResult } from "@greed-island/db";
 import type { Config } from "@greed-island/shared";
+import type { FightBus } from "./bus.ts";
 
 export interface FightBetInput {
   userId: string;
@@ -43,4 +44,22 @@ export async function placeFightBet(db: Db, config: Config, input: FightBetInput
     },
     config.economy,
   );
+}
+
+/**
+ * Tell everyone watching about a bet once it's committed: who (bots marked) and how much, and which side
+ * only when sides show live (Config.bets; otherwise everyone sees the sides once betting closes).
+ */
+export async function announceBet(db: Db, config: Config, bus: FightBus, bet: BetView): Promise<void> {
+  const user = await db.user.findUniqueOrThrow({ where: { id: bet.userId }, select: { id: true, displayName: true, kind: true } });
+  bus.publish({
+    type: "bet",
+    fightId: bet.fightId,
+    betId: bet.id,
+    name: playerName(user),
+    bot: user.kind === "BOT",
+    stake: bet.stake,
+    side: config.bets.sidesLive ? bet.side : null,
+    at: new Date().toISOString(),
+  });
 }

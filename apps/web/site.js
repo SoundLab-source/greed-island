@@ -242,7 +242,7 @@ window.GI = (() => {
     } catch {
       return; // try again next time
     }
-    const now = f ? { id: f.id, number: f.number, state: f.state, hasResult: Boolean(f.result), sig: JSON.stringify([f.odds, f.myBet]) } : null;
+    const now = f ? { id: f.id, number: f.number, state: f.state, hasResult: Boolean(f.result), sig: JSON.stringify([f.odds, f.myBet, f.bets]) } : null;
     const before = seen;
     seen = now;
     if (!before || !now) {

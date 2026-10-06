@@ -20,11 +20,6 @@ export function loadLocalVideo(env: NodeJS.ProcessEnv = process.env): boolean {
   return env["GI_LOCAL_VIDEO"]?.trim().toLowerCase() === "true";
 }
 
-/** GI_SAMPLE_BETS: "true" fills the watch page's bets list with sample bettors (a preview; never in production). */
-export function loadSampleBets(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env["GI_SAMPLE_BETS"]?.trim().toLowerCase() === "true" && env["GI_ENV"] !== "production";
-}
-
 /** The screen capture's name in the Fight scene (`pnpm obs:setup`). */
 export const CAPTURE_SOURCE = "Game capture";
 

@@ -9,6 +9,8 @@ import type { FightState, VoidReason } from "./state-machine.ts";
 export type BusEvent =
   | { type: "fight_state"; fightId: string; number: number; state: FightState; version: number; bettingClosesAt?: string }
   | { type: "odds_live"; fightId: string; odds: LiveOdds }
+  /** A bet placed or changed (betId stays the same when changed). Its side is null until betting closes, unless sides show live. */
+  | { type: "bet"; fightId: string; betId: string; name: string; bot: boolean; stake: Salt; side: Side | null; at: string }
   | { type: "odds_locked"; fightId: string; odds: LockedOdds }
   | { type: "engine_event"; fightId: string; event: EngineEvent }
   | { type: "fight_result"; fightId: string; number: number; result: "SETTLED"; winnerSide: Side; winnerCharacterId: string; ownerReward?: Salt }

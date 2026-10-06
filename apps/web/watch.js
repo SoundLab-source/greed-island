@@ -65,7 +65,6 @@
   async function setupEmbeds() {
     const site = await api("GET", "/api/site");
     const parent = encodeURIComponent(location.hostname);
-    sample = site.sampleBets === true;
     if (site.twitchChannel) {
       // Twitch's chat works whether or not the channel is live.
       const c = encodeURIComponent(site.twitchChannel);
@@ -107,36 +106,15 @@
 
   const form = (last10) => `<span class="form">${last10.length ? last10.map((r) => `<span class="${r === "W" ? "w" : "l"}">${r}</span>`).join("") : '<span class="muted">new</span>'}</span>`;
 
-  // One line of facts under the stake: head to head, stage, and the pools once betting closes.
+  // One line of facts under the stake: head to head and stage (the bets and pools are in the left column).
   function renderMatchup(f) {
     const h = f.headToHead;
-    const pools = f.odds?.locked ? `<span>Pools <b>${fmt(f.odds.pool[1])}</b> / <b>${fmt(f.odds.pool[2])}</b> · ${f.odds.bettors} bettors</span>` : "";
-    $("matchup").innerHTML = `<span>Head to head <b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b></span><span>${esc(f.stage.displayName)}</span>${pools}`;
+    $("matchup").innerHTML = `<span>Head to head <b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b></span><span>${esc(f.stage.displayName)}</span>`;
   }
 
-  // ---- Bets: who's betting how much on which side ----
-  // Until other players' bets are shown (they'll be the people watching with you), a preview fills the list with
-  // sample bettors (GI_SAMPLE_BETS=true): made up per fight, arriving through the betting window, leaning to the
-  // favourite. Your own bet is always real.
-  let sample = false;
-  const SAMPLE_NAMES = ["SaltLord", "ComboKing", "PopTartPapi", "KFM_Stan", "BetBot3000", "LowTierHero", "ZoningZack", "GrappleGran", "CrossupCarl", "FrameTrap", "SaltyMcSalt", "DizzyDan", "ChipDamage", "WhiffPunisher", "OkiOlivia", "TechThrowTom", "MeterBurn", "JuggleJen", "AllInAndy", "Underdog_Uma", "FavouriteFred", "RageQuitRita", "MashMaster", "BlockBlockBlock", "SweepSam", "DPKing", "ParryPete", "Anon-4f2a91", "Anon-7c31e0", "Anon-b81d02", "NyanFan", "HypeTrain", "LastHitLarry", "SaltMine", "TierListTina", "CornerCarry"];
-  function seeded(n) {
-    let x = n >>> 0;
-    return () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
-  }
-  function sampleBets(f) {
-    const rnd = seeded(f.number * 9973 + 17);
-    const names = [...SAMPLE_NAMES].sort(() => rnd() - 0.5).slice(0, 12 + Math.floor(rnd() * 18));
-    const favourite = f.odds ? f.odds.chancePct[1] / 100 : 0.5;
-    const opens = new Date(f.times.bettingOpens ?? f.times.booked).getTime();
-    const closes = new Date(f.times.bettingCloses ?? opens).getTime();
-    return names.map((name) => ({
-      name,
-      side: rnd() < 0.2 + 0.6 * favourite ? 1 : 2,
-      stake: Math.max(10, Math.round(Math.exp(2.4 + rnd() * 5.2) / 5) * 5),
-      at: opens + rnd() * (closes - opens) * 0.95,
-    }));
-  }
+  // ---- Bets: who's betting how much, and on which side once betting closes ----
+  // Everyone's bets (bot players marked), biggest first. Names and stakes arrive live; the sides show when betting
+  // closes (DESIGN §6: no crowd split while betting is open), unless the server shows them live (GI_BETS_LIVE).
   let shown = new Set();
   function renderBets() {
     const f = fight;
@@ -145,24 +123,45 @@
       list.innerHTML = '<li class="empty">No fight yet.</li>';
       return;
     }
-    const now = Date.now();
-    const bets = (sample ? sampleBets(f) : []).filter((b) => f.state !== "BETTING_OPEN" || b.at <= now);
-    if (f.myBet) bets.push({ name: `You (${GI.me?.name ?? "you"})`, side: f.myBet.side, stake: Number(f.myBet.stake), me: true });
-    bets.sort((a, b) => b.stake - a.stake);
+    const bets = [...(f.bets ?? [])].sort((a, b) => Number(b.stake) - Number(a.stake));
     const total = { 1: 0, 2: 0 };
-    for (const b of bets) total[b.side] += b.stake;
-    const all = total[1] + total[2];
-    $("bets-split").hidden = all === 0;
-    $("bets-red").textContent = `${fmt(total[1])} Red`;
-    $("bets-blue").textContent = `Blue ${fmt(total[2])}`;
-    $("bets-bar-red").style.width = `${all ? (100 * total[1]) / all : 50}%`;
-    $("bets-bar-blue").style.width = `${all ? (100 * total[2]) / all : 50}%`;
-    $("bets-note").textContent = `${bets.length} bettor${bets.length === 1 ? "" : "s"}${sample ? " · sample" : ""}`;
-    const key = (b) => `${f.number}:${b.name}`;
+    let all = 0;
+    for (const b of bets) {
+      all += Number(b.stake);
+      if (b.side) total[b.side] += Number(b.stake);
+    }
+    const split = f.betsRevealed && all > 0;
+    $("bets-split").hidden = !split;
+    if (split) {
+      $("bets-red").textContent = `${fmt(total[1])} Red`;
+      $("bets-blue").textContent = `Blue ${fmt(total[2])}`;
+      $("bets-bar-red").style.width = `${(100 * total[1]) / all}%`;
+      $("bets-bar-blue").style.width = `${(100 * total[2]) / all}%`;
+    }
+    $("bets-note").textContent = bets.length ? `${bets.length} bettor${bets.length === 1 ? "" : "s"} · ${fmt(all)} ${currency()}` : "";
+    $("bets-hidden").hidden = f.betsRevealed || !bets.length;
+    const key = (b) => `${b.id}:${b.stake}:${b.side}`;
     list.innerHTML = bets.length
-      ? bets.map((b) => `<li class="${b.side === 1 ? "r" : "b"}${b.me ? " me" : ""}${shown.has(key(b)) ? "" : " new"}"><span class="dot"></span><span class="who">${esc(b.name)}</span><span class="amt">${fmt(b.stake)}</span></li>`).join("")
+      ? bets
+          .map((b) => {
+            const cls = b.side === 1 ? "r" : b.side === 2 ? "b" : "u";
+            const tag = b.mine ? '<span class="tag you">you</span>' : b.bot ? '<span class="tag">bot</span>' : "";
+            return `<li class="${cls}${b.mine ? " me" : ""}${shown.has(key(b)) ? "" : " new"}"><span class="dot"></span><span class="who">${esc(b.name)}${tag}</span><span class="amt">${fmt(b.stake)}</span></li>`;
+          })
+          .join("")
       : `<li class="empty">${f.state === "BETTING_OPEN" ? "No bets yet: be the first." : "No bets on this fight."}</li>`;
     shown = new Set(bets.map(key));
+  }
+
+  // A bet placed or changed while we watch: add it, or update it (a change keeps its id).
+  function onBet(d) {
+    if (!fight || d.fightId !== fight.id) return;
+    const bets = fight.bets ?? (fight.bets = []);
+    const old = bets.find((b) => b.id === d.betId);
+    const row = { id: d.betId, name: d.name, bot: d.bot, stake: String(d.stake), side: d.side, mine: false, at: d.at };
+    if (old) Object.assign(old, row, { mine: old.mine, side: old.mine && d.side === null ? old.side : d.side });
+    else bets.push(row);
+    renderBets();
   }
 
   function renderFight() {
@@ -258,6 +257,7 @@
         if (d.state === "BETTING_OPEN") feed(`Fight #${d.number}: <b>betting is open</b>`);
       },
       odds_live: () => refreshFight().catch(() => {}),
+      bet: onBet,
       odds_locked: () => refreshFight().catch(() => {}),
       fight_result: async (d) => {
         const f = d.fightId === fight?.id ? fight : await api("GET", `/api/fights/${d.fightId}`).catch(() => null);
@@ -285,10 +285,6 @@
   setInterval(() => {
     if (fight && fight.state === "BETTING_OPEN") renderClock();
   }, 250);
-  // Sample bettors arrive through the betting window.
-  setInterval(() => {
-    if (sample && fight && fight.state === "BETTING_OPEN") renderBets();
-  }, 1000);
 
   (async () => {
     wireControls();
