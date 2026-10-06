@@ -15,6 +15,7 @@ import { guideImage, guideLayout, poseGuideImage } from "./guide.ts";
 import { fighterNumbers } from "./limits.ts";
 import { commandsFile, constantsFile, defFile, statesFile } from "./cns.ts";
 import { measureReach } from "./reach.ts";
+import { writeSnd } from "../art/snd.ts";
 import type { TemplateSpec } from "./spec.ts";
 
 export interface TemplateFiles {
@@ -36,6 +37,7 @@ export function templateFiles(spec: TemplateSpec, sheet: Sheet | CellSource): Te
     ["gi.cmd", Buffer.from(commandsFile(spec, reach), "latin1")],
     ["gi.air", Buffer.from(art.air, "latin1")],
     ["gi.sff", art.sff],
+    ...(spec.sounds ? [["gi.snd", writeSnd(spec.sounds())] as [string, Buffer]] : []),
     // The website's picture of the fighter (GET /api/fighters/:id/image), and one per further outfit (?outfit=n).
     ["card.png", cardImage(spec, source)],
     ...templatePalettes(spec, source.palette).slice(1).map((p): [string, Buffer] => [`card-${p.number}.png`, cardImage(spec, source, p.colors)]),

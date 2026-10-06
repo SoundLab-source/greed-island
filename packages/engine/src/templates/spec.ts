@@ -10,7 +10,11 @@
  */
 import type { StandardSprite } from "./standard.ts";
 import type { Archetype } from "@greed-island/shared";
-import type { Box } from "../art/air.ts";
+import type { AirAction, Box } from "../art/air.ts";
+import type { SffSprite } from "../art/sff.ts";
+import type { Sheet } from "../art/sheet.ts";
+import type { SndSound } from "../art/snd.ts";
+import type { ProjectileArt } from "./projectile.ts";
 
 export interface ArtSource {
   id: string;
@@ -36,6 +40,16 @@ export interface ArtSource {
    * AnimSpec.anchor; `rotate` turns the cell clockwise by that many degrees.
    */
   standardSprites: Readonly<Record<string, StandardSprite>>;
+  /**
+   * Palette indices of effects drawn into the frames (a rainbow trail, a speech bubble): not the body, so
+   * hurtboxes leave them out (hitboxes still count them, so a drawn effect can hit).
+   */
+  effects?: readonly number[];
+  /**
+   * Frames made in code instead of read from `file` (e.g. Nyan Cat's, from its own sprite file in the game folder):
+   * `pnpm templates:build` calls this for the sheet.
+   */
+  sheet?: (ctx: { ikemenDir: string; repoRoot: string }) => Promise<Sheet>;
 }
 
 /** Cells of the sheet: a list, or an inclusive range (`to` below `from` plays backwards). */
@@ -84,6 +98,8 @@ export interface HitSpec {
   trip?: boolean;
   /** Launch speed when knocking down or hitting in the air: x (away), y (up), 320 units. */
   launch?: readonly [number, number];
+  /** One of the fighter's own sounds (TemplateSpec.sounds) when it hits, instead of the shared hit sound. */
+  hitSound?: readonly [number, number];
   /**
    * Hand-made hitbox instead of the automatic one, relative to the axis in sheet pixels: where the limb is drawn in
    * its cell (an animation anchored on its feet moves the box with the frame).
@@ -124,7 +140,22 @@ export interface AttackSpec {
    * above the ground, and hits with the move's first HitSpec (whose `frames`
    * are then ignored). The ball is drawn by the builder.
    */
-  projectile?: { frame: number; speed: number; height: number };
+  projectile?: {
+    frame: number;
+    speed: number;
+    height: number;
+    /** Hits before it's spent (default 1), `missTime` ticks apart: with speed 0, a beam. */
+    hits?: number;
+    missTime?: number;
+    /** Ticks it lasts (default: until it leaves the screen). */
+    removeTime?: number;
+    /** How far in front of the fighter it appears, 320 units (default 30). */
+    offset?: number;
+    /** The AI uses it only this close, 320 units body to body (default: anywhere past 70). */
+    maxRange?: number;
+    /** Sprites and animations of its own (actions state + 50 flying, + 51 hitting, + 52 fading) instead of the energy ball. */
+    art?: (state: number) => ProjectileArt;
+  };
   /** AI: how far the hit reaches (320 units), and how much the AI likes it. */
   ai: { range: number; weight: number; antiAir?: boolean };
 }
@@ -223,6 +254,26 @@ export interface TemplateSpec {
    * their own palette slots from MIX_FIRST_SLOT on, in the order listed, so `colors` and outfits can recolour them.
    */
   looks?: readonly LookPart[];
+  /** Sounds of its own (written to gi.snd at build time), played by `cues` and HitSpec.hitSound. */
+  sounds?: () => readonly SndSound[];
+  /** Effects of its own drawn over the fighter (Explods started by `cues`): extra sprites and animations, made at build time. */
+  effectArt?: () => { sprites: SffSprite[]; actions: AirAction[] };
+  /** A sound or an effect that starts when one of the fighter's animations reaches a frame. */
+  cues?: readonly Cue[];
+}
+
+export interface Cue {
+  action: number;
+  /** Animation frame index (0-based). */
+  frame: number;
+  /** One of `sounds`: group, number. */
+  sound?: readonly [number, number];
+  /**
+   * One of `effectArt`'s animations, at x (in front) and y (up) from the fighter's feet, 320 units, moving with
+   * it. `readable` keeps it facing right whichever way the fighter faces (text); `ticks` (default: the
+   * animation's length) is how long it shows.
+   */
+  effect?: { anim: number; x: number; y: number; readable?: boolean; ticks?: number };
 }
 
 /**

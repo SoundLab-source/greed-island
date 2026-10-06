@@ -231,6 +231,19 @@ Because the Bad Company sheets share one layout, a part of one model can be past
 
 Seen in a real fight against each other: the windmill and the splits, the mohawk and cap on every frame, Napoleon body-slamming the bigger man and pointing onward over him.
 
+### Moves of its own: Nyan Cat (2026-10-06)
+
+The first of the "moves and effects drawn in code" route ("Making our own characters" below). The MUGEN Nyan Cat (CyberAkumaTv's, MUGEN Archive file 50461) only plays a screen gag and freezes the game, so it was switched off. Its sprite file has six flying frames (the pop-tart cat and its rainbow), four sparkles and two portraits, and that's all **Nyan Cat** (`templates/nyan-cat.ts`, ZONER, house fighter `gi-nyan-cat`) is built from:
+
+- **Its frames:** made in code from the six flying frames (read from the installed MUGEN character with the new SFF reader, checksum-checked): turned, squashed and moved for every animation (walking tilted, crouching squashed, knocked back and tumbling, lying upside down paws up, tripping forward), with a short rainbow behind it, or the whole rainbow when it runs, flies in for its intro or rockets up. The cat stands about 50 units tall (localcoord 720), half a fighter's height.
+- **Its moves (the Sage's numbers and AI):** Paw Pat, Poptart Slam, Rainbow Lash (a rainbow arc swung overhead), Rainbow Burst (rainbow stripes shot forward), Low Pat, Sprinkle Toss, Tail Sweep, Rainbow Skid, Air Pounce, Cannonball, and three specials: **Glitter Firework** (thrown with a flash, a star trailing rainbow glitter that bursts into a ring of sparks), **Nyan Rocket** (rising on its whole rainbow, anti-air) and **IMMA FIRIN MAH LAZER**: a long charge with light gathering at its mouth and a speech bubble saying so, then a rainbow beam with a white core about 230 units long that hits five times.
+- **Effects drawn in code:** the firework, the beam, the bubble (our own pixel font, `fx/font.ts`), a sparkle shield when it guards, sparkles for its taunt and win poses (a loop-the-loop, bobbing in sparkles). Effect colours sit in palette slots of their own and are left out of its hurtboxes: only the cat and pop-tart can be hit, never the rainbow (`ArtSource.effects`).
+- **Sounds made in code** (`art/wav.ts`): the lazer's charge and blast, the firework's whistle and crackle, a twinkle; and the first 3.2 seconds of its own song in the intro.
+- **Outfits:** Nyan Cat, Tac Nayn (the waffle-bodied evil twin, grey rainbow), Golden Nyan, Neon Nyan.
+- Seen in two real fights (screenshots): the fly-in, the firework, the bubble and beam ("2 HITS!", "4 HITS!"), the Nyan Rocket countering a jump, both win poses. It won both 2-0: **not balanced** (the owner: not now; ratings and tiers sort it). `commercialUse: false` like the MUGEN characters, since its sprites are the MUGEN character's.
+
+**What the builder learned for it** (any fighter can use them): art made by code instead of a sheet file (`ArtSource.sheet`); effect colours that aren't body; a projectile with art of its own, several hits, a lifetime and an AI range (`projectile.art`, `hits`, `missTime`, `removeTime`, `maxRange`: a beam is a projectile with speed 0); a hit sound of its own (`HitSpec.hitSound`); sounds made at build time (`TemplateSpec.sounds`, written to `gi.snd`); and cues that play a sound or show an effect when an animation reaches a frame (`TemplateSpec.cues`, `effectArt`), placed in the state that plays the animation so a cue on the first frame fires (ikemen-notes §7).
+
 ## Making our own characters (2026-10-06)
 
 The owner asked for the best way to make original characters, with Ryon Teaches Mugen's "Complete Character Creation | Part 1" (YouTube, May 2026, 84 minutes; the series has five parts, about 6.5 hours) as the reference. Part 1 was read in full from its captions; Parts 2-5 (animations, code, specials) weren't, since we generate all of that.

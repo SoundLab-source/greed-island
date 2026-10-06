@@ -129,6 +129,18 @@ describe("reading other SFF files", () => {
     expect([...sff.sprites[3]!.image.pixels]).toEqual([1, 1]);
   });
 
+  it("reads a 0,0 sprite that shares the previous palette to the end of its block", () => {
+    // 0,0 after another sprite, sharing its palette: its block is all picture data (no palette to cut off).
+    const rle = Array.from({ length: 300 }, (_, i) => 1 + (i % 50));
+    const bytes = v1File([
+      { group: 9000, number: 0, width: 1, height: 1, rle: [7], palette: [0, 0, 0, 1, 2, 3] },
+      { group: 0, number: 0, width: 30, height: 10, rle },
+    ]);
+    const sprite = readSff(bytes).sprites.find((s) => s.group === 0)!;
+    expect([...sprite.image.pixels]).toEqual(rle);
+    expect(sprite.palette).toBe(0);
+  });
+
   it("reads .act palettes last colour first", () => {
     const act = new Uint8Array(768);
     act.set([1, 2, 3], 0); // colour 255

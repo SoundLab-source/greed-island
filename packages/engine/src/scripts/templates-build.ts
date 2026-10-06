@@ -36,8 +36,9 @@ const sheets = new Map<string, Sheet>();
 async function sheetOf(art: ArtSource): Promise<Sheet> {
   let sheet = sheets.get(art.id);
   if (!sheet) {
-    sheet = await loadArtSheet(art, path.join(REPO_ROOT, art.file)).catch((e: Error) => {
-      console.error(`${art.file}: ${e.message}\nDownload it first (art/SOURCES.md).`);
+    const load = art.sheet ? art.sheet({ ikemenDir: ikemenDir!, repoRoot: REPO_ROOT }) : loadArtSheet(art, path.join(REPO_ROOT, art.file));
+    sheet = await load.catch((e: Error) => {
+      console.error(`${art.file}: ${e.message}\n${art.sheet ? "" : "Download it first (art/SOURCES.md)."}`);
       process.exit(1);
     });
     sheets.set(art.id, sheet);

@@ -281,10 +281,11 @@ function readPcx(b: Buffer, offset: number, size: number, next: number, first: b
   const start = offset + 128;
   let paletteAt: number, end: number;
   if (first) {
-    // The engine's legacy rule for a character's first sprite: the palette is the block's last 768 bytes.
+    // The engine's legacy rule for a character's first sprite (and its 0,0): the whole block is picture data, and
+    // its palette (unless it shares the previous one) is the block's last 768 bytes.
     const datasize = next > offset ? next - offset : size;
-    paletteAt = offset + datasize - 768;
-    end = paletteAt;
+    paletteAt = samePalette ? -1 : offset + datasize - 768;
+    end = offset + datasize;
   } else {
     const blockEnd = next > offset ? next : offset + size;
     if (samePalette) {

@@ -794,6 +794,16 @@
       "commercialUse": false,
       "enabled": true,
       "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "gi-nyan-cat",
+      "displayName": "Nyan Cat",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/gi-nyan-cat/gi-nyan-cat.def",
+      "license": "House fighter rebuilt from the sprites of the MUGEN character Nyan Cat (by CyberAkumaTv, after Chris Torres's Nyan Cat; MUGEN Archive file 50461), with moves, effects and sounds by Greed Island (pnpm templates:build) and a few seconds of the character's own song in its intro. Not cleared for commercial use; off stream while GI_COMMERCIAL_ONLY=true.",
+      "enabled": true,
+      "commercialUse": false
     }
   ],
   "stages": [
@@ -1610,6 +1620,30 @@
       "key": "house-waterloo",
       "fighter": "gi-napoleon-complex",
       "name": "Waterloo",
+      "palette": 4
+    },
+    {
+      "key": "house-nyan-cat",
+      "fighter": "gi-nyan-cat",
+      "name": "Nyan Cat",
+      "palette": 1
+    },
+    {
+      "key": "house-tac-nayn",
+      "fighter": "gi-nyan-cat",
+      "name": "Tac Nayn",
+      "palette": 2
+    },
+    {
+      "key": "house-golden-nyan",
+      "fighter": "gi-nyan-cat",
+      "name": "Golden Nyan",
+      "palette": 3
+    },
+    {
+      "key": "house-neon-nyan",
+      "fighter": "gi-nyan-cat",
+      "name": "Neon Nyan",
       "palette": 4
     },
     {

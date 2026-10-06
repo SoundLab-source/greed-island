@@ -98,7 +98,7 @@ function hitDef(spec: TemplateSpec, a: AttackSpec, h: HitSpec, i: number): strin
     priority: `${a.special ? 4 : 3}, Hit`,
     pausetime: `${w.pause}, ${w.pause}`,
     sparkxy: `${n(-10 * k)}, ${n((h.height === "low" ? -25 : h.height === "mid" ? -55 : -80) * k)}`,
-    hitsound: w.sound,
+    hitsound: h.hitSound ? `S${h.hitSound[0]},${h.hitSound[1]}` : w.sound,
     guardsound: "F6,0",
     "ground.type": ground,
     "ground.slidetime": Math.round(h.hitStun * 0.6),
@@ -134,7 +134,10 @@ function projectileDef(spec: TemplateSpec, a: AttackSpec): string {
     `projhitanim = ${a.state + 51}`,
     `projremanim = ${a.state + 52}`,
     `velocity = ${n(p.speed * k)}, 0`,
-    `offset = ${n(30 * k)}, ${n(-p.height * k)}`,
+    `offset = ${n((p.offset ?? 30) * k)}, ${n(-p.height * k)}`,
+    ...(p.hits ? [`projhits = ${p.hits}`] : []),
+    ...(p.missTime ? [`projmisstime = ${p.missTime}`] : []),
+    ...(p.removeTime ? [`projremovetime = ${p.removeTime}`] : []),
     "projpriority = 1",
     "projsprpriority = 3",
     `projedgebound = ${n(40 * k)}`,
@@ -170,6 +173,7 @@ function attackState(spec: TemplateSpec, a: AttackSpec): string {
     // (vendor/Ikemen-GO src/char.go:10535-10555, src/compiler.go:760-772).
     lines.push(`[State ${a.state}, through projectiles]`, "type = NotHitBy", "trigger1 = 1", "value = , NP, SP, HP", "time = 1", "");
   }
+  lines.push(...cueStates(spec, a.state, (action) => action === a.anim.action));
   if (a.projectile) lines.push(projectileDef(spec, a), "");
   else a.hits.forEach((h, i) => lines.push(hitDef(spec, a, h, i), ""));
   if (t === "A") {
@@ -256,6 +260,7 @@ export function statesFile(spec: TemplateSpec): string {
     "flag = RunFirst",
     "ignorehitpause = 1",
     "",
+    ...otherCues(spec),
     "; Intro: anim 190 (the engine's pre-intro state 190 moves here).",
     "[Statedef 191]",
     "type = S",
@@ -272,6 +277,7 @@ export function statesFile(spec: TemplateSpec): string {
     ...(spec.anims.some((a) => a.action === 192)
       ? ["[State 191, pick an intro]", "type = ChangeAnim", "trigger1 = Time = 0", "value = ifelse(Random < 500, 190, 192)", ""]
       : []),
+    ...cueStates(spec, 191, (action) => action === 190 || action === 192),
     "[State 191, done]",
     "type = ChangeState",
     "trigger1 = AnimTime = 0",
@@ -291,16 +297,53 @@ export function statesFile(spec: TemplateSpec): string {
     parts.push(
       `[Statedef ${state}]`, "type = S", "ctrl = 0", `anim = ${anim}`, "velset = 0, 0", "",
       `[State ${state}, pose]`, "type = AssertSpecial", "trigger1 = Time < 90", "flag = RoundNotOver", "",
+      ...cueStates(spec, state, (action) => action === anim),
     );
   }
   parts.push(
     "; Taunt",
     "[Statedef 195]", "type = S", "ctrl = 0", "anim = 195", "velset = 0, 0", "",
+    ...cueStates(spec, 195, (action) => action === 195),
     "[State 195, done]", "type = ChangeState", "trigger1 = AnimTime = 0", "value = 0", "ctrl = 1", "",
   );
   for (const a of spec.attacks) parts.push(attackState(spec, a));
   for (const t of spec.throws ?? []) parts.push(throwStates(spec, t));
   return parts.join("\n");
+}
+
+/** Animations whose cues go in our own states (the rest are checked in [Statedef -2]): the intro, win poses and taunt. */
+const CUE_STATES: readonly (readonly [number, readonly number[]])[] = [[191, [190, 192]], [181, [180]], [182, [181]], [195, [195]]];
+
+/**
+ * The fighter's cues (TemplateSpec.cues) for `actions`, as controllers of `state`: a sound or an effect when the
+ * animation reaches a frame. They go in the state that plays the animation, after its `anim` is set, so a cue on
+ * the first frame (Time = 0) fires too; in [Statedef -2], which runs before the state that changes the animation,
+ * `AnimElem = 1` has already passed. An effect is an Explod bound to the fighter; a readable one gets
+ * `facing = Facing`, which makes its drawn facing (the fighter's times its own) always right
+ * (vendor/Ikemen-GO src/char.go:2397, bytecode.go:6234).
+ */
+function cueStates(spec: TemplateSpec, state: number | "-2", actions: (action: number) => boolean): string[] {
+  const k = unitScale(spec);
+  const out: string[] = [];
+  for (const c of (spec.cues ?? []).filter((x) => actions(x.action))) {
+    const when = c.frame === 0 && state !== "-2" ? `trigger1 = Anim = ${c.action} && Time = 0` : `trigger1 = Anim = ${c.action} && AnimElem = ${c.frame + 1}`;
+    if (c.sound) out.push(`[State ${state}, cue: sound ${c.sound.join(",")} in ${c.action}]`, "type = PlaySnd", when, `value = ${c.sound[0]}, ${c.sound[1]}`, "");
+    if (c.effect) {
+      const e = c.effect;
+      out.push(
+        `[State ${state}, cue: effect ${e.anim} in ${c.action}]`, "type = Explod", when, `anim = ${e.anim}`,
+        `pos = ${n(e.x * k)}, ${n(-e.y * k)}`, "postype = p1", `facing = ${e.readable ? "Facing" : "1"}`,
+        "bindtime = -1", `removetime = ${e.ticks ?? -2}`, "sprpriority = 4", "ownpal = 1", "removeongethit = 1", "",
+      );
+    }
+  }
+  return out;
+}
+
+/** Cues of animations no state of ours plays (the engine's shared states play them), for [Statedef -2]. */
+function otherCues(spec: TemplateSpec): string[] {
+  const ours = new Set([...CUE_STATES.flatMap(([, anims]) => anims), ...spec.attacks.map((a) => a.anim.action)]);
+  return cueStates(spec, "-2", (action) => !ours.has(action));
 }
 
 const MOTIONS: Record<string, string> = { QCF: "~D, DF, F", QCB: "~D, DB, B", DP: "~F, D, DF" };
@@ -442,7 +485,7 @@ export function commandsFile(spec: TemplateSpec, reach?: ReadonlyMap<number, num
   }
   // Attacks in range, specials first, each as likely as its weight.
   for (const a of spec.attacks.filter((x) => x.projectile)) {
-    change(`AI: ${a.name} from afar`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${notBlocking}`, `all:P2BodyDist X > ${n(70 * k)}`, `all:NumProjID(${a.state}) = 0`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
+    change(`AI: ${a.name} from afar`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${notBlocking}`, a.projectile!.maxRange ? `all:P2BodyDist X = [${n(70 * k)}, ${n(a.projectile!.maxRange * k)}]` : `all:P2BodyDist X > ${n(70 * k)}`, `all:NumProjID(${a.state}) = 0`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
   }
   for (const a of [...specials, ...normals].filter((x) => x.from !== "air" && !x.projectile)) {
     change(`AI: ${a.name}`, a.state, [`all:${inFight}`, "all:ctrl && StateType != A", `all:${notBlocking}`, `all:${dist(rangeOf(a))}`, `Random < ${Math.round((ai.aggression * a.ai.weight) / 3)}`]);
@@ -490,6 +533,7 @@ export function defFile(spec: TemplateSpec, palettes: number, about = `a Greed I
     "stcommon = common1.cns",
     "sprite = gi.sff",
     "anim = gi.air",
+    ...(spec.sounds ? ["sound = gi.snd"] : []),
     "",
     "[Palette Keymap]",
     "x = 1", "y = 2", "z = 3", "a = 4", "b = 5", "c = 6",
