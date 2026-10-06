@@ -52,8 +52,9 @@ art/sources/
 /mugen/
 /test characters mugen/
 
-# Local preview config (machine-specific paths)
+# Local preview config (machine-specific paths) and this machine's Claude permissions
 .claude/launch.json
+.claude/settings.local.json
 
 # Database backups (pnpm db:backup)
 backups/
