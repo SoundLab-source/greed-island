@@ -339,10 +339,15 @@ export function mugenAi(input: MugenAiInput): MugenAi {
     "; ----- End of the Greed Island AI; the character's own commands follow. -----",
     "",
   ];
-  const host = minus1?.file ?? input.files.at(-1)?.name;
+  const host = minus1Host(input.files);
   const file = input.files.find((f) => f.name === host);
   if (!file) throw new Error("no state or command file to put the AI in");
   return { file: file.name, text: insertIntoMinus1(file.text, lines), attacks };
+}
+
+/** The file whose [Statedef -1] the engine keeps (the first one, in load order), or the last file if none has one. */
+export function minus1Host(files: readonly CodeFile[]): string | undefined {
+  return files.find((f) => parseStates(f).some((s) => s.number === -1))?.name ?? files.at(-1)?.name;
 }
 
 /** `lines` at the top of the text's first [Statedef -1], or in a new one at the end. */

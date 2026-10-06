@@ -18,11 +18,13 @@ import { MARKER } from "../ikemen/derive.ts";
 import { iniValue, parseIni, patchIni } from "../roster/ini.ts";
 import type { CharacterEntry, FighterEntry } from "../roster/schema.ts";
 import { TEMPLATES } from "../templates/index.ts";
-import { AI_VERSION, hasOwnAi, loadOrder, mugenAi, type AiAttack } from "./ai.ts";
+import { writeFxPack, FX_DEF } from "../fx/pack.ts";
+import { AI_VERSION, hasOwnAi, insertIntoMinus1, loadOrder, minus1Host, mugenAi, type AiAttack } from "./ai.ts";
+import { GAGS, gagAir, gagStates, gagTriggers, type Gag } from "./gags.ts";
 import type { CodeFile } from "./cheats.ts";
 
 /** What the marker remembers of the recipe beyond the archive, so a new AI, AI choice or stats reinstall the character. */
-const aiTag = (entry: MugenEntry) => `${entry.ai}:${AI_VERSION}:${JSON.stringify(entry.data ?? {})}`;
+const aiTag = (entry: MugenEntry) => `${entry.ai}:${AI_VERSION}:${JSON.stringify(entry.data ?? {})}:${entry.gags.join(",")}`;
 
 const run = promisify(execFile);
 
@@ -43,6 +45,8 @@ export const MugenEntry = z.object({
   ai: z.enum(["auto", "ours", "own"]).default("auto"),
   /** [Data] values to set in its constants, like our fighters' numbers: the balance knob (and the fix for boosted stats). */
   data: z.object({ life: z.number().int().min(100).max(3000), attack: z.number().int().min(10).max(300), defence: z.number().int().min(10).max(300) }).partial().optional(),
+  /** Moves of our own added to it (mugen/gags.ts), e.g. "explosion". */
+  gags: z.array(z.enum(GAGS)).default([]),
   notes: z.string().optional(),
 });
 
@@ -178,6 +182,30 @@ async function addAi(dir: string, defText: string, entry: MugenEntry): Promise<I
 }
 
 /**
+ * Our gags into the installed character: their states in a file of their own (the next free st key), their
+ * animation appended to its .air, the AI's triggers at the top of its [Statedef -1], and our effect pack (built
+ * if needed) in its [Files] fx. Returns the new .def text.
+ */
+async function addGags(ikemenDir: string, dir: string, defText: string, gags: readonly Gag[]): Promise<string> {
+  await writeFxPack(ikemenDir);
+  const files = parseIni(defText).get("files") ?? new Map<string, string>();
+  const stKey = Array.from({ length: 99 }, (_, i) => `st${i + 1}`).find((k) => !files.has(k))!;
+  await writeFile(path.join(dir, "gi-gags.cns"), gagStates(gags), "latin1");
+  const anim = files.get("anim");
+  if (anim && existsSync(path.join(dir, anim))) {
+    const air = await readFile(path.join(dir, anim), "latin1");
+    await writeFile(path.join(dir, anim), air + gagAir(gags, air.includes("\r\n") ? "\r\n" : "\n"), "latin1");
+  }
+  const code: CodeFile[] = [];
+  for (const name of loadOrder(files)) if (existsSync(path.join(dir, name)) && !code.some((c) => c.name === name)) code.push({ name, text: await readFile(path.join(dir, name), "latin1") });
+  const host = minus1Host(code);
+  const file = code.find((c) => c.name === host);
+  if (file) await writeFile(path.join(dir, file.name), insertIntoMinus1(file.text, gagTriggers(gags)), "latin1");
+  const fx = files.get("fx");
+  return patchIni(defText, "Files", { [stKey]: "gi-gags.cns", fx: fx ? `${fx}, ${FX_DEF}` : FX_DEF });
+}
+
+/**
  * Install one recipe entry from its archive into IKEMEN_DIR/chars/<id>/: unpacked into a temporary folder, the
  * character's folder moved in with its .def renamed to <id>.def, its file names fixed and our name as its
  * displayname. Skipped when the same archive is already installed under the same name; never touches a folder
@@ -212,8 +240,10 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
     await cp(root, staged, { recursive: true });
     await rm(path.join(staged, path.posix.basename(def)));
     // The game's health bar shows the .def's displayname, so it carries our name too.
-    await writeFile(path.join(staged, `${entry.id}.def`), patchIni(fixed.text, "Info", { displayname: `"${entry.name}"` }), "latin1");
+    let defText = patchIni(fixed.text, "Info", { displayname: `"${entry.name}"` });
     const ai = await addAi(staged, fixed.text, entry);
+    if (entry.gags.length) defText = await addGags(ikemenDir, staged, defText, entry.gags);
+    await writeFile(path.join(staged, `${entry.id}.def`), defText, "latin1");
     const cns = parseIni(fixed.text).get("files")?.get("cns");
     if (entry.data && cns && existsSync(path.join(staged, cns))) {
       const text = await readFile(path.join(staged, cns), "latin1");
