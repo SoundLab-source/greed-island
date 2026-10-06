@@ -69,7 +69,8 @@ export async function loadMugen(file: string | URL = MUGEN_PATH): Promise<z.infe
 /** Archive entries that would land outside the folder they're unpacked into (or are links). */
 export function unsafeEntries(entries: readonly string[]): string[] {
   return entries.filter((e) => {
-    const p = e.replace(/\\/g, "/");
+    // tar lists bytes outside ASCII (a Japanese folder name, say) as \ooo octal escapes: those are letters, not separators.
+    const p = e.replace(/\\[0-7]{3}/g, "_").replace(/\\/g, "/");
     return p.startsWith("/") || /^[a-z]:/i.test(p) || p.split("/").includes("..");
   });
 }

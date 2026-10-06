@@ -10,6 +10,8 @@ describe("MUGEN imports", () => {
       "a/../../b",
       "C:\\win.ini",
     ]);
+    // tar's octal escapes for a Japanese folder name are letters, not separators.
+    expect(unsafeEntries(["\\346\\204\\242/ii/1.png", "\\346\\204\\242/../x"])).toEqual(["\\346\\204\\242/../x"]);
   });
 
   it("fixes [Files] names written in other capitals, and reports the missing ones", () => {

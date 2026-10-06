@@ -233,6 +233,147 @@
       "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=169850",
       "author": "Brergrsart",
       "notes": "The purple ape, the final boss of Vargverse: super armour and very strong moves, made like an SNK/Marvel boss. To fix."
+    },
+    {
+      "id": "mugen-gloria-ex",
+      "name": "Gloria EX",
+      "archetype": "RUSHDOWN",
+      "file": "Gloria_EX.zip",
+      "sha256": "f13befa27bba4bd6704bc8bdaa42db52a15af603ac0a6f0aec1f25973c08ec57",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=147737",
+      "author": "Pre-to",
+      "notes": "A fan-made Touhou character in armour with a blade: original sprites (1,357), Talents of the Month, January 2021. Own AI."
+    },
+    {
+      "id": "mugen-dark-gloria-ex",
+      "name": "Dark Gloria EX",
+      "archetype": "RUSHDOWN",
+      "file": "Dark_Gloria_EX.rar",
+      "sha256": "3cbe5203fb4507970e53b37b07b59f20187adfb99237b58a5d5a5b7980d8ce1d",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=211135",
+      "author": "Pre-to, edited by Mikazuki The Mugenite",
+      "notes": "A dark edit of Gloria EX. Own AI.",
+      "def": "Dark Gloria EX/Dark Gloria EX.def"
+    },
+    {
+      "id": "mugen-luthild",
+      "name": "Luthild",
+      "archetype": "ALL_ROUNDER",
+      "file": "Luthild.zip",
+      "sha256": "8f99855f014abd2a13d27379adaa9e7aa8d72b046ac3c13e02467f2e33097245",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=135452",
+      "author": "Pre-to",
+      "notes": "An original character; this version fixes getting stuck on the ground. Own AI."
+    },
+    {
+      "id": "mugen-tyrannos",
+      "name": "Tyrannos",
+      "archetype": "HEAVY",
+      "file": "Tyrannos.zip",
+      "sha256": "723f6eff4efbc89a10e935a6147f6fa1745be1cc2f2e123a0913b1176db07931",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=129499",
+      "author": "Pre-to",
+      "notes": "An original character (updated, bugs fixed). Own AI."
+    },
+    {
+      "id": "mugen-emblasir",
+      "name": "Emblasir",
+      "archetype": "ZONER",
+      "file": "Emblasir.zip",
+      "sha256": "c120fdcac1e16af5fd50117caded309274d5797f12241d4ff6af4a76049b523e",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=180583",
+      "author": "Pre-to",
+      "notes": "An original character, converted for MUGEN 1.1. Own AI."
+    },
+    {
+      "id": "mugen-ruhmleyna",
+      "name": "Ruhmleyna",
+      "archetype": "ALL_ROUNDER",
+      "file": "Ruhmleyna.zip",
+      "sha256": "c1bffd5858b09cf8b69f4a2f603e6e1103b9a01688506dba895faedfba14013f",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=129497",
+      "author": "Pre-to",
+      "notes": "An original character. Own AI."
+    },
+    {
+      "id": "mugen-bouyou",
+      "name": "Bouyou",
+      "archetype": "HEAVY",
+      "file": "Bouyou.zip",
+      "sha256": "67247387668f9617fb1376128b24ad8535d6bcc48b26cf0a8ba8a4a1198af399",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=118713",
+      "author": "Pre-to",
+      "notes": "An original character (1,403 sprites). Own AI."
+    },
+    {
+      "id": "mugen-regisseur",
+      "name": "Regisseur",
+      "archetype": "ZONER",
+      "file": "Regisseur.zip",
+      "sha256": "d8daeee49ee38e4aee41fc387b5c1c1341ce99f73540986bb30acc86170557ee",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=101898",
+      "author": "Pre-to",
+      "notes": "An original boss character: doesn't flinch when hit, but beatable. Own AI."
+    },
+    {
+      "id": "mugen-nixhemera",
+      "name": "Nixhemera",
+      "archetype": "ZONER",
+      "file": "Nixhemera.zip",
+      "sha256": "9288a999ead2d4e84a5a05ad8913bd88dd9d71fed5e84f72ec6d3358890cc197",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=106684",
+      "author": "Pre-to",
+      "notes": "An original character (updated 2019). Own AI."
+    },
+    {
+      "id": "mugen-erisnomia",
+      "name": "Erisnomia",
+      "archetype": "RUSHDOWN",
+      "file": "Erisnomia.zip",
+      "sha256": "6f97730bb4e8a61c6ee623bc8e1266de1ea71fd1921e9b2e4e082b73d008fd85",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=105711",
+      "author": "Pre-to",
+      "notes": "An original character (updated 2018). Own AI."
+    },
+    {
+      "id": "mugen-assiette",
+      "name": "Assiette",
+      "archetype": "GRAPPLER",
+      "file": "assiette.zip",
+      "sha256": "5cd335eb98334c9def771663199453a4cff1a831fe65cd5ae3548b6049f39603",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=105713",
+      "author": "Pre-to",
+      "notes": "An original character (updated 2018). Own AI."
+    },
+    {
+      "id": "mugen-iari",
+      "name": "Iari Veugleschaft",
+      "archetype": "ALL_ROUNDER",
+      "file": "Iari.zip",
+      "sha256": "1ab07f586a54b6527e8b1c112a0cab78bf0923b0501a31d15eac1bd143256af9",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=8524",
+      "author": "Pre-to",
+      "notes": "An original character, hi-res. Own AI."
+    },
+    {
+      "id": "mugen-regin",
+      "name": "Regin Veugleschaft",
+      "archetype": "ALL_ROUNDER",
+      "file": "Regin.zip",
+      "sha256": "c774d7649493e3154e2da07f29c5ef1aee76ec92dbf18d3d8a150cf45015eb35",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=8525",
+      "author": "Pre-to",
+      "notes": "An original character, hi-res. Own AI."
+    },
+    {
+      "id": "mugen-job-change-marisa",
+      "name": "Job-Change Marisa",
+      "archetype": "ZONER",
+      "file": "J_marisa.zip",
+      "sha256": "18b27a73b12d74a009d0571f9e96541ede1e755813d85b49e138a913b5835a1b",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=10993",
+      "author": "Pre-to",
+      "notes": "Touhou's Marisa redone in Type-Moon style. Own AI."
     }
   ]
 }

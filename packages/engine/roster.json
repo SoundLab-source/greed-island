@@ -640,6 +640,160 @@
       "commercialUse": false,
       "enabled": true,
       "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-gloria-ex",
+      "displayName": "Gloria EX",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-gloria-ex/mugen-gloria-ex.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=147737. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-luthild",
+      "displayName": "Luthild",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-luthild/mugen-luthild.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=135452. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-tyrannos",
+      "displayName": "Tyrannos",
+      "archetype": "HEAVY",
+      "rarity": "RARE",
+      "def": "chars/mugen-tyrannos/mugen-tyrannos.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=129499. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-ruhmleyna",
+      "displayName": "Ruhmleyna",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-ruhmleyna/mugen-ruhmleyna.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=129497. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-bouyou",
+      "displayName": "Bouyou",
+      "archetype": "HEAVY",
+      "rarity": "RARE",
+      "def": "chars/mugen-bouyou/mugen-bouyou.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=118713. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-regisseur",
+      "displayName": "Regisseur",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-regisseur/mugen-regisseur.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=101898. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-nixhemera",
+      "displayName": "Nixhemera",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-nixhemera/mugen-nixhemera.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=106684. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-erisnomia",
+      "displayName": "Erisnomia",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-erisnomia/mugen-erisnomia.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=105711. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-assiette",
+      "displayName": "Assiette",
+      "archetype": "GRAPPLER",
+      "rarity": "RARE",
+      "def": "chars/mugen-assiette/mugen-assiette.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=105713. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-iari",
+      "displayName": "Iari Veugleschaft",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-iari/mugen-iari.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=8524. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-regin",
+      "displayName": "Regin Veugleschaft",
+      "archetype": "ALL_ROUNDER",
+      "rarity": "RARE",
+      "def": "chars/mugen-regin/mugen-regin.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=8525. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-job-change-marisa",
+      "displayName": "Job-Change Marisa",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-job-change-marisa/mugen-job-change-marisa.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=10993. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-dark-gloria-ex",
+      "displayName": "Dark Gloria EX",
+      "archetype": "RUSHDOWN",
+      "rarity": "RARE",
+      "def": "chars/mugen-dark-gloria-ex/mugen-dark-gloria-ex.def",
+      "license": "MUGEN character by Pre-to, edited by Mikazuki The Mugenite, from https://mugenarchive.com/forums/downloads.php?do=file&id=211135. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
+    },
+    {
+      "id": "mugen-emblasir",
+      "displayName": "Emblasir",
+      "archetype": "ZONER",
+      "rarity": "RARE",
+      "def": "chars/mugen-emblasir/mugen-emblasir.def",
+      "license": "MUGEN character by Pre-to, from https://mugenarchive.com/forums/downloads.php?do=file&id=180583. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
+      "commercialUse": false,
+      "enabled": true,
+      "notes": "Added by pnpm mugen:import (mugen.json)."
     }
   ],
   "stages": [
@@ -1609,6 +1763,104 @@
       "key": "mugen-bonzibuddy",
       "fighter": "mugen-bonzibuddy",
       "name": "BonziBUDDY",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-gloria-ex",
+      "fighter": "mugen-gloria-ex",
+      "name": "Gloria EX",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-luthild",
+      "fighter": "mugen-luthild",
+      "name": "Luthild",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-tyrannos",
+      "fighter": "mugen-tyrannos",
+      "name": "Tyrannos",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-ruhmleyna",
+      "fighter": "mugen-ruhmleyna",
+      "name": "Ruhmleyna",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-bouyou",
+      "fighter": "mugen-bouyou",
+      "name": "Bouyou",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-regisseur",
+      "fighter": "mugen-regisseur",
+      "name": "Regisseur",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-nixhemera",
+      "fighter": "mugen-nixhemera",
+      "name": "Nixhemera",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-erisnomia",
+      "fighter": "mugen-erisnomia",
+      "name": "Erisnomia",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-assiette",
+      "fighter": "mugen-assiette",
+      "name": "Assiette",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-iari",
+      "fighter": "mugen-iari",
+      "name": "Iari Veugleschaft",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-regin",
+      "fighter": "mugen-regin",
+      "name": "Regin Veugleschaft",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-job-change-marisa",
+      "fighter": "mugen-job-change-marisa",
+      "name": "Job-Change Marisa",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-dark-gloria-ex",
+      "fighter": "mugen-dark-gloria-ex",
+      "name": "Dark Gloria EX",
+      "palette": 1,
+      "enabled": true
+    },
+    {
+      "key": "mugen-emblasir",
+      "fighter": "mugen-emblasir",
+      "name": "Emblasir",
       "palette": 1,
       "enabled": true
     }
