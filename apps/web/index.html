@@ -8,18 +8,36 @@
   <link rel="stylesheet" href="site.css">
   <link rel="stylesheet" href="watch.css">
 </head>
-<body>
+<body class="watch-page">
   <main class="layout">
-    <section class="stage">
-      <div class="video"><iframe id="player" title="Live fights" allow="autoplay; fullscreen" allowfullscreen></iframe></div>
+    <!-- Who's betting on what, then recent results. -->
+    <aside class="bets" aria-label="Bets">
+      <div class="bets-head">
+        <h2>Bets</h2>
+        <span id="bets-note" class="muted"></span>
+      </div>
+      <div class="split" id="bets-split" hidden>
+        <div class="row"><span class="red" id="bets-red"></span><span class="blue" id="bets-blue"></span></div>
+        <div class="bar"><span class="r" id="bets-bar-red"></span><span class="b" id="bets-bar-blue"></span></div>
+      </div>
+      <ol id="bets-list" class="bets-list"></ol>
+      <div id="feed" class="feed">
+        <h2>Results</h2>
+        <p class="muted" id="feed-note">Results show here as fights finish.</p>
+        <ol id="feed-list"></ol>
+      </div>
+    </aside>
 
-      <div class="betbox">
-        <div class="fightline">
-          <span id="fight-label">Loading…</span>
-          <span id="countdown" class="countdown"></span>
-        </div>
-        <div class="sides">
-          <button id="bet1" class="side red" disabled></button>
+    <!-- The fight, as big as the window allows, and the bet right under it. -->
+    <section class="stage">
+      <div class="screen"><div class="video"><iframe id="player" title="Live fights" allow="autoplay; fullscreen" allowfullscreen></iframe></div></div>
+      <div class="betbar">
+        <button id="bet1" class="side red" disabled></button>
+        <div class="center">
+          <div class="fightline">
+            <span id="fight-label">Loading…</span>
+            <span id="countdown" class="countdown"></span>
+          </div>
           <div class="stakebox">
             <label for="stake">Stake <span id="stake-currency">Salt</span></label>
             <input id="stake" type="number" min="1" step="1" value="10" inputmode="numeric">
@@ -30,23 +48,19 @@
               <button data-share="0.5">50%</button>
               <button data-share="1">All</button>
             </div>
-            <div id="my-bet" class="my-bet"></div>
           </div>
-          <button id="bet2" class="side blue" disabled></button>
+          <div id="my-bet" class="my-bet"></div>
+          <div id="bet-msg" class="msg" role="status"></div>
+          <div class="matchup" id="matchup"></div>
         </div>
-        <div id="bet-msg" class="msg" role="status"></div>
+        <button id="bet2" class="side blue" disabled></button>
       </div>
-
-      <div class="matchup" id="matchup"></div>
     </section>
 
-    <aside class="social">
+    <!-- Chat. -->
+    <aside class="social" aria-label="Chat">
       <iframe id="chat" title="Chat" hidden></iframe>
-      <div id="feed" class="feed">
-        <h2>Live feed</h2>
-        <p class="muted" id="feed-note">Chat opens here once the stream is on Twitch.</p>
-        <ol id="feed-list"></ol>
-      </div>
+      <div id="chat-off" class="chat-off"><h2>Chat</h2><p class="muted">Chat opens here once the Twitch channel is set (GI_TWITCH_CHANNEL).</p></div>
     </aside>
   </main>
 

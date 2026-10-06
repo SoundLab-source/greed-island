@@ -8,6 +8,7 @@ export type { EngineMode, EventSource, FightSpec, FighterSpec, RunOptions } from
 export { OutcomeTracker } from "./outcome.ts";
 export { createFakeSource, generateScript, seededRandom, type FakeOptions, type FakeScript, type FakeEnding } from "./fake.ts";
 export { createIkemenSource, type IkemenSourceOptions } from "./ikemen/runner.ts";
+export { gameCrop, gameWindow, titleBarCrop, type WindowBounds } from "./ikemen/window.ts";
 export { buildArgs, statArgs, runConfigIni } from "./ikemen/args.ts";
 export { findIkemenBinary, installMod, isModInstalled, MOD_SOURCE } from "./ikemen/install.ts";
 export { parseLuaDump, outcomeFromDump, outcomeFromLog, matchDetailFromDump, matchDetailFromLog, type MatchDetail, type RoundDetail } from "./ikemen/log.ts";

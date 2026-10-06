@@ -12,6 +12,7 @@ import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
 import { acquireOrchestratorLock } from "../lock.ts";
 import { loadObsConfig, ObsSceneSwitcher } from "../obs.ts";
+import { loadLocalVideo, loadSampleBets, ObsLocalVideo } from "../local-video.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { isProduction, productionProblems } from "../production.ts";
 import { reconcile } from "../reconcile.ts";
@@ -110,7 +111,7 @@ const checks = config.checks.enabled
       },
     )
   : null;
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), localVideo: loadLocalVideo(), sampleBets: loadSampleBets(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
@@ -120,6 +121,10 @@ console.log(`Player site: ${publicUrl}/ · stream overlay for OBS: ${publicUrl}/
 const obsConfig = loadObsConfig();
 const obs = obsConfig ? new ObsSceneSwitcher(obsConfig) : null;
 obs?.start(bus);
+// The local preview: OBS's Virtual Camera on the watch page, cropped to each fight's window.
+const localVideo = obsConfig && loadLocalVideo() ? new ObsLocalVideo(obsConfig) : null;
+if (loadLocalVideo() && !obsConfig) console.log("GI_LOCAL_VIDEO needs OBS: set GI_OBS_URL (and GI_OBS_PASSWORD)");
+localVideo?.start(bus);
 
 await checks?.start();
 
@@ -140,6 +145,7 @@ async function shutdown(code = 0) {
   await step(running);
   await step(checks?.stop());
   obs?.stop();
+  localVideo?.stop();
   await step(app.close());
   await step(lock.release());
   await step(db.$disconnect());

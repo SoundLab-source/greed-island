@@ -162,6 +162,14 @@ Then, in OBS, Settings → Stream: pick Twitch or YouTube and paste the stream k
 
 **Status:** with a real OBS (32.2.2) and real IKEMEN fights: `pnpm obs:setup`, scene switching on every fight, the overlay (betting screen and fight bar over the capture) and whole-screen capture all work. Open: capturing only the game window (docs/obs-notes.md). Do a private test recording before going live.
 
+**Seeing the fight in the page on this computer (local preview, nothing online).** Without a stream, the watch page has no video of the fight: the game draws in its own window. To try the site as viewers will see it, `GI_LOCAL_VIDEO=true` makes the watch page play **OBS's Virtual Camera** (what OBS shows: the Betting and Fight scenes) instead of Twitch:
+1. Set up OBS as in Option B (`GI_OBS_URL`, `GI_OBS_PASSWORD`, `pnpm obs:setup`), and add `GI_LOCAL_VIDEO=true` to `.env` (or run `GI_LOCAL_VIDEO=true ENGINE_MODE=live GI_GAME_TO_FRONT=true pnpm dev`).
+2. Open OBS, then start `pnpm dev`. The server switches OBS's Virtual Camera on, and when each fight's window opens it points OBS's "Game capture" at that window (it asks macOS for the window and creates the capture again, since OBS only finds windows when a capture is created), cutting off the title bar. That films the game even behind other windows. If the window capture shows nothing, it films the whole screen cropped to where the window is instead (then keep the game in front: `GI_GAME_TO_FRONT=true`).
+3. The first time: macOS lists the camera as waiting for you. System Settings → General → Login Items & Extensions → Extensions → Camera Extensions → switch **OBS Virtual Camera** on.
+4. Open the site in Chrome on this Mac (http://127.0.0.1:3000) and allow the camera when it asks. The page shows what to do if OBS or the camera isn't there yet, and picks the camera up as soon as it appears.
+
+The game window still opens on screen (OBS has to see it to film it). This only works on the machine running OBS (the camera is local); the app's built-in browser pane doesn't allow cameras. The public site keeps using Twitch.
+
 **Option C: ffmpeg straight from the virtual display (server, no OBS).**
 
 ```bash
@@ -174,7 +182,7 @@ ffmpeg -f x11grab -video_size 1280x720 -framerate 60 -i :99 \
 
 This streams whatever is on display `:99`. Run a kiosk browser (e.g. Chromium in `--kiosk` mode) showing `overlay.html?scene=betting` on the same display, behind the IKEMEN window, so it shows whenever no fight is running. YouTube's RTMP URL is `rtmp://a.rtmp.youtube.com/live2/<key>`.
 
-**The player site.** `pnpm dev` serves the player site at `/` (watch and bet, shop, my fighters, rankings, vote, account; the plain dev page moved to `/dev.html`). The home page is what viewers use: the video on top, Red/Blue bet buttons with stake shortcuts and the countdown underneath, and chat on the side. Set `GI_TWITCH_CHANNEL` to your Twitch channel name and it embeds that channel's player and chat (Twitch requires the page's domain in the embed, which the page fills in itself; whether Twitch accepts `localhost` while testing is unverified). Without a channel it shows the live betting screen and a feed of fight results instead. Every page uses the same anonymous player, so Salt and fighters carry over; adding an email on the account page keeps them on any device.
+**The player site.** `pnpm dev` serves the player site at `/` (watch and bet, shop, my fighters, rankings, vote, account; the plain dev page moved to `/dev.html`). The home page is what viewers use, on one screen without scrolling: the bets on the left (who's betting how much on which side, the totals, then recent results), the video in the middle with a slim bet bar under it (each side with its odds and win chance, the stake and the countdown), and chat on the right. Other players' bets aren't public yet; `GI_SAMPLE_BETS=true` fills the list with sample bettors for a preview (never in production). Set `GI_TWITCH_CHANNEL` to your Twitch channel name and it embeds that channel's player and chat (Twitch requires the page's domain in the embed, which the page fills in itself; the chat loaded at both `localhost` and `127.0.0.1` on 2026-10-06, even with the channel offline). Without a channel it shows the live betting screen and a feed of fight results instead. Every page uses the same anonymous player, so Salt and fighters carry over; adding an email on the account page keeps them on any device.
 
 **Keys and rules.**
 - Stream keys and the OBS password are secrets: keep them in `.env` or the server's secret store, never in the repo (it's public).

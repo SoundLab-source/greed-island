@@ -22,6 +22,7 @@ import { writeFxPack, FX_DEF } from "../fx/pack.ts";
 import { AI_VERSION, hasOwnAi, insertIntoMinus1, loadOrder, minus1Host, mugenAi, type AiAttack } from "./ai.ts";
 import { GAGS, gagAir, gagStates, gagTriggers, type Gag } from "./gags.ts";
 import type { CodeFile } from "./cheats.ts";
+import { mugenCard } from "./card.ts";
 
 /** What the marker remembers of the recipe beyond the archive, so a new AI, AI choice or stats reinstall the character. */
 const aiTag = (entry: MugenEntry) =>
@@ -247,7 +248,15 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
   if (existsSync(dest)) {
     if (!existsSync(marker)) throw new Error(`${dest} exists and wasn't made by Greed Island; not touching it`);
     const previous = JSON.parse(await readFile(marker, "utf8")) as { sha256?: string; name?: string; ai?: string };
-    if (previous.sha256 === entry.sha256 && previous.name === entry.name && previous.ai === aiTag(entry)) return { defPath, status: "unchanged", changed: {}, missing: [] };
+    if (previous.sha256 === entry.sha256 && previous.name === entry.name && previous.ai === aiTag(entry)) {
+      // Installed before pictures existed: add only the picture.
+      const card = path.join(dest, "card.png");
+      if (!existsSync(card)) {
+        const png = await mugenCard(path.join(dest, `${entry.id}.def`));
+        if (png) await writeFile(card, png);
+      }
+      return { defPath, status: "unchanged", changed: {}, missing: [] };
+    }
   }
   const tmp = `${dest}.tmp-${process.pid}`;
   await rm(tmp, { recursive: true, force: true });
@@ -279,6 +288,9 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
       const text = await readFile(path.join(staged, cns), "latin1");
       await writeFile(path.join(staged, cns), patchIni(text, "Data", Object.fromEntries(Object.entries(entry.data).map(([k, v]) => [k, String(v)]))), "latin1");
     }
+    // The website's picture of it.
+    const card = await mugenCard(path.join(staged, `${entry.id}.def`));
+    if (card) await writeFile(path.join(staged, "card.png"), card);
     await writeFile(path.join(staged, MARKER), JSON.stringify({ id: entry.id, name: entry.name, sha256: entry.sha256, ai: aiTag(entry), source: entry.source, generatedBy: "pnpm mugen:import" }, null, 2) + "\n");
     await rm(dest, { recursive: true, force: true });
     await rename(staged, dest);

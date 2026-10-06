@@ -122,6 +122,10 @@ export interface ApiDeps {
   logger?: boolean;
   /** Twitch channel shown on the watch page (player and chat); null shows the live betting board instead. */
   twitchChannel?: string | null;
+  /** GI_LOCAL_VIDEO: the watch page plays OBS's Virtual Camera instead of Twitch (local-video.ts). */
+  localVideo?: boolean;
+  /** GI_SAMPLE_BETS: the watch page fills its bets list with sample bettors (a preview, never real bets). */
+  sampleBets?: boolean;
   /** Where submitted fighter images are stored. Defaults to GI_SUBMISSIONS_DIR or `submissions/`. */
   submissionStore?: SubmissionStore;
   /** Called when a run of the automatic checks was queued, so the worker looks now instead of at its next tick. */
@@ -221,7 +225,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   const looks = deps.lookStore ?? loadLookStore();
   const app = Fastify({ logger: deps.logger ?? false, trustProxy: deps.trustProxy ?? "loopback" });
   if (deps.rateLimits) installRateLimits(app, deps.rateLimits);
-  installSecurityHeaders(app, { https: publicUrl.startsWith("https://") });
+  installSecurityHeaders(app, { https: publicUrl.startsWith("https://"), camera: deps.localVideo === true });
   const startedAt = Date.now();
   // Submission images arrive as the raw PNG body (checked in pngInfo; the content type isn't trusted).
   app.addContentTypeParser(["image/png", "application/octet-stream"], { parseAs: "buffer", bodyLimit: config.submissions.maxFileBytes + 1024 }, (_req, body, done) => done(null, body));
@@ -616,7 +620,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   });
 
   // What the watch page embeds.
-  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null }));
+  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null, localVideo: deps.localVideo === true, sampleBets: deps.sampleBets === true }));
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db, config)));

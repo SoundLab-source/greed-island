@@ -4,19 +4,79 @@
   let fight = null;
 
   // ---- Video and chat ----
+  // Local preview (GI_LOCAL_VIDEO, on the machine running OBS): OBS's Virtual Camera instead of Twitch.
+  async function showLocalVideo() {
+    const box = $("player").parentElement;
+    const video = document.createElement("video");
+    video.id = "player";
+    video.title = "Live fights (OBS Virtual Camera)";
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    $("player").replaceWith(video);
+    const note = document.createElement("div");
+    note.className = "local-note";
+    box.append(note);
+    const say = (html) => {
+      note.innerHTML = html;
+      note.hidden = !html;
+    };
+    const media = navigator.mediaDevices;
+    if (!media?.getUserMedia) {
+      say("<b>This browser can't show the local video.</b><span>Open the site in Chrome on the computer running OBS: http://127.0.0.1:3000</span>");
+      return;
+    }
+    const obsCamera = async () => (await media.enumerateDevices()).find((d) => d.kind === "videoinput" && /obs/i.test(d.label));
+    let starting = false;
+    const connect = async () => {
+      if (starting || video.srcObject) return;
+      starting = true;
+      try {
+        let cam = await obsCamera();
+        if (!cam) {
+          // Camera names stay hidden until the page may use a camera: ask once, then look again.
+          const probe = await media.getUserMedia({ video: true });
+          probe.getTracks().forEach((t) => t.stop());
+          cam = await obsCamera();
+        }
+        if (!cam) {
+          say("<b>Waiting for OBS's Virtual Camera.</b><span>Open OBS: the server switches its Virtual Camera on, and the fight shows here.</span>");
+          return;
+        }
+        const stream = await media.getUserMedia({ video: { deviceId: { exact: cam.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
+        // OBS closed or its camera stopped: wait for it again.
+        stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+          video.srcObject = null;
+          say("<b>OBS's Virtual Camera stopped.</b><span>Open OBS again: the fight comes back here.</span>");
+        });
+        video.srcObject = stream;
+        say("");
+      } catch (err) {
+        say(`<b>The page may not use the camera.</b><span>Allow it in the browser (the camera icon in the address bar), then reload. (${esc(err.name || "error")})</span>`);
+      } finally {
+        starting = false;
+      }
+    };
+    media.addEventListener("devicechange", () => void connect());
+    setInterval(() => void connect(), 5000);
+    await connect();
+  }
+
   async function setupEmbeds() {
     const site = await api("GET", "/api/site");
     const parent = encodeURIComponent(location.hostname);
+    sample = site.sampleBets === true;
     if (site.twitchChannel) {
+      // Twitch's chat works whether or not the channel is live.
       const c = encodeURIComponent(site.twitchChannel);
-      $("player").src = `https://player.twitch.tv/?channel=${c}&parent=${parent}&muted=true`;
-      $("chat").src = `https://www.twitch.tv/embed/${c}/chat?parent=${parent}`;
+      $("chat").src = `https://www.twitch.tv/embed/${c}/chat?parent=${parent}&darkpopout`;
       $("chat").hidden = false;
-      $("feed").hidden = true;
-    } else {
-      // No stream yet: show the live betting board from the overlay.
-      $("player").src = "/overlay.html?scene=betting";
+      $("chat-off").hidden = true;
     }
+    if (site.localVideo) await showLocalVideo();
+    else if (site.twitchChannel) $("player").src = `https://player.twitch.tv/?channel=${encodeURIComponent(site.twitchChannel)}&parent=${parent}&muted=true`;
+    // No stream yet: show the live betting board from the overlay.
+    else $("player").src = "/overlay.html?scene=betting";
   }
 
   const currency = () => (fight && fight.currency === "T-Salt" ? "T-Salt" : "Salt");
@@ -32,11 +92,10 @@
     const o = f.odds;
     const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}` : "–";
     const chance = o ? `${o.chancePct[n].toFixed(1)}% to win` : "";
-    return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"}</span>
+    return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"} ${GI.badges(s.cosmetics)}</span>
       <span>${GI.plate(s.name, s.cosmetics)}</span>
-      <span>${GI.badges(s.cosmetics)}</span>
       <span class="odds">${odds}</span>
-      <span class="sub">${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} · ${chance}</span>`;
+      <span class="sub">${chance ? `<b>${chance}</b> · ` : ""}${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} ${form((s.last10 ?? []).slice(-5))}</span>`;
   }
 
   function label(f) {
@@ -48,23 +107,62 @@
 
   const form = (last10) => `<span class="form">${last10.length ? last10.map((r) => `<span class="${r === "W" ? "w" : "l"}">${r}</span>`).join("") : '<span class="muted">new</span>'}</span>`;
 
-  function tape(s, side) {
-    const owner = s.owner.kind === "house" ? "House fighter" : `Owned by <b>${esc(s.owner.name)}</b>`;
-    const st = s.stats;
-    return `<div class="col ${side === 2 ? "b" : ""}">
-      <div><b>${GI.fighterLink(s.characterId ?? s.id, s.name)}</b>${s.firstEdition ? ' <span class="tag gold">First Edition</span>' : ""}</div>
-      <div class="muted">${esc(GI.archetype(s.archetype ?? s.fighter?.archetype))} · ${owner}</div>
-      <div>${s.record.wins}–${s.record.losses}${s.winRate == null ? "" : ` (${s.winRate}%)`} · ${form(s.last10 ?? [])}</div>
-      <div class="muted">Life ${st.lifePct}% · Attack ${st.attackPct}% · Defense ${st.defensePct}%${st.startPower ? ` · Power ${st.startPower}` : ""}</div>
-    </div>`;
-  }
-
+  // One line of facts under the stake: head to head, stage, and the pools once betting closes.
   function renderMatchup(f) {
     const h = f.headToHead;
-    const pools = f.odds?.locked ? `<div>Pools <b>${fmt(f.odds.pool[1])}</b> / <b>${fmt(f.odds.pool[2])}</b> from ${f.odds.bettors} bettors</div>` : "";
-    $("matchup").innerHTML = `${tape(f.sides[1], 1)}
-      <div class="mid"><div>Head to head</div><b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b><div>${esc(f.stage.displayName)}</div>${pools}</div>
-      ${tape(f.sides[2], 2)}`;
+    const pools = f.odds?.locked ? `<span>Pools <b>${fmt(f.odds.pool[1])}</b> / <b>${fmt(f.odds.pool[2])}</b> · ${f.odds.bettors} bettors</span>` : "";
+    $("matchup").innerHTML = `<span>Head to head <b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b></span><span>${esc(f.stage.displayName)}</span>${pools}`;
+  }
+
+  // ---- Bets: who's betting how much on which side ----
+  // Until other players' bets are shown (they'll be the people watching with you), a preview fills the list with
+  // sample bettors (GI_SAMPLE_BETS=true): made up per fight, arriving through the betting window, leaning to the
+  // favourite. Your own bet is always real.
+  let sample = false;
+  const SAMPLE_NAMES = ["SaltLord", "ComboKing", "PopTartPapi", "KFM_Stan", "BetBot3000", "LowTierHero", "ZoningZack", "GrappleGran", "CrossupCarl", "FrameTrap", "SaltyMcSalt", "DizzyDan", "ChipDamage", "WhiffPunisher", "OkiOlivia", "TechThrowTom", "MeterBurn", "JuggleJen", "AllInAndy", "Underdog_Uma", "FavouriteFred", "RageQuitRita", "MashMaster", "BlockBlockBlock", "SweepSam", "DPKing", "ParryPete", "Anon-4f2a91", "Anon-7c31e0", "Anon-b81d02", "NyanFan", "HypeTrain", "LastHitLarry", "SaltMine", "TierListTina", "CornerCarry"];
+  function seeded(n) {
+    let x = n >>> 0;
+    return () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
+  }
+  function sampleBets(f) {
+    const rnd = seeded(f.number * 9973 + 17);
+    const names = [...SAMPLE_NAMES].sort(() => rnd() - 0.5).slice(0, 12 + Math.floor(rnd() * 18));
+    const favourite = f.odds ? f.odds.chancePct[1] / 100 : 0.5;
+    const opens = new Date(f.times.bettingOpens ?? f.times.booked).getTime();
+    const closes = new Date(f.times.bettingCloses ?? opens).getTime();
+    return names.map((name) => ({
+      name,
+      side: rnd() < 0.2 + 0.6 * favourite ? 1 : 2,
+      stake: Math.max(10, Math.round(Math.exp(2.4 + rnd() * 5.2) / 5) * 5),
+      at: opens + rnd() * (closes - opens) * 0.95,
+    }));
+  }
+  let shown = new Set();
+  function renderBets() {
+    const f = fight;
+    const list = $("bets-list");
+    if (!f) {
+      list.innerHTML = '<li class="empty">No fight yet.</li>';
+      return;
+    }
+    const now = Date.now();
+    const bets = (sample ? sampleBets(f) : []).filter((b) => f.state !== "BETTING_OPEN" || b.at <= now);
+    if (f.myBet) bets.push({ name: `You (${GI.me?.name ?? "you"})`, side: f.myBet.side, stake: Number(f.myBet.stake), me: true });
+    bets.sort((a, b) => b.stake - a.stake);
+    const total = { 1: 0, 2: 0 };
+    for (const b of bets) total[b.side] += b.stake;
+    const all = total[1] + total[2];
+    $("bets-split").hidden = all === 0;
+    $("bets-red").textContent = `${fmt(total[1])} Red`;
+    $("bets-blue").textContent = `Blue ${fmt(total[2])}`;
+    $("bets-bar-red").style.width = `${all ? (100 * total[1]) / all : 50}%`;
+    $("bets-bar-blue").style.width = `${all ? (100 * total[2]) / all : 50}%`;
+    $("bets-note").textContent = `${bets.length} bettor${bets.length === 1 ? "" : "s"}${sample ? " · sample" : ""}`;
+    const key = (b) => `${f.number}:${b.name}`;
+    list.innerHTML = bets.length
+      ? bets.map((b) => `<li class="${b.side === 1 ? "r" : "b"}${b.me ? " me" : ""}${shown.has(key(b)) ? "" : " new"}"><span class="dot"></span><span class="who">${esc(b.name)}</span><span class="amt">${fmt(b.stake)}</span></li>`).join("")
+      : `<li class="empty">${f.state === "BETTING_OPEN" ? "No bets yet: be the first." : "No bets on this fight."}</li>`;
+    shown = new Set(bets.map(key));
   }
 
   function renderFight() {
@@ -91,6 +189,7 @@
         : "";
     renderMatchup(f);
     renderClock();
+    renderBets();
   }
 
   function renderClock() {
@@ -147,6 +246,7 @@
     const li = document.createElement("li");
     li.innerHTML = `<time>${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${text}`;
     $("feed-list").prepend(li);
+    $("feed-note").hidden = true;
     while ($("feed-list").children.length > 40) $("feed-list").lastChild.remove();
   }
 
@@ -185,6 +285,10 @@
   setInterval(() => {
     if (fight && fight.state === "BETTING_OPEN") renderClock();
   }, 250);
+  // Sample bettors arrive through the betting window.
+  setInterval(() => {
+    if (sample && fight && fight.state === "BETTING_OPEN") renderBets();
+  }, 1000);
 
   (async () => {
     wireControls();

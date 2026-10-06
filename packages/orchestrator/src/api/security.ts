@@ -112,9 +112,10 @@ export function installRateLimits(app: FastifyInstance, cfg: RateLimitConfig, no
  * own scripts (no inline ones), the Twitch player and chat in frames, and
  * images from anywhere over https (NFT pictures) or from memory (`blob:`: the
  * submit and staff pages fetch submitted images with the session header and
- * show them that way).
+ * show them that way). Camera access is off, except for the local preview
+ * (GI_LOCAL_VIDEO), where the watch page plays OBS's Virtual Camera.
  */
-export function installSecurityHeaders(app: FastifyInstance, opts: { https: boolean }): void {
+export function installSecurityHeaders(app: FastifyInstance, opts: { https: boolean; camera?: boolean }): void {
   const csp = [
     "default-src 'self'",
     "script-src 'self'",
@@ -131,7 +132,8 @@ export function installSecurityHeaders(app: FastifyInstance, opts: { https: bool
     reply.header("content-security-policy", csp);
     reply.header("x-content-type-options", "nosniff");
     reply.header("referrer-policy", "strict-origin-when-cross-origin");
-    reply.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+    // The camera only for the local preview (GI_LOCAL_VIDEO): the watch page plays OBS's Virtual Camera.
+    reply.header("permissions-policy", `camera=${opts.camera ? "(self)" : "()"}, microphone=(), geolocation=()`);
     reply.header("cross-origin-opener-policy", "same-origin");
     if (opts.https) reply.header("strict-transport-security", "max-age=31536000");
     return payload;
