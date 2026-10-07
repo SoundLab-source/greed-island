@@ -310,3 +310,24 @@ describe("template art", () => {
     expect(files.get("card-2.png")).not.toEqual(files.get("card-3.png"));
   });
 });
+
+describe("outfits by hue", () => {
+  it("turns one hue band to another, keeping shading, and leaves greys and other hues", async () => {
+    const { shiftHues } = await import("./art.ts");
+    // 0 transparent, 1 bright green, 2 dark green, 3 grey, 4 red.
+    const palette = new Uint8Array([0, 0, 0, 40, 200, 40, 10, 60, 10, 128, 128, 128, 200, 30, 30]);
+    const out = shiftHues(palette, [{ from: 90, to: 150, hue: 240 }]);
+    const [r1, g1, b1] = out.subarray(3, 6);
+    expect(b1).toBeGreaterThan(g1!);
+    expect(b1).toBeGreaterThan(r1!);
+    // The dark green stays dark: the same lightness, now blue.
+    expect(Math.max(...out.subarray(6, 9))).toBe(Math.max(...palette.subarray(6, 9)));
+    expect([...out.subarray(9, 15)]).toEqual([...palette.subarray(9, 15)]);
+    expect([...out.subarray(0, 3)]).toEqual([0, 0, 0]);
+    // A band through red, drained to grey.
+    const grey = shiftHues(palette, [{ from: 340, to: 20, hue: null }]);
+    const [r4, g4, b4] = grey.subarray(12, 15);
+    expect(r4).toBe(g4);
+    expect(g4).toBe(b4);
+  });
+});

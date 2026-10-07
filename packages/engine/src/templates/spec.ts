@@ -292,6 +292,26 @@ export interface PaletteSpec {
   name: string;
   /** Source palette index → new colour "#rrggbb". */
   colors: Readonly<Record<number, string>>;
+  /**
+   * Recolour by hue, for sheets whose palette isn't laid out by part (3D renders quantised to 100+ colours): every
+   * colour of palette 1 in a hue band turns to another hue, keeping its shading. Applied before `colors`.
+   */
+  shifts?: readonly HueShift[];
+}
+
+export interface HueShift {
+  /** The hue band in degrees (0 red, 120 green, 240 blue); `from` > `to` wraps through red. */
+  from: number;
+  to: number;
+  /** Only colours at least this saturated (0-1), so greys and shadows stay. Default 0.25. */
+  minSat?: number;
+  /** Only colours this light (0-1): e.g. dark leather the same hue as skin. Default all. */
+  lights?: readonly [number, number];
+  /** The new hue (degrees), or null to drain the colour to grey. */
+  hue: number | null;
+  /** Multiply saturation and lightness (default 1). */
+  sat?: number;
+  light?: number;
 }
 
 /**
@@ -351,6 +371,10 @@ export function checkSpec(spec: TemplateSpec): string[] {
   }
   for (const p of [{ name: "main", colors: spec.colors ?? {} }, ...spec.palettes]) for (const [i, c] of Object.entries(p.colors)) {
     if (!/^#[0-9a-f]{6}$/i.test(c) || Number(i) < 1 || Number(i) > 255) problems.push(`palette ${p.name}: bad entry ${i} = ${c}`);
+  }
+  for (const p of spec.palettes) for (const s of p.shifts ?? []) {
+    const deg = (n: number | null) => n === null || (n >= 0 && n <= 360);
+    if (!deg(s.from) || !deg(s.to) || !deg(s.hue) || (s.minSat ?? 0) < 0 || (s.minSat ?? 0) > 1 || (s.sat ?? 1) < 0 || (s.light ?? 1) < 0) problems.push(`palette ${p.name}: bad hue shift`);
   }
   for (const p of spec.looks ?? []) {
     if (p.art.columns !== spec.art.columns || p.art.rows !== spec.art.rows) problems.push(`look from ${p.art.id}: its sheet isn't on this one's layout`);

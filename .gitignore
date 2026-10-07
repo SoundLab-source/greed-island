@@ -51,6 +51,8 @@ art/sources/
 # Downloaded MUGEN characters (listed in packages/engine/mugen.json); never committed
 /mugen/
 /test characters mugen/
+# Stage downloads waiting to be installed (MUGEN Archive), like the characters above.
+/testmaps/
 
 # Local preview config (machine-specific paths) and this machine's Claude permissions
 .claude/launch.json

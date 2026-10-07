@@ -304,6 +304,12 @@ Puffolotti's CC0 collection (art/SOURCES.md) is 35 GIFs: about 20 people (and a 
 
 **Camo Cobra** (`templates/camo-cobra.ts`, art `templates/rhivan-thai.ts`, RUSHDOWN) is the first: the Striker's numbers and AI, every animation his own (catalogue in `rhivan-thai.ts`). Three real fights, every round a knockout, nothing missing in the logs.
 
+### More bodies: the Night Club fighters (2026-10-06)
+
+Puffolotti's women wrestlers are on the Universal Prototype 2 layout like the Bad Company sheets, so any move set there goes on them with `onBody` (`templates/night-club.ts`). Each sheet's axis and localcoord are measured on the stance cell against Universal Prototype 2's (feet 34 pixels left of the axis, lowest pixel 2 below it, 159 pixels tall at 506). Five are house fighters, each with an existing style: Jungle Python (Neon Gorilla's wrestling), Ivory Swan (Silver Crane's taekwondo), Emerald Viper (Jade Serpent's capoeira), Tawny Coyote (Crimson Mongoose's kickboxing), Ginger Ferret (Feral Lynx's feral style); their own moves drawn in code come next. Barbara's sheet doesn't follow the grid.
+
+**Outfits by hue** (`PaletteSpec.shifts`, `shiftHues` in `templates/art.ts`): these palettes are 3D renders quantised to 96-160 colours, not laid out by part, so an outfit names a hue band (and optionally a lightness band: Erika's leather is skin's hue, only darker) and the hue it turns to; saturation and lightness carry the shading, greys stay.
+
 ## NFTs as fighters
 
 The owner's direction (2026-09-29), for step 7 and after the templates exist.

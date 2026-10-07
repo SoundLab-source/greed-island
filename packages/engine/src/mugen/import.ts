@@ -52,11 +52,33 @@ export const MugenEntry = z.object({
   notes: z.string().optional(),
 });
 
-export const MugenRecipe = z.object({ characters: z.array(MugenEntry) }).superRefine((r, ctx) => {
+/** A stage (mugen/stages.ts installs it). */
+export const MugenStage = z.object({
+  /** Folder under stages/ and roster id. */
+  id: z.string().regex(/^mugen-[a-z0-9-]+$/, "ids start with mugen- and use lowercase letters, digits and -"),
+  /** The name we show (the stage's [Info] name gets it too). */
+  name: z.string().min(1).max(40),
+  /** The downloaded archive, in mugen/ at the repo root. */
+  file: z.string().min(1).refine((f) => !/[\\/]/.test(f), "a file name, not a path"),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  /** The stage's .def inside the archive, when it holds more than one. */
+  def: z.string().optional(),
+  source: z.string().url(),
+  author: z.string().min(1),
+  notes: z.string().optional(),
+});
+export type MugenStage = z.infer<typeof MugenStage>;
+
+export const MugenRecipe = z.object({ characters: z.array(MugenEntry), stages: z.array(MugenStage).default([]) }).superRefine((r, ctx) => {
   const ids = new Set<string>();
   r.characters.forEach((c, i) => {
     if (ids.has(c.id)) ctx.addIssue({ code: "custom", message: `duplicate id ${c.id}`, path: ["characters", i, "id"] });
     ids.add(c.id);
+  });
+  const stageIds = new Set<string>();
+  r.stages.forEach((s, i) => {
+    if (stageIds.has(s.id)) ctx.addIssue({ code: "custom", message: `duplicate id ${s.id}`, path: ["stages", i, "id"] });
+    stageIds.add(s.id);
   });
 });
 

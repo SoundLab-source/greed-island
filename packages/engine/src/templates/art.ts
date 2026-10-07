@@ -13,7 +13,7 @@ import { readSff, writeSff, type SffPalette, type SffSprite } from "../art/sff.t
 import { bounds, crop, isCellSource, scale, sheetCells, type CellSource, type IndexedImage, type Sheet } from "../art/sheet.ts";
 import { readPng, writePng } from "../art/png.ts";
 import { PROJECTILE_COLORS, PROJECTILE_SLOTS, projectileArt } from "./projectile.ts";
-import { cellList, checkSpec, ticksOf, type AnimSpec, type ArtSource, type TemplateSpec, type ThrowSpec } from "./spec.ts";
+import { cellList, checkSpec, ticksOf, type AnimSpec, type ArtSource, type HueShift, type TemplateSpec, type ThrowSpec } from "./spec.ts";
 import { reservedGroups, standardSprites } from "./standard.ts";
 
 export interface TemplateArt {
@@ -88,7 +88,36 @@ export function templatePalettes(spec: TemplateSpec, sheetPalette: Uint8Array): 
   const ownArtOnly = spec.attacks.some((a) => a.projectile) && spec.attacks.every((a) => !a.projectile || a.projectile.art);
   const projectile = ownArtOnly ? {} : Object.fromEntries(PROJECTILE_SLOTS.map((slot, i) => [slot, PROJECTILE_COLORS[i]!]));
   const base = recolor(recolor(sheetPalette, projectile), spec.colors ?? {});
-  return [{ group: 1, number: 1, colors: base }, ...spec.palettes.map((p, i) => ({ group: 1, number: i + 2, colors: recolor(base, p.colors) }))];
+  return [{ group: 1, number: 1, colors: base }, ...spec.palettes.map((p, i) => ({ group: 1, number: i + 2, colors: recolor(shiftHues(base, p.shifts ?? []), p.colors) }))];
+}
+
+/** Palette `from` with each hue shift applied to the colours in its band (index 0, transparency, stays). */
+export function shiftHues(from: Uint8Array, shifts: readonly HueShift[]): Uint8Array {
+  const out = from.slice();
+  for (let i = 1; i < out.length / 3; i++) {
+    const [h, s, l] = rgbToHsl(out[i * 3]!, out[i * 3 + 1]!, out[i * 3 + 2]!);
+    const shift = shifts.find(
+      (x) => s >= (x.minSat ?? 0.25) && l >= (x.lights?.[0] ?? 0) && l <= (x.lights?.[1] ?? 1) && (x.from <= x.to ? h >= x.from && h <= x.to : h >= x.from || h <= x.to),
+    );
+    if (!shift) continue;
+    out.set(hslToRgb(shift.hue ?? h, shift.hue === null ? 0 : Math.min(1, s * (shift.sat ?? 1)), Math.min(1, l * (shift.light ?? 1))), i * 3);
+  }
+  return out;
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const [R, G, B] = [r / 255, g / 255, b / 255];
+  const max = Math.max(R, G, B), min = Math.min(R, G, B), l = (max + min) / 2, d = max - min;
+  if (d === 0) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === R ? ((G - B) / d + 6) % 6 : max === G ? (B - R) / d + 2 : (R - G) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
 
 /** The thrower's two animations of a throw: the reach (action `state`) and the hold (action `state + 10`). */

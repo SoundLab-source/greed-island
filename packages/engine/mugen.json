@@ -1,5 +1,5 @@
 {
-  "$comment": "MUGEN characters from the web, none cleared for commercial use (fan-made, often from commercial games): roster.json marks them commercialUse false, so GI_COMMERCIAL_ONLY=true keeps them off stream. Only this recipe is committed; put each downloaded file in mugen/ (repo root, not in git) and run `pnpm mugen:import`, which checks the checksum and installs it into IKEMEN_DIR/chars/<id>/. `name` is what the stream and the game's health bar show.",
+  "$comment": "MUGEN characters and stages from the web, none cleared for commercial use (fan-made, often from commercial games): roster.json marks them commercialUse false, so GI_COMMERCIAL_ONLY=true keeps them off stream. Only this recipe is committed; put each downloaded file in mugen/ (repo root, not in git) and run `pnpm mugen:import`, which checks the checksum and installs it into IKEMEN_DIR/chars/<id>/ (stages: stages/<id>/). `name` is what the stream and the game's health bar show.",
   "characters": [
     {
       "id": "mugen-silly-barney",
@@ -374,6 +374,17 @@
       "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=10993",
       "author": "Pre-to",
       "notes": "Touhou's Marisa redone in Type-Moon style. Own AI."
+    }
+  ],
+  "stages": [
+    {
+      "id": "mugen-sapphire-diamond",
+      "name": "Sapphire Diamond",
+      "file": "Sapphire_Diamond_Resurrection.rar",
+      "sha256": "c19839d02291afea3d9e97362418e49ed42a6d955231e9ba142b34c837524524",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=211517",
+      "author": "Williamasonic",
+      "notes": "\"Sapphire Diamond Resurrection\" (2010): a space stage with its own music. Downloaded by the owner 2026-10-06 (5.14 MB)."
     }
   ]
 }
