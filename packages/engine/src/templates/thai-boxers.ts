@@ -11,57 +11,14 @@
 import { ALL_ROUNDER } from "./all-rounder.ts";
 import { thaiBoxer } from "./camo-cobra.ts";
 import { HEAVY } from "./heavy.ts";
+import { bodyArt, shift, type Body } from "./mustermenschen.ts";
 import { thaiStandard } from "./rhivan-thai.ts";
 import { RUSHDOWN } from "./rushdown.ts";
-import type { ArtSource, HueShift, TemplateSpec } from "./spec.ts";
-
-const SET = "art/sources/mustermenschen";
-const URL = "https://opengameart.org/content/musternenschen-v1-complete-collection";
-/** Rhivan's on-screen size: 106 pixels at localcoord 340. */
-const SIZE = 340 / 106;
-
-interface Body {
-  id: string;
-  /** The GIF, and who it is in the set. */
-  file: string;
-  who: string;
-  sha256: string;
-  width: number;
-  height: number;
-  frames: number;
-  /** Frame 0's body: its left and right edges and its lowest row (the feet), and how tall it is. */
-  x0: number;
-  x1: number;
-  y1: number;
-  tall: number;
-  /** On-screen size against Rhivan's (1 = the same). */
-  size?: number;
-  map?: (n: number) => number;
-}
-
-function bodyArt(b: Body): ArtSource {
-  return {
-    id: b.id,
-    file: `${SET}/${b.file}`,
-    sha256: b.sha256,
-    cellWidth: b.width,
-    cellHeight: b.height,
-    columns: 30,
-    rows: Math.ceil(b.frames / 30),
-    // Like Rhivan's (measured by hand at 47% across frame 0's body), on its lowest row.
-    axis: { x: Math.round(b.x0 + 0.47 * (b.x1 - b.x0)), y: b.y1 },
-    stray: [],
-    localcoord: Math.round((SIZE * b.tall) / (b.size ?? 1)),
-    standardSprites: thaiStandard(b.map),
-    credit: `Sprites: Mustermenschen V1 (${b.who}, Thai boxing) by Puffolotti (CC0), ${URL}`,
-  };
-}
-
-const shift = (from: number, to: number, hue: number | null, more: Partial<HueShift> = {}): HueShift => ({ from, to, hue, minSat: 0.85, ...more });
+import type { HueShift, TemplateSpec } from "./spec.ts";
 
 function boxer(o: { body: Body; id: string; name: string; base: TemplateSpec; outfits: [string, HueShift[]][] }): TemplateSpec {
   return thaiBoxer({
-    art: bodyArt(o.body),
+    art: bodyArt(o.body, "Thai boxing", thaiStandard(o.body.map)),
     base: o.base,
     id: o.id,
     name: o.name,
