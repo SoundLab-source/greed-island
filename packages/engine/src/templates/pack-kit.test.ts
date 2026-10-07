@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { writePng } from "../art/png.ts";
-import { arcs, packHash, PackKit } from "./pack-kit.ts";
+import { arcs, packHash, PackKit, SLASH_FIRST } from "./pack-kit.ts";
 
 /** A strip of `n` square frames (size x size, RGBA): a red block with a blue "head" on its right, standing on the bottom row. */
 function strip(n: number, size = 10): Buffer {
@@ -20,6 +20,13 @@ const dir = await mkdtemp(path.join(tmpdir(), "gi-pack-"));
 afterAll(() => rm(dir, { recursive: true, force: true }));
 await writeFile(path.join(dir, "idle.png"), strip(2));
 await writeFile(path.join(dir, "run.png"), strip(3));
+/** Two 6-wide, 10-tall frames: a white slash. */
+const slashStrip = (() => {
+  const px = new Uint8Array(12 * 10 * 4);
+  for (let k = 0; k < 2; k++) for (let y = 2; y < 6; y++) px.set([255, 255, 255, 255], (y * 12 + k * 6 + 2) * 4);
+  return writePng({ width: 12, height: 10, colorType: 6, pixels: px });
+})();
+await writeFile(path.join(dir, "slash.png"), slashStrip);
 const strips = { idle: "idle.png", run: "run.png" };
 
 const kit = async (body = { front: 3, back: 3, height: 5 }) =>
@@ -61,6 +68,20 @@ describe("pixel pack kit", () => {
     expect(sheet.pixels[(10 * 2 + 1) * sheet.width + 6 * 2 + 1]).toBe(1);
     expect(k.box(1, -2, 3, 0)).toEqual([2, -4, 6, 0]);
     const art = k.source({});
-    expect(art).toMatchObject({ axis: { x: 16, y: 22 }, columns: 10, rows: 1, effects: [200] });
+    expect(art).toMatchObject({ axis: { x: 16, y: 22 }, columns: 10, rows: 1, effects: [200], pixel: 2 });
+  });
+
+  it("reads strips whose frames aren't square, checks frame counts, and keeps slash colours in their own slots", async () => {
+    const both = { ...strips, slash: "slash.png" };
+    const base = (await kit()).art;
+    const k = new PackKit({ ...base, strips: both, sha256: await packHash(dir, both), widths: { slash: 6 }, counts: { slash: 2, run: 3 }, slash: { onlyIn: ["slash"] } });
+    const loaded = await k.load(dir);
+    expect(loaded.frames["slash"]).toHaveLength(2);
+    expect(loaded.frames["slash"]![0]!.width).toBe(6);
+    expect(loaded.frames["slash"]![1]!.pixels[2 * 6 + 2]).toBe(SLASH_FIRST);
+    expect([...loaded.palette.subarray(SLASH_FIRST * 3, SLASH_FIRST * 3 + 3)]).toEqual([255, 255, 255]);
+    expect(k.source({})).toMatchObject({ effectHits: true });
+    expect(k.source({}).effects).toContain(SLASH_FIRST);
+    await expect(new PackKit({ ...k.art, counts: { run: 4 } }).load(dir)).rejects.toThrow(/3 frames, not 4/);
   });
 });

@@ -46,6 +46,10 @@ export interface ArtSource {
    * hurtboxes leave them out (hitboxes still count them, so a drawn effect can hit).
    */
   effects?: readonly number[];
+  /** Each art pixel is drawn this many sheet pixels wide (pixel packs drawn bigger): specks are judged in art pixels. */
+  pixel?: number;
+  /** Attacks drawn as effects (sword trails, flames) hit where their `effects` colours reach out, when they do. */
+  effectHits?: boolean;
   /**
    * Frames made in code instead of read from `file` (e.g. Nyan Cat's, from its own sprite file in the game folder):
    * `pnpm templates:build` calls this for the sheet.

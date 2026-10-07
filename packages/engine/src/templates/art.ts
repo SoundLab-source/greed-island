@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { writeAir, type AirAction, type AirFrame, type Box } from "../art/air.ts";
-import { hitbox, hurtboxes } from "../art/clsn.ts";
+import { effectHitbox, hitbox, hurtboxes } from "../art/clsn.ts";
 import { gifSheet, readGif } from "../art/gif.ts";
 import { EXPLOSION_BOX, EXPLOSION_HIT_ANIM } from "../mugen/gags.ts";
 import { readSff, writeSff, type SffPalette, type SffSprite } from "../art/sff.ts";
@@ -199,7 +199,8 @@ export function buildTemplateArt(spec: TemplateSpec, from: Sheet | CellSource, o
         clsn2: hurtboxes(effects.size ? bodyOnly(img, effects) : img, axis).map(shift),
       };
       if (hits?.has(i)) {
-        const box = hits.get(i) ?? hitbox(img, reference, axis);
+        const opts = spec.art.pixel ? { minPixels: 20 * spec.art.pixel ** 2 } : {};
+        const box = hits.get(i) ?? (spec.art.effectHits ? effectHitbox(img, reference, axis, effects, opts) : null) ?? hitbox(img, reference, axis, opts);
         if (!box) throw new Error(`action ${anim.action} frame ${i} (cell ${c}): nothing reaches out, so there is no hitbox; pick another frame or give a box`);
         frame.clsn1 = [shift(box)];
       }

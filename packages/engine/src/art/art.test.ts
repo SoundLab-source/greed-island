@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { crc32, deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { writeAir } from "./air.ts";
-import { hitbox, hurtboxes } from "./clsn.ts";
+import { effectHitbox, hitbox, hurtboxes } from "./clsn.ts";
 import { readPng, writePng } from "./png.ts";
 import { readSff, writeSff } from "./sff.ts";
 import { bounds, cell, cleanStrays, crop, scale, type IndexedImage, type Sheet } from "./sheet.ts";
@@ -232,5 +232,17 @@ describe("collision boxes", () => {
   it("the hitbox is the part that reaches past the starting pose", () => {
     expect(hitbox(punch, stance, axis, { margin: 2, minPixels: 5 })).toEqual([7, -40, 18, -36]);
     expect(hitbox(stance, stance, axis, { margin: 2, minPixels: 5 })).toBeNull();
+  });
+
+  it("passes over specks (a flame's embers) for the furthest part big enough", () => {
+    const ember = image(40, 60, (x, y) => (punch.pixels[y * 40 + x] || (x === 39 && y === 5) ? 1 : 0));
+    expect(hitbox(ember, stance, axis, { margin: 2, minPixels: 5 })).toEqual([7, -40, 18, -36]);
+  });
+
+  it("an attack drawn as an effect hits around all of the effect that reaches out", () => {
+    // A sword trail (colour 9) in front, in two pieces, plus a fist (colour 1) that the effect box ignores.
+    const slash = image(40, 60, (x, y) => (body(x, y) ? 1 : (x >= 27 && x < 34 && y >= 12 && y < 16) || (x >= 30 && x < 36 && y >= 30 && y < 33) ? 9 : 0));
+    expect(effectHitbox(slash, stance, axis, new Set([9]), { margin: 2, minPixels: 5 })).toEqual([7, -48, 16, -27]);
+    expect(effectHitbox(punch, stance, axis, new Set([9]), { margin: 2, minPixels: 5 })).toBeNull();
   });
 });

@@ -50,8 +50,17 @@ export interface Body {
 
 export interface PackArt {
   id: string;
-  /** Strip name → file (relative to the repo root): square frames side by side. */
+  /** Strip name → file (relative to the repo root): square frames side by side, unless `widths` says otherwise. */
   strips: Readonly<Record<string, string>>;
+  /** Frame width of strips whose frames aren't square (strip name → pixels). */
+  widths?: Readonly<Record<string, number>>;
+  /** How many frames each strip has, as the moves were written for (checked when the sheet is made). */
+  counts?: Readonly<Record<string, number>>;
+  /**
+   * Sword trails and the like drawn into the strips: these colours, and (with `onlyIn`) every colour found only in
+   * those strips, take palette slots from SLASH_FIRST up, so hurtboxes leave them out (ArtSource.effects).
+   */
+  slash?: { colours?: readonly string[]; onlyIn?: readonly string[] };
   /** The strip whose first frame gives the feet and the body's size. */
   idle: string;
   /** That body, as measured: the moves' boxes are written from it, so the build refuses art that differs. */
@@ -135,6 +144,10 @@ export function line(img: IndexedImage, x0: number, y0: number, x1: number, y1: 
   for (let i = 0; i <= n; i++) put(img, x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n, color);
 }
 
+/** Palette slots of slash colours (PackArt.slash), below the effect colours (200 up). */
+export const SLASH_FIRST = 150;
+const SLASH_LAST = 199;
+
 interface Loaded {
   frames: Record<string, IndexedImage[]>;
   palette: Uint8Array;
@@ -146,6 +159,8 @@ interface Loaded {
 export class PackKit {
   readonly poses: PackPose[] = [];
   private readonly names = new Map<string, number>();
+  /** What `sheet` read, for art made after the sheet (a projectile from the pack's own strip). */
+  private last?: Loaded;
 
   constructor(readonly art: PackArt) {}
 
@@ -179,7 +194,9 @@ export class PackKit {
       stray: [],
       localcoord: art.localcoord,
       standardSprites,
-      effects: Object.keys(art.fx).map(Number),
+      pixel: art.scale,
+      ...(art.slash ? { effectHits: true } : {}),
+      effects: [...(art.slash ? Array.from({ length: SLASH_LAST - SLASH_FIRST + 1 }, (_, i) => SLASH_FIRST + i) : []), ...Object.keys(art.fx).map(Number)],
       sheet: (ctx) => this.sheet(ctx.repoRoot),
       credit: art.credit,
     };
@@ -190,29 +207,50 @@ export class PackKit {
     const { art } = this;
     const sum = await packHash(repoRoot, art.strips);
     if (sum !== art.sha256) throw new Error(`${art.id}: the strips' digest ${sum} does not match ${art.sha256}`);
-    const colours = new Map<number, number>();
-    const frames: Record<string, IndexedImage[]> = {};
+    // First every strip as RGB (0 = clear), and where each colour is found.
+    const rgbFrames: Record<string, { width: number; height: number; px: Int32Array }[]> = {};
+    const foundIn = new Map<number, Set<string>>();
     for (const [name, file] of Object.entries(art.strips)) {
       const png = readPng(await readFile(path.join(repoRoot, file)));
       const rgba = toRgba(png);
-      const size = png.height, n = Math.floor(png.width / size);
-      frames[name] = Array.from({ length: n }, (_, k) => {
-        const img: IndexedImage = { width: size, height: size, pixels: new Uint8Array(size * size) };
-        for (let y = 0; y < size; y++) {
-          for (let x = 0; x < size; x++) {
-            const o = (y * png.width + k * size + x) * 4;
+      const h = png.height, w = art.widths?.[name] ?? h, n = Math.floor(png.width / w);
+      if (art.counts?.[name] !== undefined && art.counts[name] !== n) throw new Error(`${art.id}: strip ${name} has ${n} frames, not ${art.counts[name]}`);
+      rgbFrames[name] = Array.from({ length: n }, (_, k) => {
+        const px = new Int32Array(w * h).fill(-1);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const o = (y * png.width + k * w + x) * 4;
             if (rgba[o + 3]! < 128) continue;
             const rgb = (rgba[o]! << 16) | (rgba[o + 1]! << 8) | rgba[o + 2]!;
-            let index = colours.get(rgb);
-            if (index === undefined) colours.set(rgb, (index = colours.size + 1));
-            img.pixels[y * size + x] = index;
+            px[y * w + x] = rgb;
+            let set = foundIn.get(rgb);
+            if (!set) foundIn.set(rgb, (set = new Set()));
+            set.add(name);
           }
         }
-        return img;
+        return { width: w, height: h, px };
       });
     }
+    // Slash colours get their own slots; the rest number from 1 in the order they're first found.
+    const slash = new Set((art.slash?.colours ?? []).map((c) => parseInt(c.slice(1), 16)));
+    const onlyIn = new Set(art.slash?.onlyIn ?? []);
+    if (onlyIn.size) for (const [rgb, where] of foundIn) if ([...where].every((s) => onlyIn.has(s))) slash.add(rgb);
+    const colours = new Map<number, number>();
+    let nextSlash = SLASH_FIRST;
+    for (const rgb of foundIn.keys()) {
+      if (!slash.has(rgb)) continue;
+      if (nextSlash > SLASH_LAST) throw new Error(`${art.id}: more than ${SLASH_LAST - SLASH_FIRST + 1} slash colours`);
+      colours.set(rgb, nextSlash++);
+    }
+    let nextArt = 1;
+    for (const rgb of foundIn.keys()) if (!colours.has(rgb)) colours.set(rgb, nextArt++);
+    if (nextArt > SLASH_FIRST) throw new Error(`${art.id}: ${nextArt - 1} colours reach the slash slots (${SLASH_FIRST} up)`);
+    const frames: Record<string, IndexedImage[]> = {};
+    for (const [name, list] of Object.entries(rgbFrames)) {
+      frames[name] = list.map(({ width, height, px }) => ({ width, height, pixels: Uint8Array.from(px, (rgb) => (rgb < 0 ? 0 : colours.get(rgb)!)) }));
+    }
     const firstFx = Math.min(...Object.keys(art.fx).map(Number));
-    if (colours.size >= firstFx) throw new Error(`${art.id}: ${colours.size} colours reach the effect slots (${firstFx} up)`);
+    if (firstFx <= SLASH_LAST && (nextArt > firstFx || nextSlash > firstFx)) throw new Error(`${art.id}: the strips' colours reach the effect slots (${firstFx} up)`);
     const palette = new Uint8Array(768);
     for (const [rgb, i] of colours) palette.set([rgb >> 16, (rgb >> 8) & 255, rgb & 255], i * 3);
     for (const [i, c] of Object.entries(art.fx)) palette.set([1, 3, 5].map((o) => parseInt(c.slice(o, o + 2), 16)), Number(i) * 3);
@@ -257,9 +295,17 @@ export class PackKit {
     return img;
   }
 
+  /** A strip's frames as read by `sheet` (which the build calls before it makes projectiles and effects). */
+  frames(strip: string): IndexedImage[] {
+    const f = this.last?.frames[strip];
+    if (!f) throw new Error(`${this.art.id}: strip ${strip} isn't loaded (make the sheet first)`);
+    return f;
+  }
+
   /** Every cell, scaled up, as a sheet (cell n at column n % 10, row n / 10). */
   async sheet(repoRoot: string): Promise<Sheet> {
     const loaded = await this.load(repoRoot);
+    this.last = loaded;
     const { width: W, height: H } = this.art.cell, k = this.art.scale;
     const cw = W * k, ch = H * k, columns = 10, rows = Math.ceil(this.poses.length / columns);
     const sheet: Sheet = { width: cw * columns, height: ch * rows, pixels: new Uint8Array(cw * columns * ch * rows), palette: loaded.palette, cellWidth: cw, cellHeight: ch, columns, rows };

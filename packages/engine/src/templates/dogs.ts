@@ -30,7 +30,7 @@ export const FX = {
   white: 200, yellow: 201, ink: 202, pink: 203, tongue: 204, dust: 205, blue: 206, sky: 207, gold: 208, snow: 209, barrel: 210, hoop: 211, grey: 212,
   poop: 213, poopDark: 214, poopLight: 215, stink: 216, stinkLight: 217, stinkDark: 218, ball: 219, ballDark: 220, squirrel: 221, squirrelDark: 222, cone: 223,
 } as const;
-const FX_COLORS: Record<number, string> = {
+export const FX_COLORS: Record<number, string> = {
   [FX.white]: "#ffffff", [FX.yellow]: "#ffe14a", [FX.ink]: "#1a1a1a", [FX.pink]: "#ff5c9e", [FX.tongue]: "#ff7a8a", [FX.dust]: "#c9b79a", [FX.blue]: "#6fb4ff",
   [FX.sky]: "#bfe6ff", [FX.gold]: "#ffb22e", [FX.snow]: "#f2f8ff", [FX.barrel]: "#8a5a2b", [FX.hoop]: "#4a3018", [FX.grey]: "#8c8c8c",
   [FX.poop]: "#7a4a1e", [FX.poopDark]: "#4a2a0e", [FX.poopLight]: "#a8703a", [FX.stink]: "#9fd05a", [FX.stinkLight]: "#d2f0a0", [FX.stinkDark]: "#5f9a30",
