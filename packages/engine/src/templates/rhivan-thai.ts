@@ -23,6 +23,18 @@ import type { ArtSource } from "./spec.ts";
 
 const feet = (cell: number) => ({ cell, anchor: "feet" as const });
 
+/** MUGEN's standard get-hit sprites in Rhivan's frame numbers (the set's other bodies map their own onto these). */
+const STANDARD: Readonly<Record<string, number>> = {
+  "5000,0": 688, "5000,10": 689, "5000,20": 690,
+  "5010,0": 692, "5010,10": 693, "5010,20": 693,
+  "5020,0": 694, "5020,10": 695, "5020,20": 696,
+  "5030,0": 697, "5030,10": 698, "5030,20": 699, "5030,30": 703, "5030,40": 701, "5030,50": 702,
+  "5040,0": 700, "5040,10": 710, "5040,20": 704,
+  "5060,0": 705, "5060,10": 706,
+  "5070,0": 707, "5070,10": 708, "5070,20": 709,
+};
+export const thaiStandard = (map: (n: number) => number = (n) => n) => Object.fromEntries(Object.entries(STANDARD).map(([k, n]) => [k, feet(map(n))]));
+
 export const RHIVAN_THAI: ArtSource = {
   id: "rhivan-thai",
   file: "art/sources/mustermenschen/Rhivan male thai boxe 31AAH008.gif",
@@ -34,14 +46,9 @@ export const RHIVAN_THAI: ArtSource = {
   axis: { x: 88, y: 125 },
   stray: [],
   localcoord: 340,
-  standardSprites: {
-    "5000,0": feet(688), "5000,10": feet(689), "5000,20": feet(690),
-    "5010,0": feet(692), "5010,10": feet(693), "5010,20": feet(693),
-    "5020,0": feet(694), "5020,10": feet(695), "5020,20": feet(696),
-    "5030,0": feet(697), "5030,10": feet(698), "5030,20": feet(699), "5030,30": feet(703), "5030,40": feet(701), "5030,50": feet(702),
-    "5040,0": feet(700), "5040,10": feet(710), "5040,20": feet(704),
-    "5060,0": feet(705), "5060,10": feet(706),
-    "5070,0": feet(707), "5070,10": feet(708), "5070,20": feet(709),
-  },
+  standardSprites: thaiStandard(),
   credit: "Sprites: Mustermenschen V1 (Rhivan, Thai boxing) by Puffolotti (CC0), https://opengameart.org/content/musternenschen-v1-complete-collection",
 };
+
+/** Rhivan's body height in his frames (106 pixels), which his hand-measured boxes were written for. */
+export const RHIVAN_HEIGHT = 106;
