@@ -17,6 +17,8 @@ export interface MoveNumbers {
   damage: number;
   /** Measured reach (templates/reach.ts), when known. */
   reach: number | null;
+  /** Its input (spec.ts `Command`, or "throw"), for the fighter's card. */
+  command?: string;
 }
 
 export interface FighterNumbers {
@@ -70,8 +72,9 @@ export function fighterNumbers(spec: TemplateSpec, reach?: ReadonlyMap<number, n
         ...phases(a.anim, a.hits.flatMap((h) => h.frames)),
         damage: a.hits.reduce((sum, h) => sum + h.damage, 0),
         reach: reach?.get(a.state) ?? null,
+        command: a.command,
       })),
-      ...(spec.throws ?? []).map((t): MoveNumbers => ({ state: t.state, name: t.name, kind: "throw", ...phases(t.reach, t.catchFrames), damage: t.damage, reach: reach?.get(t.state) ?? null })),
+      ...(spec.throws ?? []).map((t): MoveNumbers => ({ state: t.state, name: t.name, kind: "throw", ...phases(t.reach, t.catchFrames), damage: t.damage, reach: reach?.get(t.state) ?? null, command: t.command })),
     ],
   };
 }

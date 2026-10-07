@@ -6,12 +6,12 @@
   <title>Fighter · Greed Island</title>
   <link rel="stylesheet" href="site.css">
   <style>
-    .hero { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px; align-items: center; }
+    .hero { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: center; }
     .hero .pic { height: 240px; width: 180px; object-fit: contain; image-rendering: pixelated; background: radial-gradient(ellipse at 50% 85%, rgba(246, 201, 69, 0.14), transparent 60%), var(--bg); border-radius: 12px; }
     .hero .pic.none { display: grid; place-items: center; font-size: 64px; color: var(--line); }
     .big { font-size: 28px; font-weight: 900; }
     .res-W { color: var(--green); font-weight: 900; } .res-L { color: var(--red); font-weight: 900; } .res-VOID { color: var(--dim); }
-    @media (max-width: 640px) { .hero { grid-template-columns: 1fr; } .hero .pic { width: 100%; } }
+    @media (max-width: 640px) { .hero { grid-template-columns: 1fr; } .hero .pic { width: 100%; } .hero > .card-slot { width: min(260px, 100%); margin: 0 auto; } }
   </style>
 </head>
 <body>

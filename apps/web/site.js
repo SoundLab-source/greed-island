@@ -80,6 +80,13 @@ window.GI = (() => {
   };
   GI.badges = (cos) =>
     `<span class="badges">${(cos?.badges ?? []).map((b) => `<span class="badge" style="background:${GI.esc(b.color)}" title="${GI.esc(b.label)}">${GI.esc(b.glyph)}</span>`).join("")}</span>`;
+  // A fighter card (the server draws it: GET /api/cards/fighters/:id or /api/cards/characters/:id), shining and
+  // tilting under the pointer; `href` makes it a link.
+  GI.card = (src, alt, { rare = false, href = null, size = "", lazy = false } = {}) => {
+    const img = `<img src="${GI.esc(src)}" alt="${GI.esc(alt)}"${lazy ? ' loading="lazy"' : ""} data-fallback="fcard-missing">`;
+    const cls = `fcard${rare ? " rare" : ""}${size ? ` ${size}` : ""}`;
+    return href ? `<a class="${cls}" href="${GI.esc(href)}">${img}</a>` : `<div class="${cls}">${img}</div>`;
+  };
   GI.fighterLink = (id, name) => `<a href="/fighter.html?id=${encodeURIComponent(id)}">${GI.esc(name)}</a>`;
 
   // ---- Session ----
@@ -278,6 +285,26 @@ window.GI = (() => {
     },
     true,
   );
+
+  // Cards tilt toward the pointer and their shine follows it (not for people who ask for less motion).
+  const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!calm) {
+    document.addEventListener("pointermove", (e) => {
+      const card = e.target instanceof Element ? e.target.closest(".fcard") : null;
+      document.querySelectorAll(".fcard.tilted").forEach((c) => {
+        if (c === card) return;
+        c.classList.remove("tilted");
+        c.style.transform = "";
+      });
+      if (!card) return;
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      card.classList.add("tilted");
+      card.style.transform = `perspective(900px) rotateY(${(x - 0.5) * 14}deg) rotateX(${(0.5 - y) * 14}deg) scale(1.02)`;
+      card.style.setProperty("--sx", `${x * 100}%`);
+      card.style.setProperty("--sy", `${y * 100}%`);
+    });
+  }
 
   renderHeader();
   GI.ready = (async () => {

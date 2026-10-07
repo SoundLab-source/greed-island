@@ -6,9 +6,8 @@
     const shop = await api("GET", "/api/shop");
     $("offers").innerHTML = shop.offers.map((o) => `
       <div class="card offer">
-        <img src="/api/fighters/${encodeURIComponent(o.fighterId)}/image" alt="${esc(o.displayName)}" data-fallback="silhouette">
-        <div class="spread"><h3>${esc(o.displayName)}</h3><span class="tag ${o.rarity === "RARE" ? "gold" : ""}">${esc(o.rarity.toLowerCase())}</span></div>
-        <div class="muted">${esc(GI.archetype(o.archetype))} · ${o.sold} owned${o.firstEditionLeft > 0 ? ` · <span class="gold">${o.firstEditionLeft} First Editions left</span>` : ""}</div>
+        ${GI.card(`/api/cards/fighters/${encodeURIComponent(o.fighterId)}`, `${o.displayName}'s card`, { rare: o.rarity !== "COMMON" })}
+        <div class="muted">${o.sold} owned${o.firstEditionLeft > 0 ? ` · <span class="gold">${o.firstEditionLeft} First Editions left</span>` : ""}</div>
         <div class="spread"><span class="price">${fmt(o.price)} <small class="muted">Salt</small></span><button class="btn" data-buy="${esc(o.fighterId)}" data-name="${esc(o.displayName)}">Buy</button></div>
       </div>`).join("") || '<p class="empty">The shop is empty right now.</p>';
     for (const b of document.querySelectorAll("[data-buy]")) {

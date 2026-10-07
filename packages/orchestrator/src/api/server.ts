@@ -93,6 +93,7 @@ import {
   verifyWallet,
 } from "../holders.ts";
 import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.ts";
+import { characterCardData, fighterCardData, renderCard, type CardData } from "../cards.ts";
 import { lookCharacterId } from "../look-sprites.ts";
 import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
 import { loadNftSource, NftSourceError, type NftSource } from "../nft-source.ts";
@@ -649,6 +650,16 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     if (!bytes) throw new HttpError(404, "NOT_FOUND", "no picture for this fighter");
     return reply.type("image/png").header("cache-control", "public, max-age=3600").send(bytes);
   });
+  // Fighter cards (cards.ts): a fighter's, with its base numbers, and an owned (or house) character's, with its own.
+  // SVG with its picture inside, so the same image works as an <img> anywhere and, later, as an NFT's picture.
+  const sendCard = (reply: FastifyReply, card: CardData | null) => {
+    if (!card) throw new HttpError(404, "NOT_FOUND", "no such fighter");
+    return reply.type("image/svg+xml").header("cache-control", "public, max-age=60").send(renderCard(card));
+  };
+  app.get<{ Params: { id: string } }>("/api/cards/fighters/:id", async (req, reply) =>
+    sendCard(reply, await fighterCardData(db, deps.ikemenDir, z.string().min(1).max(100).parse(req.params.id))),
+  );
+  app.get<{ Params: { id: string } }>("/api/cards/characters/:id", async (req, reply) => sendCard(reply, await characterCardData(db, deps.ikemenDir, uuid.parse(req.params.id))));
   // The guide sheet artists draw a fighter of this archetype on (written by pnpm templates:build next to the template).
   // An archetype's guide sheet, or with ?sheet=pose its pose guide (for intros and win poses).
   app.get<{ Params: { archetype: string }; Querystring: { sheet?: string } }>("/api/guides/:archetype", async (req, reply) => {

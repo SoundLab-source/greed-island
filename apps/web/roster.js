@@ -16,14 +16,11 @@
       ? `<div class="outfits">${f.outfits.map((o, i) => `<button type="button" class="${i === 0 ? "on" : ""}" data-outfit="${i}" title="${esc(o.name)}"><img src="${picture(f, o.palette)}" alt="${esc(o.name)}" loading="lazy" data-fallback="silhouette"></button>`).join("")}</div>`
       : "";
     const moves = f.specials.length ? `<div class="moves">${f.specials.map((m) => `<span class="${m.kind === "throw" ? "throw" : ""}" title="${m.kind === "throw" ? "Throw" : "Special move"}">${esc(m.name)}</span>`).join("")}</div>` : "";
+    // The card of the outfit picked (each outfit is a house character with its own record), or the fighter's.
+    const src = main ? `/api/cards/characters/${encodeURIComponent(main.characterId)}` : `/api/cards/fighters/${encodeURIComponent(f.id)}`;
     return `<article class="fighter" data-archetype="${esc(f.archetype)}" data-id="${esc(f.id)}">
-      <div class="stage">
-        <span class="badge tag">${main ? esc(main.tier) : "–"} tier</span>
-        <span class="rarity tag ${f.rarity === "RARE" ? "gold" : ""}">${esc(f.rarity.toLowerCase())}</span>
-        <img class="main" src="${picture(f, main?.palette ?? 1)}" alt="${esc(f.name)}" data-fallback="silhouette">
-      </div>
+      ${GI.card(src, `${f.name}'s card`, { rare: f.rarity !== "COMMON", lazy: true })}
       <div class="body">
-        <div><div class="arche">${esc(GI.archetype(f.archetype))}</div><h3>${esc(f.name)}</h3></div>
         ${outfits}
         <div class="outfit-name">${main ? `<b>${esc(main.name)}</b> · ${main.record.wins}–${main.record.losses} · rating ${main.rating}` : ""}</div>
         ${moves}
@@ -71,10 +68,9 @@
     const o = f?.outfits[Number(b.dataset.outfit)];
     if (!o) return;
     el.querySelectorAll(".outfits button").forEach((x) => x.classList.toggle("on", x === b));
-    const img = el.querySelector("img.main");
-    if (img) img.src = picture(f, o.palette);
+    const img = el.querySelector(".fcard img");
+    if (img) img.src = `/api/cards/characters/${encodeURIComponent(o.characterId)}`;
     el.querySelector(".outfit-name").innerHTML = `<b>${esc(o.name)}</b> · ${o.record.wins}–${o.record.losses} · rating ${o.rating}`;
-    el.querySelector(".badge").textContent = `${o.tier} tier`;
     const link = el.querySelector("a.profile");
     if (link) link.href = `/fighter.html?id=${encodeURIComponent(o.characterId)}`;
   });

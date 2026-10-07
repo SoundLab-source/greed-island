@@ -164,3 +164,17 @@ label { color: var(--dim); }
   .page { padding: 14px 12px; }
   .plate .name { font-size: 16px; }
 }
+
+/* Fighter cards (orchestrator cards.ts draws them): the card image, a shine that follows the pointer, a slight tilt. */
+.fcard { position: relative; display: block; aspect-ratio: 600 / 840; width: 100%; border-radius: 5% / 3.6%; overflow: hidden; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); transition: transform 0.12s ease-out, box-shadow 0.2s ease; will-change: transform; }
+.fcard img { display: block; width: 100%; height: 100%; }
+.fcard::after { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; opacity: 0; transition: opacity 0.25s ease;
+  background: radial-gradient(circle at var(--sx, 50%) var(--sy, 30%), rgba(255, 255, 255, 0.28), transparent 45%),
+    linear-gradient(115deg, transparent 25%, rgba(122, 240, 255, 0.16) 45%, rgba(255, 245, 154, 0.2) 50%, rgba(255, 122, 217, 0.16) 55%, transparent 75%);
+  background-size: 100% 100%, 250% 250%; background-position: 0 0, var(--sx, 50%) var(--sy, 50%); }
+.fcard:hover::after, .fcard.tilted::after { opacity: 1; }
+.fcard.rare::after { opacity: 0.45; }
+.fcard.tilted { box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55); }
+.fcard.small { max-width: 220px; }
+.fcard.big { max-width: 340px; }
+.fcard-missing { aspect-ratio: 600 / 840; display: grid; place-items: center; font-size: 64px; color: var(--line); background: var(--panel-2); border-radius: 18px; }

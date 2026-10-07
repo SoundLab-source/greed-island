@@ -11,7 +11,7 @@
   let nfts = [];
 
   function picture(c) {
-    return `<img class="pic" src="/api/fighters/${encodeURIComponent(c.fighter.id)}/image" alt="" data-fallback="pic none">`;
+    return `<div class="card-slot">${GI.card(`/api/cards/characters/${encodeURIComponent(c.id)}`, `${c.name}'s card`, { rare: c.fighter.rarity !== "COMMON", href: `/fighter.html?id=${encodeURIComponent(c.id)}`, size: "small" })}</div>`;
   }
 
   function upgrades(c) {
