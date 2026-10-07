@@ -4,13 +4,19 @@
  */
 import type { IndexedImage } from "../art/sheet.ts";
 import { ALL_ROUNDER } from "./all-rounder.ts";
-import { disc, line, star, type PackCanvas } from "./pack-kit.ts";
-import { drawnProjectile, flames, FX, heroFighter, pan, SOUNDS, type HeroCtx } from "./heroes.ts";
+import type { Box } from "../art/air.ts";
+import { GRAPPLER } from "./grappler.ts";
+import { HEAVY } from "./heavy.ts";
+import { disc, line, put, star, type PackCanvas } from "./pack-kit.ts";
+import { coin, drawnProjectile, effects, flames, FX, heroFighter, pan, SOUNDS, waveArt, type Hero, type HeroCtx } from "./heroes.ts";
 import { RUSHDOWN } from "./rushdown.ts";
-import type { AttackSpec, TemplateSpec } from "./spec.ts";
+import type { AttackSpec, TemplateSpec, ThrowSpec } from "./spec.ts";
 import { ZONER } from "./zoner.ts";
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+/** Every hero's own settings, in the order they're made (for the checks). */
+export const HERO_CONFIGS: Hero[] = [];
+const hero = (h: Hero): TemplateSpec => (HERO_CONFIGS.push(h), heroFighter(h));
 /** A hue band turned to another hue (outfits). */
 const hue = (from: number, to: number, toHue: number | null, more: { minSat?: number; maxSat?: number; sat?: number; light?: number; tint?: number; lights?: readonly [number, number] } = {}) => ({ from, to, hue: toHue, ...more });
 const greys = { from: 0, to: 360, minSat: 0, maxSat: 0.22 } as const;
@@ -20,7 +26,7 @@ const fire = (toHue: number) => hue(0, 65, toHue, { minSat: 0.97 });
 // ----- Sir Bonkalot: the Hero Knight, sword in one hand and a frying pan in the other -----
 
 const KNIGHT = "Hero Knight/Hero Knight/Sprites";
-export const SIR_BONKALOT = heroFighter({
+export const SIR_BONKALOT = hero({
   id: "gi-sir-bonkalot", name: "Sir Bonkalot", base: ALL_ROUNDER, localcoord: 490,
   pack: { name: "Hero Knight", url: "https://luizmelo.itch.io/hero-knight" },
   strips: {
@@ -77,7 +83,7 @@ function fryingPan(k: HeroCtx): AttackSpec {
 
 const WIZARD = "Evil Wizard/Evil Wizard/Sprites";
 const FIRE_BALL = "Fire Worm/Fire Worm/Sprites/Fire Ball";
-export const HOT_TAKES = heroFighter({
+export const HOT_TAKES = hero({
   id: "gi-hot-takes", name: "Hot Takes", base: ZONER, localcoord: 500,
   pack: { name: "Evil Wizard", url: "https://luizmelo.itch.io/evil-wizard" },
   strips: {
@@ -156,7 +162,7 @@ function marshmallow(k: HeroCtx): number[] {
 
 const GOBLIN = "Monsters_Creatures_Fantasy/Monsters_Creatures_Fantasy/Goblin";
 const GOBLIN_13 = "Monster_Creatures_Fantasy(Version 1.3)/Monster_Creatures_Fantasy(Version 1.3)/Goblin";
-export const STABBY = heroFighter({
+export const STABBY = hero({
   id: "gi-stabby", name: "Stabby", base: RUSHDOWN, localcoord: 443,
   pack: { name: "Monsters Creatures Fantasy", url: "https://luizmelo.itch.io/monsters-creatures-fantasy" },
   strips: {
@@ -195,4 +201,462 @@ function bombRoll(k: HeroCtx): AttackSpec {
   };
 }
 
-export const HEROES: readonly TemplateSpec[] = [SIR_BONKALOT, HOT_TAKES, STABBY];
+
+// ----- Shared drawings for the signature moves -----
+
+function ellipse(img: IndexedImage, cx: number, cy: number, rx: number, ry: number, color: number) {
+  for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) if (((x - cx) / (rx + 0.3)) ** 2 + ((y - cy) / (ry + 0.3)) ** 2 <= 1) put(img, x, y, color);
+}
+/** A coffee mug with steam, its bottom middle at (x, y). */
+function mug(img: IndexedImage, x: number, y: number, t: number) {
+  for (let v = 0; v < 6; v++) for (let u = -3; u <= 2; u++) put(img, x + u, y - v, v === 5 || u === -3 || u === 2 ? FX.ink : FX.white);
+  put(img, x + 3, y - 4, FX.ink), put(img, x + 4, y - 3, FX.ink), put(img, x + 3, y - 2, FX.ink);
+  for (let k = 0; k < 5; k++) put(img, x - 1 + Math.round(Math.sin((k + t) * 1.3)), y - 7 - k, FX.grey);
+}
+/** A milk carton, its bottom middle at (x, y). */
+function carton(img: IndexedImage, x: number, y: number) {
+  for (let v = 0; v < 8; v++) for (let u = -2; u <= 2; u++) put(img, x + u, y - v, v === 3 || v === 4 ? FX.blue : FX.white);
+  put(img, x - 1, y - 8, FX.white), put(img, x, y - 9, FX.white), put(img, x + 1, y - 8, FX.white);
+}
+/** Sparkles: little four-pointed stars around (x, y). */
+function sparkles(img: IndexedImage, x: number, y: number, t: number, color: number = FX.white) {
+  for (let i = 0; i < 3; i++) {
+    const sx = x + [0, 7, -6][i]! + (t % 2), sy = y + [0, -5, -8][i]! - (t % 3);
+    put(img, sx, sy, color), put(img, sx - 1, sy, color), put(img, sx + 1, sy, color), put(img, sx, sy - 1, color), put(img, sx, sy + 1, color);
+  }
+}
+/** A straw hat seen spinning (edge-on to flat). */
+function strawHat(img: IndexedImage, x: number, y: number, t: number) {
+  const ry = [3.5, 2, 1, 2][t % 4]!;
+  ellipse(img, x, y, 10, ry + 0.8, FX.hoop);
+  ellipse(img, x, y, 9, ry, FX.barrel);
+  ellipse(img, x, y - ry * 0.4, 4, ry * 0.7 + 0.5, FX.hoop);
+}
+/** A dumbbell turned `t` eighths of a turn. */
+function dumbbell(img: IndexedImage, x: number, y: number, t: number) {
+  const a = (t * Math.PI) / 4, dx = Math.cos(a) * 7, dy = Math.sin(a) * 7;
+  line(img, x - dx, y - dy, x + dx, y + dy, FX.steel);
+  for (const s of [-1, 1]) {
+    disc(img, x + s * dx, y + s * dy, 3.4, FX.panDark);
+    disc(img, x + s * dx - 0.6, y + s * dy - 0.6, 2.2, FX.pan);
+  }
+}
+/** An arrow pointing down, its tip at (x, y). */
+function arrowDown(img: IndexedImage, x: number, y: number) {
+  line(img, x, y - 10, x, y - 2, FX.stick);
+  put(img, x, y, FX.white), put(img, x, y - 1, FX.steel), put(img, x - 1, y - 2, FX.steel), put(img, x + 1, y - 2, FX.steel);
+  put(img, x - 1, y - 10, FX.red), put(img, x + 1, y - 10, FX.red), put(img, x - 1, y - 9, FX.red), put(img, x + 1, y - 9, FX.red);
+}
+/** A burst of white and yellow, for hits. */
+const burst = (k: number) => (img: IndexedImage) => {
+  const cx = img.width / 2, cy = img.height / 2;
+  if (k < 2) star(img, cx, cy, 6 + k * 3, FX.yellow, FX.white);
+  else for (let i = 0; i < 6; i++) put(img, cx + Math.cos(i) * 9, cy + Math.sin(i) * 7, FX.white);
+};
+/** A projectile drawn in code, spinning through `n` frames, with a burst when it hits. */
+const spinner = (draw: (img: IndexedImage, x: number, y: number, t: number) => void, n: number, size: { w: number; h: number; box: Box }) => (state: number) =>
+  drawnProjectile(state, range(n).map((t) => (img: IndexedImage) => draw(img, size.w / 2, size.h / 2, t)), [0, 1, 2].map(burst), size);
+
+/** A move that throws something: these cells, the projectile leaving on frame `frame`. */
+function thrown(k: HeroCtx, o: { state: number; name: string; command: AttackSpec["command"]; cells: number[]; ticks: number[]; frame: number; art: (state: number) => import("./projectile.ts").ProjectileArt; speed: number; height: number; damage: number; low?: boolean; hitSound?: readonly [number, number]; range?: number }): AttackSpec {
+  return {
+    state: o.state, name: o.name, from: "stand", command: o.command, special: true,
+    anim: { action: o.state, cells: o.cells, ticks: o.ticks },
+    hits: [{ frames: [o.frame], damage: o.damage, chip: Math.round(o.damage / 8), height: o.low ? "low" : "mid", weight: "medium", hitStun: 20, blockStun: 13, push: 4, ...(o.hitSound ? { hitSound: o.hitSound } : {}) }],
+    projectile: { frame: o.frame, speed: o.speed, height: k.units(o.height), offset: k.units(k.body.front + 4), art: o.art },
+    ai: { range: o.range ?? 280, weight: 0.6 },
+  };
+}
+
+// ----- Night Shift: the second Hero Knight, who works nights -----
+
+const KNIGHT_2 = "Hero Knight 2/Hero Knight 2/Sprites";
+export const NIGHT_SHIFT = hero({
+  id: "gi-night-shift", name: "Night Shift", base: RUSHDOWN, localcoord: 407,
+  pack: { name: "Hero Knight 2", url: "https://luizmelo.itch.io/hero-knight-2" },
+  strips: {
+    idle: [`${KNIGHT_2}/Idle.png`, 11], run: [`${KNIGHT_2}/Run.png`, 8], jump: [`${KNIGHT_2}/Jump.png`, 4], fall: [`${KNIGHT_2}/Fall.png`, 4],
+    hurt: [`${KNIGHT_2}/Take Hit.png`, 4], death: [`${KNIGHT_2}/Death.png`, 9], attack1: [`${KNIGHT_2}/Attack.png`, 6], dash: [`${KNIGHT_2}/Dash.png`, 4],
+  },
+  body: { front: 16, back: 16, height: 39 },
+  sha256: "fc1c792d860bb3060dc3cf8553f80c29768e84cb0e183e5af833d2cbb465fc09",
+  room: { l: 37, r: 49, u: 61, d: 0 },
+  slash: { colours: ["#fcfcfc"] },
+  hurt: [0, 2, 3],
+  down: 8,
+  attacks: [{ strip: "attack1", frames: [2, 3, 4, 5], hits: [2] }, { strip: "attack1", frames: [1, 2, 3, 4, 5], hits: [3] }, { strip: "attack1", hits: [4] }],
+  outfits: [
+    { name: "Blue Shift", colors: {}, shifts: [hue(225, 300, 205, { minSat: 0.2 })] },
+    { name: "Green Shift", colors: {}, shifts: [hue(225, 300, 120, { minSat: 0.2 })] },
+    { name: "Graveyard Shift", colors: {}, shifts: [hue(225, 300, null, { minSat: 0.2, light: 0.7 })] },
+  ],
+  words: { cry: "CLOCK IN!", intro: "ON SHIFT!", win: "CLOCK OUT!", taunt: "COFFEE..." },
+  more: (k) => ({
+    attacks: [graveyardShift(k)],
+    anims: [{ action: 195, cells: range(10).map((t) => k.c(`coffee ${t}`, { s: "idle", f: t, fx: [(cv) => mug(cv.img, cv.x + 6, cv.y - Math.round(k.body.height * 0.45), t)] })), ticks: 6, comment: "taunt: a coffee" }],
+    cues: [{ action: 1400, frame: 0, sound: SOUNDS.whoosh, effect: k.say("OVERTIME!", 0, 26, FX.yellow) }],
+  }),
+});
+
+/** Dashes through the opponent, slashing on the way (projectiles pass through). */
+function graveyardShift(k: HeroCtx): AttackSpec {
+  const dash = range(8).map((i) => k.c(`shift dash ${i}`, { s: "dash", f: i % 4, fx: [effects.speed] }));
+  const end = [3, 4, 5].map((f) => k.c(`attack1 ${f} shift`, { s: "attack1", f }));
+  return {
+    state: 1400, name: "Graveyard Shift", from: "stand", command: "QCB_x", special: true, throughProjectiles: true,
+    anim: { action: 1400, cells: [...dash, ...end, k.cells.STAND[0]!], ticks: [2, 2, 2, 2, 2, 2, 2, 2, 3, 5, 4, 4] },
+    hits: [
+      { frames: [3, 4, 5], damage: 30, height: "mid", weight: "light", hitStun: 18, blockStun: 10, push: 1, box: k.bx(k.body.front - 4, -k.body.height, k.body.front + 10, 0) },
+      { frames: [9], damage: 50, chip: 6, height: "high", weight: "heavy", hitStun: 22, blockStun: 14, push: 6, knockdown: true, launch: [3, -4] },
+    ],
+    moves: [{ frame: 0, x: 7 }, { frame: 8, x: 0 }],
+    ai: { range: 150, weight: 0.5 },
+  };
+}
+
+// ----- Cape Crusader: the Fantasy Warrior, cape and sword beams -----
+
+const FANTASY = "Fantasy Warrior/Fantasy Warrior/Sprites";
+export const CAPE_CRUSADER = hero({
+  id: "gi-cape-crusader", name: "Cape Crusader", base: ALL_ROUNDER, localcoord: 432,
+  pack: { name: "Fantasy Warrior", url: "https://luizmelo.itch.io/fantasy-warrior" },
+  strips: {
+    idle: [`${FANTASY}/Idle.png`, 10], run: [`${FANTASY}/Run.png`, 8], jump: [`${FANTASY}/Jump.png`, 3], fall: [`${FANTASY}/Fall.png`, 3],
+    hurt: [`${FANTASY}/Take hit.png`, 3], death: [`${FANTASY}/Death.png`, 7], attack1: [`${FANTASY}/Attack1.png`, 7], attack2: [`${FANTASY}/Attack2.png`, 7], attack3: [`${FANTASY}/Attack3.png`, 8],
+  },
+  body: { front: 19, back: 20, height: 45 },
+  sha256: "253d16639f02a34d7a96686040980eddce20df62d53d50a6f8e23439296b7108",
+  room: { l: 82, r: 70, u: 100, d: 3 },
+  slash: { onlyIn: ["attack1", "attack2", "attack3"] },
+  hurt: [0, 1, 2],
+  down: 6,
+  attacks: [{ strip: "attack1", hits: [4] }, { strip: "attack2", hits: [2] }, { strip: "attack3", hits: [4, 5] }],
+  outfits: [
+    { name: "Red Cape", colors: {}, shifts: [hue(190, 250, 0, { minSat: 0.12, sat: 1.6 })] },
+    { name: "Golden Cape", colors: {}, shifts: [hue(190, 250, 42, { minSat: 0.12, sat: 1.6 })] },
+    { name: "Night Cape", colors: {}, shifts: [hue(190, 250, 270, { minSat: 0.12, sat: 1.4 }), hue(70, 170, 260, { minSat: 0.15, light: 0.8 })] },
+  ],
+  words: { cry: "HYAAA!", intro: "FEAR NOT!", win: "JUSTICE!", taunt: "TA-DA!" },
+  more: (k) => {
+    const s = k.strike(2, "beam");
+    const cells = s.cells.slice(0, Math.min(...s.hits) + 2);
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Sword Beam", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [...cells.map((_, i) => (i === Math.min(...s.hits) ? 6 : 3)), 6], frame: Math.min(...s.hits), art: waveArt(FX.white, FX.blue), speed: 6, height: k.body.height * 0.55, damage: 55, range: 300 })],
+      cues: [{ action: 1400, frame: Math.min(...s.hits), sound: SOUNDS.zap }],
+    };
+  },
+});
+
+// ----- Javelina: the Huntress, a spear to throw and one to vault on -----
+
+const HUNTRESS = "Huntress/Huntress/Sprites";
+export const JAVELINA = hero({
+  id: "gi-javelina", name: "Javelina", base: ZONER, localcoord: 411,
+  pack: { name: "Huntress", url: "https://luizmelo.itch.io/huntress" },
+  strips: {
+    idle: [`${HUNTRESS}/Idle.png`, 8], run: [`${HUNTRESS}/Run.png`, 8], jump: [`${HUNTRESS}/Jump.png`, 2], fall: [`${HUNTRESS}/Fall.png`, 2],
+    hurt: [`${HUNTRESS}/Take hit.png`, 3], death: [`${HUNTRESS}/Death.png`, 8], attack1: [`${HUNTRESS}/Attack1.png`, 5], attack2: [`${HUNTRESS}/Attack2.png`, 5],
+    attack3: [`${HUNTRESS}/Attack3.png`, 7], spear: [`${HUNTRESS}/Spear move.png`, 4],
+  },
+  widths: { spear: 60 },
+  body: { front: 16, back: 16, height: 42 },
+  sha256: "eaa4ebcecc342ee8d010077183892cc421b60c538c611203e6bbe64325428e7a",
+  room: { l: 42, r: 49, u: 66, d: 0 },
+  slash: { colours: ["#f0f0f0", "#d6dde1", "#c1cdd5"] },
+  hurt: [0, 1, 2],
+  down: 7,
+  attacks: [{ strip: "attack1", hits: [3] }, { strip: "attack2", hits: [3] }],
+  shot: { strip: "attack3", hits: [6] },
+  projectile: { name: "Spear Throw", fly: { strip: "spear", frames: [0, 1, 2, 3] }, hit: { strip: "spear", frames: [3] }, speed: 6.5, sound: SOUNDS.whoosh },
+  outfits: [
+    { name: "Red", colors: {}, shifts: [hue(40, 110, 0, { minSat: 0.25 })] },
+    { name: "Blue", colors: {}, shifts: [hue(40, 110, 210, { minSat: 0.25 })] },
+    { name: "Purple", colors: {}, shifts: [hue(40, 110, 285, { minSat: 0.25 })] },
+  ],
+  words: { cry: "HYAH!", intro: "HUNT TIME!", win: "BULLSEYE!", taunt: "COME HERE!" },
+  more: (k) => ({ attacks: [poleVault(k)], cues: [{ action: 1400, frame: 2, sound: SOUNDS.whoosh }] }),
+});
+
+/** Vaults up on the spear and comes down on them with a slash. */
+function poleVault(k: HeroCtx): AttackSpec {
+  const cells = [
+    k.c("vault 0", { s: "attack2", f: 0 }),
+    k.c("vault 1", { s: "attack2", f: 1 }),
+    k.c("vault 2", { s: "jump", f: 0, dy: -12, rot: -15, mid: true }),
+    k.c("vault 3", { s: "jump", f: 1, dy: -24, rot: -25, mid: true }),
+    k.c("vault 4", { s: "fall", f: 0, dy: -24 }),
+    k.c("vault 5", { s: "attack2", f: 3, dy: -12 }),
+    k.c("vault 6", { s: "attack2", f: 4, fx: [effects.dustUnder] }),
+    k.cells.STAND[0]!,
+  ];
+  return {
+    state: 1400, name: "Pole Vault", from: "stand", command: "QCB_x", special: true,
+    anim: { action: 1400, cells, ticks: [3, 3, 4, 5, 4, 5, 6, 5] },
+    hits: [{ frames: [5], damage: 80, chip: 8, height: "overhead", weight: "heavy", hitStun: 24, blockStun: 16, push: 5, knockdown: true, launch: [2, -4] }],
+    moves: [{ frame: 2, x: 3.5 }, { frame: 6, x: 0 }],
+    ai: { range: 120, weight: 0.6 },
+  };
+}
+
+// ----- Robin Hoodie: the second Huntress, an archer -----
+
+const ARCHER = "Huntress 2/Huntress 2/Sprites";
+export const ROBIN_HOODIE = hero({
+  id: "gi-robin-hoodie", name: "Robin Hoodie", base: ZONER, localcoord: 393,
+  pack: { name: "Huntress 2", url: "https://luizmelo.itch.io/huntress-2" },
+  strips: {
+    idle: [`${ARCHER}/Character/Idle.png`, 10], run: [`${ARCHER}/Character/Run.png`, 8], jump: [`${ARCHER}/Character/Jump.png`, 2], fall: [`${ARCHER}/Character/Fall.png`, 2],
+    hurt: [`${ARCHER}/Character/Get Hit.png`, 3], death: [`${ARCHER}/Character/Death.png`, 10], attack1: [`${ARCHER}/Character/Attack.png`, 6], arrow: [`${ARCHER}/Arrow/Move.png`, 2],
+  },
+  widths: { arrow: 24 },
+  body: { front: 16, back: 16, height: 36 },
+  sha256: "1dd4484b7be6339918e72ca3c3c55308833cd5e70b96c11e87b3aa7f449f72d2",
+  room: { l: 18, r: 48, u: 45, d: 0 },
+  hurt: [0, 1, 2],
+  down: 9,
+  attacks: [{ strip: "attack1", frames: [1, 2, 3, 4], hits: [1, 2], box: [12, -30, 31, -20] }, { strip: "attack1", hits: [2, 3], box: [12, -30, 31, -20] }],
+  shot: { strip: "attack1", hits: [4] },
+  projectile: { name: "Arrow", fly: { strip: "arrow", frames: [0, 1] }, hit: { strip: "arrow", frames: [1] }, speed: 8, sound: SOUNDS.twang },
+  outfits: [
+    { name: "Red Hood", colors: {}, shifts: [hue(80, 170, 0, { minSat: 0.2 })] },
+    { name: "Blue Hood", colors: {}, shifts: [hue(80, 170, 215, { minSat: 0.2 })] },
+    { name: "Autumn", colors: {}, shifts: [hue(80, 170, 32, { minSat: 0.2 })] },
+  ],
+  words: { cry: "TWANG!", intro: "READY, AIM", win: "TOO EASY!", taunt: "MISSED ME?" },
+  more: (k) => ({ attacks: [arrowRain(k)], cues: [{ action: 1400, frame: 3, sound: SOUNDS.twang, effect: k.say("ARROW RAIN", 0, 30) }] }),
+});
+
+/** Shoots up, and the arrows come down a little way ahead: three hits. */
+function arrowRain(k: HeroCtx): AttackSpec {
+  const cells = [0, 1, 2, 3, 4, 5].map((f) => k.c(`rain ${f}`, { s: "attack1", f, rot: -35, mid: true }));
+  const rain = (state: number) =>
+    drawnProjectile(
+      state,
+      range(4).map((t) => (img: IndexedImage) => {
+        for (let i = 0; i < 4; i++) arrowDown(img, 6 + i * 9, ((t * 16 + i * 23) % 64) + 12);
+      }),
+      [0, 1, 2].map((t) => (img: IndexedImage) => {
+        for (let i = 0; i < 4; i++) arrowDown(img, 6 + i * 9, 76 - (i % 2) * 3);
+        if (t < 2) star(img, 20, 70, 5 + t * 2, FX.yellow, FX.white);
+      }),
+      { w: 40, h: 80, box: [-18, 10, 18, 40] },
+    );
+  return {
+    state: 1400, name: "Arrow Rain", from: "stand", command: "QCB_x", special: true,
+    anim: { action: 1400, cells: [...cells, k.cells.STAND[0]!], ticks: [3, 3, 4, 8, 5, 4, 5] },
+    hits: [{ frames: [3], damage: 30, chip: 4, height: "overhead", weight: "light", hitStun: 18, blockStun: 10, push: 1 }],
+    projectile: { frame: 3, speed: 0, height: k.units(40), hits: 3, missTime: 8, removeTime: 36, offset: k.units(k.body.front + 70), maxRange: 220, art: rain },
+    ai: { range: 170, weight: 0.6 },
+  };
+}
+
+// ----- Hat Trick: the Martial Hero, and his spare hats -----
+
+const MARTIAL = "Martial Hero/Martial Hero/Sprites";
+export const HAT_TRICK = hero({
+  id: "gi-hat-trick", name: "Hat Trick", base: RUSHDOWN, localcoord: 480,
+  pack: { name: "Martial Hero", url: "https://luizmelo.itch.io/martial-hero" },
+  strips: {
+    idle: [`${MARTIAL}/Idle.png`, 8], run: [`${MARTIAL}/Run.png`, 8], jump: [`${MARTIAL}/Jump.png`, 2], fall: [`${MARTIAL}/Fall.png`, 2],
+    hurt: [`${MARTIAL}/Take Hit.png`, 4], death: [`${MARTIAL}/Death.png`, 6], attack1: [`${MARTIAL}/Attack1.png`, 6], attack2: [`${MARTIAL}/Attack2.png`, 6],
+  },
+  body: { front: 18, back: 19, height: 52 },
+  sha256: "86a382589f5471b29f59f837c2d65ecd1efaa0613df7aa4c7f1d9d3d2d3ed71a",
+  room: { l: 29, r: 99, u: 69, d: 0 },
+  slash: { colours: ["#ffffff", "#dadada", "#c1c1c1"] },
+  hurt: [0, 1, 2],
+  down: 5,
+  attacks: [{ strip: "attack1", frames: [2, 3, 4, 5], hits: [2] }, { strip: "attack1", hits: [4] }, { strip: "attack2", hits: [4] }],
+  outfits: [
+    { name: "Blue Scarf", colors: {}, shifts: [hue(330, 20, 215, { minSat: 0.5 })] },
+    { name: "Gold Scarf", colors: {}, shifts: [hue(330, 20, 45, { minSat: 0.5 })] },
+    { name: "Green Scarf", colors: {}, shifts: [hue(330, 20, 135, { minSat: 0.5 })] },
+  ],
+  words: { cry: "SLASH!", intro: "HATS OFF!", win: "GOOD DAY.", taunt: "NICE HAT?" },
+  more: (k) => {
+    const cells = [0, 1, 2, 3].map((f) => k.c(`hat throw ${f}`, { s: "attack1", f }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Hat Trick", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [3, 3, 4, 8, 6], frame: 3, art: spinner(strawHat, 4, { w: 26, h: 14, box: [-10, -4, 10, 4] }), speed: 5.5, height: k.body.height * 0.75, damage: 50 })],
+      cues: [{ action: 1400, frame: 3, sound: SOUNDS.whoosh, effect: k.say("HAT TRICK!", 0, 26) }],
+    };
+  },
+});
+
+// ----- No Shirt Kurt: Martial Hero 3, who skips shirts but not leg day -----
+
+const MARTIAL_3 = "Martial Hero 3/Martial Hero 3/Sprite";
+export const NO_SHIRT_KURT = hero({
+  id: "gi-no-shirt-kurt", name: "No Shirt Kurt", base: HEAVY, localcoord: 394,
+  pack: { name: "Martial Hero 3", url: "https://luizmelo.itch.io/martial-hero-3" },
+  strips: {
+    idle: [`${MARTIAL_3}/Idle.png`, 10], run: [`${MARTIAL_3}/Run.png`, 8], jump: [`${MARTIAL_3}/Going Up.png`, 3], fall: [`${MARTIAL_3}/Going Down.png`, 3],
+    hurt: [`${MARTIAL_3}/Take Hit.png`, 3], death: [`${MARTIAL_3}/Death.png`, 11], attack1: [`${MARTIAL_3}/Attack1.png`, 7], attack2: [`${MARTIAL_3}/Attack2.png`, 6], attack3: [`${MARTIAL_3}/Attack3.png`, 9],
+  },
+  body: { front: 22, back: 22, height: 39 },
+  sha256: "8d3c03cb607fc2df3b4972cec2db4925b65b856b095c811bb94a5bce906f5265",
+  room: { l: 68, r: 57, u: 80, d: 14 },
+  slash: { colours: ["#fafaff"] },
+  hurt: [0, 1, 2],
+  down: 10,
+  attacks: [{ strip: "attack1", hits: [4] }, { strip: "attack2", hits: [3] }, { strip: "attack3", hits: [6] }],
+  outfits: [
+    { name: "Red Pants", colors: {}, shifts: [hue(45, 110, 0, { minSat: 0.15, sat: 1.5 })] },
+    { name: "Blue Jeans", colors: {}, shifts: [hue(45, 110, 215, { minSat: 0.15, sat: 1.5 })] },
+    { name: "Black Belt", colors: {}, shifts: [hue(45, 110, null, { minSat: 0.15, light: 0.5 })] },
+  ],
+  words: { cry: "HNNGH!", intro: "LEG DAY!", win: "NO SHIRT!", taunt: "GAINS!" },
+  more: (k) => {
+    const cells = [0, 1, 2, 3].map((f) => k.c(`dumbbell ${f}`, { s: "attack1", f }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Dumbbell Toss", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [4, 4, 5, 8, 8], frame: 3, art: spinner(dumbbell, 8, { w: 22, h: 22, box: [-7, -7, 7, 7] }), speed: 3.6, height: k.body.height * 0.6, damage: 75, hitSound: SOUNDS.bonk })],
+      anims: [{ action: 195, cells: range(10).map((t) => k.c(`flex ${t}`, { s: "idle", f: t, sx: 1.04, fx: [(cv) => sparkles(cv.img, cv.x - 2, cv.y - k.body.height + 6, t, t % 2 ? FX.yellow : FX.white)] })), ticks: 6, comment: "taunt: a flex" }],
+      cues: [{ action: 1400, frame: 3, sound: SOUNDS.whoosh }],
+    };
+  },
+});
+
+// ----- King Me: the Medieval King, who knights you before he throws you -----
+
+const KING = "Medieval King Pack/Medieval King Pack";
+export const KING_ME = hero({
+  id: "gi-king-me", name: "King Me", base: GRAPPLER, localcoord: 694,
+  pack: { name: "Medieval King Pack", url: "https://luizmelo.itch.io/medieval-king-pack" },
+  strips: {
+    idle: [`${KING}/Idle.png`, 6], run: [`${KING}/Run.png`, 8], jump: [`${KING}/Jump.png`, 2], fall: [`${KING}/Fall.png`, 2],
+    hurt: [`${KING}/Hit.png`, 4], death: [`${KING}/Death.png`, 11], attack1: [`${KING}/Attack_1.png`, 6], attack2: [`${KING}/Attack_2.png`, 6],
+  },
+  body: { front: 17, back: 18, height: 81 },
+  sha256: "97ed95c6f0b29686f760265d0498008bd0db0f1cc412234043d8fdf965247125",
+  room: { l: 64, r: 85, u: 110, d: 0 },
+  slash: { colours: ["#ffffff", "#b1b1b1", "#787878"] },
+  hurt: [0, 1, 2],
+  down: 10,
+  attacks: [{ strip: "attack2", frames: [2, 3, 4, 5], hits: [1, 2] }, { strip: "attack1", hits: [3] }, { strip: "attack2", hits: [3, 4] }],
+  outfits: [
+    { name: "Blue Blood", colors: {}, shifts: [hue(340, 15, 215, { minSat: 0.4 })] },
+    { name: "Royal Purple", colors: {}, shifts: [hue(340, 15, 280, { minSat: 0.4 })] },
+    { name: "Green", colors: {}, shifts: [hue(340, 15, 130, { minSat: 0.4 })] },
+  ],
+  words: { cry: "BEGONE!", intro: "KNEEL!", win: "KING ME!", taunt: "PEASANT!" },
+  more: (k) => {
+    const cells = [0, 1, 2].map((f) => k.c(`tax ${f}`, { s: "attack2", f }));
+    // Big coins: the king's art is drawn in small units, so code-drawn things come out small on him.
+    const coins = (img: IndexedImage, x: number, y: number, t: number) => [-11, 0, 11].forEach((dx, i) => coin(img, x + dx, y + (i % 2 ? -5 : 3), t + i, 5));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Tax Collector", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [4, 4, 8, 6], frame: 2, art: spinner(coins, 4, { w: 40, h: 26, box: [-17, -9, 17, 9] }), speed: 5, height: k.body.height * 0.5, damage: 45, hitSound: SOUNDS.coin })],
+      throws: [knighting(k)],
+      cues: [
+        { action: 1400, frame: 2, sound: SOUNDS.coin, effect: k.say("TAXES!", 0, 24, FX.coin) },
+        { action: 810, frame: 0, effect: k.say("I DUB THEE", 0, 40) },
+        { action: 810, frame: 3, sound: SOUNDS.shing, effect: k.say("SIR LOSER!", 0, 40, FX.yellow) },
+      ],
+    };
+  },
+});
+
+/** The throw: taps one shoulder, then the other (I DUB THEE...), then the big swing (SIR LOSER!). */
+function knighting(k: HeroCtx): ThrowSpec {
+  const { front: F, height: H } = k.body;
+  const front = k.units(F + 8);
+  const base = GRAPPLER.throws!.find((t) => t.state === 800)!;
+  return {
+    ...base,
+    name: "Knighting",
+    box: k.bx(F - 2, -H, F + 14, 0),
+    reach: { action: 800, cells: [0, 1, 2].map((f) => k.c(`knight reach ${f}`, { s: "attack2", f })), ticks: [2, 3, 6] },
+    catchFrames: [2],
+    hold: [
+      { cell: k.c("dub left", { s: "attack2", f: 4, dy: -2 }), ticks: 16, victim: [front, 0] },
+      { cell: k.c("dub up", { s: "attack2", f: 5, dy: -6 }), ticks: 6, victim: [front, 0] },
+      { cell: k.c("dub right", { s: "attack2", f: 4 }), ticks: 16, victim: [front, 0] },
+      { cell: k.c("dub swing", { s: "attack1", f: 3 }), ticks: 8, victim: [front + 10, 0] },
+      { cell: k.c("dub done", { s: "attack1", f: 5 }), ticks: 10, victim: [front + 20, 0] },
+    ],
+    release: { frame: 3, x: 4, y: 4 },
+    damage: 85,
+  };
+}
+
+// ----- Arms Dealer: Medieval Warrior 2, a different weapon for every attack -----
+
+const WARRIOR_2 = "Medieval Warrior Pack 2/Medieval Warrior Pack 2/Sprites";
+export const ARMS_DEALER = hero({
+  id: "gi-arms-dealer", name: "Arms Dealer", base: HEAVY, localcoord: 428,
+  pack: { name: "Medieval Warrior Pack 2", url: "https://luizmelo.itch.io/medieval-warrior-pack-2" },
+  strips: {
+    idle: [`${WARRIOR_2}/Idle.png`, 8], run: [`${WARRIOR_2}/Run.png`, 8], jump: [`${WARRIOR_2}/Jump.png`, 2], fall: [`${WARRIOR_2}/Fall.png`, 2],
+    hurt: [`${WARRIOR_2}/Take Hit.png`, 4], death: [`${WARRIOR_2}/Death.png`, 6],
+    attack1: [`${WARRIOR_2}/Attack1.png`, 4], attack2: [`${WARRIOR_2}/Attack2.png`, 4], attack3: [`${WARRIOR_2}/Attack3.png`, 4], attack4: [`${WARRIOR_2}/Attack4.png`, 4],
+  },
+  body: { front: 13, back: 13, height: 41 },
+  sha256: "a09111a599851291cae837f95ad4d11d175466fdd4c2ee191747d1f2dd1fbbf8",
+  room: { l: 43, r: 73, u: 74, d: 0 },
+  slash: { onlyIn: ["attack1", "attack2", "attack3", "attack4"] },
+  hurt: [0, 1, 2],
+  down: 5,
+  attacks: [{ strip: "attack1", hits: [2] }, { strip: "attack3", hits: [2] }, { strip: "attack4", hits: [2] }, { strip: "attack2", hits: [2] }],
+  outfits: [
+    { name: "Blue", colors: {}, shifts: [hue(330, 15, 215, { minSat: 0.35 })] },
+    { name: "Green", colors: {}, shifts: [hue(330, 15, 130, { minSat: 0.35 })] },
+    { name: "Black Market", colors: {}, shifts: [hue(330, 15, null, { minSat: 0.35, light: 0.45 })] },
+  ],
+  words: { cry: "SOLD!", intro: "DEALS!", win: "NO REFUNDS", taunt: "BROWSING?" },
+  more: (k) => ({ attacks: [clearanceSale(k)], cues: [{ action: 1400, frame: 0, effect: k.say("CLEARANCE!", 0, 40, FX.yellow) }, ...[2, 6, 10, 14].map((frame) => ({ action: 1400, frame, sound: SOUNDS.swishBig }))] }),
+});
+
+/** Everything must go: sword, spear, mace and greatsword, one after another. */
+function clearanceSale(k: HeroCtx): AttackSpec {
+  const cells = ["attack1", "attack3", "attack4", "attack2"].flatMap((strip) => [0, 1, 2, 3].map((f) => k.c(`${strip} ${f} sale`, { s: strip, f })));
+  const hit = (frame: number, damage: number, last = false) => ({ frames: [frame], damage, chip: 4, height: "mid" as const, weight: last ? ("heavy" as const) : ("medium" as const), hitStun: last ? 26 : 22, blockStun: 12, push: last ? 7 : 1, ...(last ? { knockdown: true, launch: [3, -4] as const } : {}) });
+  return {
+    state: 1400, name: "Everything Must Go", from: "stand", command: "QCB_x", special: true,
+    anim: { action: 1400, cells: [...cells, k.cells.STAND[0]!], ticks: [...cells.map((_, i) => (i % 4 === 2 ? 4 : 2)), 6] },
+    hits: [hit(2, 25), hit(6, 25), hit(10, 25), hit(14, 45, true)],
+    moves: [{ frame: 0, x: 1.2 }, { frame: 15, x: 0 }],
+    ai: { range: 70, weight: 0.5 },
+  };
+}
+
+// ----- Blue Steel: Medieval Warrior 3, and his look -----
+
+const WARRIOR_3 = "Medieval Warrior Pack 3/Medieval Warrior Pack 3/Sprites";
+export const BLUE_STEEL = hero({
+  id: "gi-blue-steel", name: "Blue Steel", base: RUSHDOWN, localcoord: 397,
+  pack: { name: "Medieval Warrior Pack 3", url: "https://luizmelo.itch.io/medieval-warrior-pack-3" },
+  strips: {
+    idle: [`${WARRIOR_3}/Idle.png`, 10], run: [`${WARRIOR_3}/Run.png`, 6], jump: [`${WARRIOR_3}/Jump.png`, 2], fall: [`${WARRIOR_3}/Fall.png`, 2],
+    hurt: [`${WARRIOR_3}/Get Hit.png`, 3], death: [`${WARRIOR_3}/Death.png`, 9], attack1: [`${WARRIOR_3}/Attack1.png`, 4], attack2: [`${WARRIOR_3}/Attack2.png`, 4], attack3: [`${WARRIOR_3}/Attack3.png`, 5],
+  },
+  body: { front: 13, back: 13, height: 38 },
+  sha256: "d5115d6837b8430af7070357f586a74bcc2bac2988b056a3d728e11d96fdd594",
+  room: { l: 51, r: 66, u: 71, d: 1 },
+  slash: { colours: ["#ffffff"] },
+  hurt: [0, 1, 2],
+  down: 8,
+  attacks: [{ strip: "attack1", hits: [2] }, { strip: "attack2", hits: [2] }, { strip: "attack3", hits: [3] }],
+  outfits: [
+    { name: "Red Steel", colors: {}, shifts: [hue(195, 260, 0, { minSat: 0.2 })] },
+    { name: "Gold Standard", colors: {}, shifts: [hue(195, 260, 45, { minSat: 0.2 })] },
+    { name: "Green Steel", colors: {}, shifts: [hue(195, 260, 130, { minSat: 0.2 })] },
+  ],
+  words: { cry: "HAH!", intro: "LOOK AT ME", win: "TOO PRETTY", taunt: "SMOLDER..." },
+  more: (k) => ({ attacks: [theLook(k)], cues: [{ action: 1400, frame: 1, sound: SOUNDS.zap, effect: k.say("BLUE STEEL", 0, 34, FX.sky) }] }),
+});
+
+/** The look: a smoulder so strong it stuns (a long stun, little damage). */
+function theLook(k: HeroCtx): AttackSpec {
+  const { front: F, height: H } = k.body;
+  const glare = (t: number) => (cv: { img: IndexedImage; x: number; y: number }) => {
+    sparkles(cv.img, cv.x + F - 2, cv.y - H + 6, t, FX.sky);
+    for (let i = 0; i < 3; i++) sparkles(cv.img, cv.x + F + 8 + i * 9 + t * 2, cv.y - Math.round(H * 0.7) + (i % 2) * 4, t + i, i % 2 ? FX.white : FX.sky);
+  };
+  const cells = range(6).map((t) => k.c(`look ${t}`, { s: "idle", f: 0, dx: -1, fx: t >= 1 && t <= 4 ? [glare(t)] : [] }));
+  return {
+    state: 1400, name: "Blue Steel", from: "stand", command: "QCB_x", special: true,
+    anim: { action: 1400, cells: [...cells, k.cells.STAND[0]!], ticks: [6, 5, 5, 5, 5, 6, 4] },
+    hits: [{ frames: [2, 3], damage: 25, height: "high", weight: "medium", hitStun: 48, blockStun: 10, push: 0, box: k.bx(F, -H, F + 36, -H * 0.4) }],
+    ai: { range: 70, weight: 0.4 },
+  };
+}
+
+export const HEROES: readonly TemplateSpec[] = [SIR_BONKALOT, HOT_TAKES, STABBY, NIGHT_SHIFT, CAPE_CRUSADER, JAVELINA, ROBIN_HOODIE, HAT_TRICK, NO_SHIRT_KURT, KING_ME, ARMS_DEALER, BLUE_STEEL];

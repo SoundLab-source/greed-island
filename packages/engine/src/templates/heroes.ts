@@ -50,6 +50,8 @@ export interface HeroAttack {
   hits: readonly number[];
   /** Start from the first idle frame (for a strip whose first frame already reaches out, like a flame). */
   lead?: boolean;
+  /** A hand-made hitbox (art pixels from the feet: forward, up negative) where too little reaches out to find one (an arrow on a bow). */
+  box?: readonly [number, number, number, number];
 }
 
 export interface Hero {
@@ -77,8 +79,11 @@ export interface Hero {
   outfits: PaletteSpec[];
   /** Its battle cry (big normal), intro, win and taunt words. */
   words: { cry: string; intro: string; win: string; taunt: string };
-  /** A projectile from the pack's own strips, for a zoner's fireball (QCF). */
-  projectile?: { fly: { strip: string; frames: readonly number[] }; hit: { strip: string; frames: readonly number[] }; speed?: number; height?: number; sound?: readonly [number, number] };
+  /** A projectile from the pack's own strips, for a zoner's fireball (QCF), thrown with `shot` (default the first attack; it leaves on the first hit frame). */
+  projectile?: { name?: string; fly: { strip: string; frames: readonly number[] }; hit: { strip: string; frames: readonly number[] }; speed?: number; height?: number; sound?: readonly [number, number] };
+  shot?: HeroAttack;
+  /** Raise the death strip's frames this many art pixels (a flyer's fall drawn below its feet). */
+  deathLift?: number;
   /** Signature moves, animations and cues of its own, replacing the generic ones with the same numbers. */
   more?: (k: HeroCtx) => HeroMore;
 }
@@ -93,6 +98,8 @@ export interface HeroMore {
 /** What a hero's signature moves are made with. */
 export interface HeroCtx {
   hero: Hero;
+  /** Art pixels the fighter floats off the ground. */
+  lift: number;
   kit: PackKit;
   /** A cell for this pose, by name (floating flyers are lifted unless `grounded`). */
   c: (name: string, pose: PackPose, grounded?: boolean) => number;
@@ -106,7 +113,7 @@ export interface HeroCtx {
   /** A word above the fighter (x art pixels in front of its feet) for `ticks`, as a cue's effect. */
   say: (word: string, x: number, ticks: number, color?: number) => NonNullable<Cue["effect"]>;
   /** Attack `i` of the pack's (wrapping), as cells with a pose on each frame, and its hit frames. */
-  strike: (i: number, tag: string, pose?: Partial<PackPose>, fx?: (frame: number, hit: boolean) => readonly Effect[]) => { cells: number[]; hits: number[] };
+  strike: (i: number, tag: string, pose?: Partial<PackPose>, fx?: (frame: number, hit: boolean) => readonly Effect[]) => { cells: number[]; hits: number[]; box?: Box };
   /** Ticks for an attack: `pre` before its first hit frame, `act` on hit frames, `post` after. */
   tk: (cells: readonly number[], hits: readonly number[], pre: number, act: number, post: number) => number[];
   cells: { STAND: number[]; RUN: number[]; JUMP_UP: number[]; JUMP_DOWN: number[]; HURT: number[]; LYING: number; CROUCH: number; DEATH: number[] };
@@ -139,10 +146,10 @@ const sayAbove = (text: string, color: number = FX.white): Effect => (c) => shou
 
 export const effects = { hitStar, dustUnder, dustBehind, speed, swish, glint, sayAbove };
 
-/** Every cell of `img` drawn `SCALE` times bigger. */
-export const scaleUp = (img: IndexedImage): IndexedImage => {
-  const out: IndexedImage = { width: img.width * SCALE, height: img.height * SCALE, pixels: new Uint8Array(img.width * img.height * SCALE * SCALE) };
-  for (let y = 0; y < out.height; y++) for (let x = 0; x < out.width; x++) out.pixels[y * out.width + x] = img.pixels[Math.floor(y / SCALE) * img.width + Math.floor(x / SCALE)]!;
+/** Every pixel of `img` drawn `k` times bigger. */
+export const scaleUp = (img: IndexedImage, k = SCALE): IndexedImage => {
+  const out: IndexedImage = { width: img.width * k, height: img.height * k, pixels: new Uint8Array(img.width * img.height * k * k) };
+  for (let y = 0; y < out.height; y++) for (let x = 0; x < out.width; x++) out.pixels[y * out.width + x] = img.pixels[Math.floor(y / k) * img.width + Math.floor(x / k)]!;
   return out;
 };
 
@@ -185,16 +192,16 @@ export function waveArt(core: number, edge: number) {
     );
 }
 
-/** Words above the fighter, each in outlined letters with its bottom middle on the axis (played `readable`). */
+/** Words above the fighter, each in outlined letters with its bottom middle on the axis (played `readable`), `k` times bigger. */
 export const WORD_ANIM = 7100;
-export function heroWords(words: readonly { text: string; color: number }[]): { sprites: SffSprite[]; actions: AirAction[] } {
+export function heroWords(words: readonly { text: string; color: number }[], k = SCALE): { sprites: SffSprite[]; actions: AirAction[] } {
   const sprites: SffSprite[] = [];
   const actions: AirAction[] = [];
   words.forEach(({ text, color }, n) => {
     const tw = shoutWidth(text);
     const img: IndexedImage = { width: tw + 4, height: 11, pixels: new Uint8Array((tw + 4) * 11) };
     shout(img, text, 2, 2, color, FX.ink);
-    const big = scaleUp(img);
+    const big = scaleUp(img, k);
     sprites.push({ group: WORD_ANIM + n, number: 0, image: big, axisX: Math.round(big.width / 2), axisY: big.height, palette: 0 });
     actions.push({ action: WORD_ANIM + n, comment: `says ${text}`, frames: [{ group: WORD_ANIM + n, number: 0, ticks: -1 }] });
   });
@@ -257,9 +264,9 @@ export function heroFighter(h: Hero): TemplateSpec {
   const HIT_LOW = [0.92, 0.86, 0.8].map((sy, i) => c(`hit low ${i}`, { s: "hurt", f: hurt(i), sy, sx: 1.04, rot: 6 + 3 * i, mid: true }));
   const CROUCH_HIT = [c("crouch hit 0", { s: "hurt", f: hurt(0), sy: 0.72, sx: 1.06, rot: -6, mid: true }), c("crouch hit 1", { s: "hurt", f: hurt(1), sy: 0.7, sx: 1.06, rot: -10, dx: -2, mid: true })];
   const TUMBLE = [-45, -90, -135, -180, -225, -270].map((r) => c(`tumble ${r}`, { s: "hurt", f: hurt(0), rot: r, mid: true }));
-  const DEATH = range(h.down + 1).map((f) => c(`death ${f}`, { s: "death", f }, true));
+  const DEATH = range(h.down + 1).map((f) => c(`death ${f}`, { s: "death", f, dy: -(h.deathLift ?? 0) }, true));
   const LYING = DEATH[h.down]!;
-  const LYING_HIT = c("lying hit", { s: "death", f: h.down, dy: -1, fx: [hitStar(0, 4, 4)] }, true);
+  const LYING_HIT = c("lying hit", { s: "death", f: h.down, dy: -1 - (h.deathLift ?? 0), fx: [hitStar(0, 4, 4)] }, true);
   const GET_UP = [...new Set([h.down, h.down - 1, Math.round(h.down * 0.6), Math.round(h.down * 0.3), 0].map((f) => Math.max(0, f)))].map((f) => DEATH[f]!);
   const TRIPPED = [30, 60, 90].map((r) => c(`tripped ${r}`, { s: "hurt", f: hurt(1), rot: r, mid: true }));
   const UPRIGHT = c("launched upright", { s: "hurt", f: hurt(0), rot: -90, mid: true });
@@ -272,12 +279,16 @@ export function heroFighter(h: Hero): TemplateSpec {
     return at.lead ? { list: [{ s: "idle", f: 0 }, ...list], hits: at.hits.map((x) => x + 1) } : { list, hits: [...at.hits] };
   };
   const strike = (i: number, tag: string, pose: Partial<PackPose> = {}, fx?: (frame: number, hit: boolean) => readonly Effect[]) => {
-    const { list, hits } = framesOf(h.attacks[i % h.attacks.length]!);
+    const at = h.attacks[i % h.attacks.length]!;
+    const { list, hits } = framesOf(at);
     const cells = list.map(({ s, f }, k) => {
       const extra = fx?.(k, hits.includes(k)) ?? [];
       return c(`${s} ${f} ${tag}${extra.length ? ` fx${k}` : ""}`, { s, f, ...pose, ...(extra.length ? { fx: [...(pose.fx ?? []), ...extra] } : {}) });
     });
-    return { cells, hits };
+    // A hand-made box follows the pose's squash (turns are left out: near enough for a poke).
+    const sy = pose.sy ?? 1, sx = pose.sx ?? 1;
+    const box = at.box ? bx(at.box[0] * sx, at.box[1] * sy, at.box[2] * sx, at.box[3] * sy) : undefined;
+    return { cells, hits, ...(box ? { box } : {}) };
   };
   const last = h.attacks.length - 1;
 
@@ -291,8 +302,8 @@ export function heroFighter(h: Hero): TemplateSpec {
   };
 
   // Normals: the pack's attacks, quick to big; crouching ones squashed low, the anti-air tipped up, air ones as drawn.
-  const normal = (state: number, name: string, s: { cells: number[]; hits: number[] }, t: [number, number, number], extra: Parameters<typeof redrawMove>[6] = {}) =>
-    move(state, name, s.cells, tk(s.cells, s.hits, ...t), s.hits, undefined, extra);
+  const normal = (state: number, name: string, s: { cells: number[]; hits: number[]; box?: Box }, t: [number, number, number], extra: Parameters<typeof redrawMove>[6] = {}) =>
+    move(state, name, s.cells, tk(s.cells, s.hits, ...t), s.hits, s.box, extra);
   const kick = (): AttackSpec => {
     const cells = [STAND[0]!, c("kick 1", { s: "run", f: 1, dx: 1, rot: -8, mid: true }), c("kick 2", { s: "run", f: 2, dx: 4, rot: -14, mid: true, fx: [hitStar(F + 8, H * 0.35, 5)] }), c("kick 3", { s: "run", f: 2, dx: 2, rot: -8, mid: true }), STAND[0]!];
     return move(230, "Boot", cells, [2, 3, 4, 3, 3], [2], bx(F, -H * 0.55, F + 12, -H * 0.1));
@@ -349,7 +360,7 @@ export function heroFighter(h: Hero): TemplateSpec {
     };
     // A projectile: the pack's own, or a sword wave.
     const shot = (state: number, name: string) => {
-      const at = framesOf(h.attacks[0]!);
+      const at = framesOf(h.shot ?? h.attacks[0]!);
       const cells = at.list.map(({ s, f }) => c(`${s} ${f} shot`, { s, f }));
       const fire = Math.min(...at.hits);
       const was = base.attacks.find((x) => x.state === state)!;
@@ -368,7 +379,7 @@ export function heroFighter(h: Hero): TemplateSpec {
     };
     switch (base.archetype) {
       case "ZONER":
-        return [shot(1000, h.projectile ? "Shot" : "Sword Wave"), rising(1100, "Rising Slash"), whirl(1200, "Whirlwind")];
+        return [shot(1000, h.projectile?.name ?? (h.projectile ? "Shot" : "Sword Wave")), rising(1100, "Rising Slash"), whirl(1200, "Whirlwind")];
       case "HEAVY":
         return [dash(1000, "Charge"), rising(1100, "Rising Slash"), drop(1200, "Hammer Drop")];
       case "GRAPPLER": {
@@ -444,7 +455,7 @@ export function heroFighter(h: Hero): TemplateSpec {
   }
 
   const ctx: HeroCtx = {
-    hero: h, kit, c, body: h.body, units, bx, move, say, strike, tk,
+    hero: h, lift, kit, c, body: h.body, units, bx, move, say, strike, tk,
     cells: { STAND, RUN, JUMP_UP, JUMP_DOWN, HURT, LYING, CROUCH, DEATH },
     stripProjectile,
   };
@@ -562,10 +573,11 @@ export function heroFighter(h: Hero): TemplateSpec {
     constants: { ...base.constants, width: [Math.max(10, units(F * 0.8)), Math.max(10, units(B * 0.8))], height: Math.max(24, units(H)) },
     anims: finalAnims,
     attacks,
-    ...(more.throws ?? throws ? { throws: more.throws ?? throws } : {}),
+    ...(throws || more.throws ? { throws: [...(throws ?? []).filter((t) => !(more.throws ?? []).some((m) => m.state === t.state)), ...(more.throws ?? [])] } : {}),
     sounds: () => heroSounds(),
     gags: ["explosion"],
-    effectArt: () => heroWords(words),
+    // Words the same size on screen whatever the fighter's units (a big king's art is drawn in smaller units).
+    effectArt: () => heroWords(words, Math.max(2, Math.round((SCALE * h.localcoord) / 450))),
     cues,
     colors: {},
     palettes: h.outfits,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readWav } from "../art/wav.ts";
-import { HEROES, HOT_TAKES, SIR_BONKALOT, STABBY } from "./hero-fighters.ts";
+import { ARMS_DEALER, HERO_CONFIGS, HEROES, HOT_TAKES, KING_ME, ROBIN_HOODIE, SIR_BONKALOT, STABBY } from "./hero-fighters.ts";
 import { heroSounds, SOUNDS, waveArt, WORD_ANIM } from "./heroes.ts";
 import { checkSpec, REQUIRED_ACTIONS } from "./spec.ts";
 
@@ -15,7 +15,14 @@ describe("the heroes from the combat packs", () => {
     expect(new Set(HEROES.map((h) => h.id)).size).toBe(HEROES.length);
   });
 
-  it("each have a signature move of their own on QCB + x", () => {
+  it("each have a signature move of their own on QCB + x, with its own name", () => {
+    for (const h of HEROES) expect(h.attacks.find((a) => a.state === 1400)).toMatchObject({ command: "QCB_x", special: true });
+    expect(new Set(HEROES.map((h) => h.attacks.find((a) => a.state === 1400)!.name)).size).toBe(HEROES.length);
+    expect(HERO_CONFIGS.map((c) => c.id)).toEqual(HEROES.map((h) => h.id));
+    // Arms Dealer's goes through all four weapons, a hit each; King Me knights you before throwing you.
+    expect(ARMS_DEALER.attacks.find((a) => a.state === 1400)!.hits).toHaveLength(4);
+    expect(KING_ME.throws!.map((t) => t.name)).toEqual(["Running Grab", "Knighting"]);
+    expect(ROBIN_HOODIE.attacks.find((a) => a.state === 1000)!.name).toBe("Arrow");
     const signature = (id: string) => HEROES.find((h) => h.id === id)!.attacks.find((a) => a.state === 1400)!;
     expect(signature(SIR_BONKALOT.id)).toMatchObject({ name: "Frying Pan", command: "QCB_x" });
     expect(signature(HOT_TAKES.id)).toMatchObject({ name: "Hot Take", command: "QCB_x", projectile: { speed: 0, hits: 2 } });
