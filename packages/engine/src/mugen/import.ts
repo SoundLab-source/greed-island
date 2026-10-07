@@ -24,9 +24,10 @@ import { GAGS, gagAir, gagStates, gagTriggers, type Gag } from "./gags.ts";
 import type { CodeFile } from "./cheats.ts";
 import { mugenCard } from "./card.ts";
 
-/** What the marker remembers of the recipe beyond the archive, so a new AI, AI choice or stats reinstall the character. */
+/** What the marker remembers of the recipe beyond the archive, so a new AI, AI choice, stats, gags or patches reinstall the character. */
 const aiTag = (entry: MugenEntry) =>
-  `${entry.ai}:${AI_VERSION}:${JSON.stringify(entry.data ?? {})}:${createHash("sha256").update(gagStates(entry.gags) + gagAir(entry.gags)).digest("hex").slice(0, 12)}`;
+  `${entry.ai}:${AI_VERSION}:${JSON.stringify(entry.data ?? {})}:${createHash("sha256").update(gagStates(entry.gags) + gagAir(entry.gags)).digest("hex").slice(0, 12)}` +
+  (entry.patches.length ? `:${createHash("sha256").update(JSON.stringify(entry.patches)).digest("hex").slice(0, 12)}` : "");
 
 const run = promisify(execFile);
 
@@ -49,6 +50,11 @@ export const MugenEntry = z.object({
   data: z.object({ life: z.number().int().min(100).max(3000), attack: z.number().int().min(10).max(300), defence: z.number().int().min(10).max(300) }).partial().optional(),
   /** Moves of our own added to it (mugen/gags.ts), e.g. "explosion". */
   gags: z.array(z.enum(GAGS)).default([]),
+  /**
+   * Exact text replacements in its own files (a settings block, say: switching off instant kills), each found exactly
+   * once or the import stops. `file` is inside the character's folder (any capitals); text is compared byte for byte.
+   */
+  patches: z.array(z.object({ file: z.string().min(1), find: z.string().min(1), replace: z.string(), why: z.string().min(1) })).default([]),
   notes: z.string().optional(),
 });
 
@@ -305,6 +311,7 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
     const ai = await addAi(staged, fixed.text, entry);
     if (entry.gags.length) defText = await addGags(staged, defText, entry.gags);
     await writeFile(path.join(staged, `${entry.id}.def`), defText, "latin1");
+    if (entry.patches.length) await applyPatches(staged, entry);
     const cns = parseIni(fixed.text).get("files")?.get("cns");
     if (entry.data && cns && existsSync(path.join(staged, cns))) {
       const text = await readFile(path.join(staged, cns), "latin1");
@@ -320,6 +327,19 @@ export async function installMugen(ikemenDir: string, entry: MugenEntry, archive
   } finally {
     await rm(tmp, { recursive: true, force: true });
     await rm(`${tmp}-char`, { recursive: true, force: true });
+  }
+}
+
+/** The recipe's patches, into the staged character's files: each `find` must be there exactly once. */
+export async function applyPatches(dir: string, entry: Pick<MugenEntry, "id" | "patches">): Promise<void> {
+  const files = await listFiles(dir);
+  for (const p of entry.patches) {
+    const name = files.find((f) => f.toLowerCase() === p.file.toLowerCase().replace(/\\/g, "/"));
+    if (!name) throw new Error(`${entry.id}: patch "${p.why}": no file ${p.file}`);
+    const text = await readFile(path.join(dir, name), "latin1");
+    const count = text.split(p.find).length - 1;
+    if (count !== 1) throw new Error(`${entry.id}: patch "${p.why}": ${JSON.stringify(p.find)} is in ${name} ${count} times, not once`);
+    await writeFile(path.join(dir, name), text.replace(p.find, () => p.replace), "latin1");
   }
 }
 

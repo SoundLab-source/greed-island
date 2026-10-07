@@ -383,7 +383,57 @@
       "sha256": "54eca0cf7d577c2c9ad93e7bd7f6b0d99b5a1a141c9005f0f7fa4f14d40fad33",
       "source": "https://mugenarchive.com/",
       "author": "280gou",
-      "notes": "A 2018 MUGEN Goku (Dragon Ball) by 280gou, version 2.0. Downloaded by the owner 2026-10-06; the exact page is still to note."
+      "notes": "A 2018 MUGEN Goku (Dragon Ball) by 280gou, version 2.0. Downloaded by the owner 2026-10-06; the exact page is still to note. Tamed with his own settings (the end of Songoku_US.cmd): every transformation kept, the top forms at the strong tier instead of the god tier, and no instant kills, permanent targeting or hit-state escapes.",
+      "patches": [
+        {
+          "file": "Songoku_US.cmd",
+          "find": "var(44) = 4 ;",
+          "replace": "var(44) = 3 ;",
+          "why": "Super Saiyan God at the strong tier, not the god tier"
+        },
+        {
+          "file": "Songoku_US.cmd",
+          "find": "var(45) = 5 ;",
+          "replace": "var(45) = 3 ;",
+          "why": "Super Saiyan Blue at the strong tier"
+        },
+        {
+          "file": "Songoku_US.cmd",
+          "find": "var(46) = 6 ;",
+          "replace": "var(46) = 3 ;",
+          "why": "Blue Kaioken at the strong tier"
+        },
+        {
+          "file": "Songoku_US.cmd",
+          "find": "var(51) = 7 ;",
+          "replace": "var(51) = 3 ;",
+          "why": "Ultra Instinct Sign at the strong tier"
+        },
+        {
+          "file": "Songoku_US.cmd",
+          "find": "fvar(34) = 2;",
+          "replace": "fvar(34) = 0;",
+          "why": "no permanent targeting with life damage"
+        },
+        {
+          "file": "Songoku_US.cmd",
+          "find": "fvar(35) = 2;",
+          "replace": "fvar(35) = 0;",
+          "why": "no instant kills"
+        },
+        {
+          "file": "Songoku_US.cmd",
+          "find": "fvar(28) = 1;",
+          "replace": "fvar(28) = 0;",
+          "why": "no escaping hit states"
+        },
+        {
+          "file": "Songoku_US.cmd",
+          "find": "fvar(10) = 1;",
+          "replace": "fvar(10) = 0;",
+          "why": "no boosted ultimate"
+        }
+      ]
     },
     {
       "id": "mugen-ishowspeed",
