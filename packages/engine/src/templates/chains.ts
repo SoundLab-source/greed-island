@@ -322,4 +322,15 @@ export const NEON_MOTH = chainsFighter({
   ],
 });
 
-export const CHAINS: readonly TemplateSpec[] = [LAVA_LIZARD, BLUE_JAY, SWAMP_CROC, JUNGLE_BOAR, SNOW_RHINO, GHOST_MANTIS, NEON_MOTH];
+/** A tall dark-grey alien with purple trims and red eyes (its GIF has a palette per frame: art/gif.ts gathers them). */
+export const IRON_RAVEN = chainsFighter({
+  body: { id: "tasen-man-1-chains", file: "Tasen man 1 chains of compassion 14AAT003.gif", who: "Tasen man 1", sha256: "c0b715e5874712bb48a57614d4ec21ae375d8256ea9661f5d7981da80df1b107", width: 206, height: 179, frames: 1116, x0: 48, x1: 115, y1: 165, tall: 122, size: 1.14, map: S([0, 0], [66, -1], [477, -11], [760, -10]) },
+  id: "gi-iron-raven", name: "Iron Raven", base: RUSHDOWN,
+  outfits: [
+    ["Green Raven", [shift(275, 290, 130)]],
+    ["Blue Raven", [shift(275, 290, 205)]],
+    ["Ember Raven", [shift(275, 290, 25)]],
+  ],
+});
+
+export const CHAINS: readonly TemplateSpec[] = [LAVA_LIZARD, BLUE_JAY, SWAMP_CROC, JUNGLE_BOAR, SNOW_RHINO, GHOST_MANTIS, NEON_MOTH, IRON_RAVEN];

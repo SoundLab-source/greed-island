@@ -19,21 +19,43 @@ export interface Gif {
   frames: Uint8Array[];
 }
 
-/** Decode an animated GIF with one global palette (frames with their own palettes are refused). */
+/**
+ * Decode an animated GIF. With one global palette, frames keep its indices. When frames bring palettes of their own
+ * (or there's no global one), every colour is gathered by its RGB into one palette instead, index 0 kept for
+ * "nothing here" (`transparent`), and refused past 255 colours.
+ */
 export function readGif(bytes: Uint8Array): Gif {
   const sig = String.fromCharCode(...bytes.subarray(0, 6));
   if (sig !== "GIF87a" && sig !== "GIF89a") throw new Error("not a GIF");
   const u16 = (o: number) => bytes[o]! | (bytes[o + 1]! << 8);
   const width = u16(6), height = u16(8), flags = bytes[10]!;
   let p = 13;
-  if (!(flags & 0x80)) throw new Error("GIF has no global palette");
-  const tableSize = 3 * 2 ** ((flags & 7) + 1);
-  const palette = bytes.slice(p, p + tableSize);
-  p += tableSize;
+  const globalTable = flags & 0x80 ? bytes.slice(p, p + 3 * 2 ** ((flags & 7) + 1)) : null;
+  if (globalTable) p += globalTable.length;
+  const merged = !globalTable || hasLocalTables(bytes, p);
+  // Merged: colours by RGB, index 0 for nothing; otherwise the global table as it is.
+  const colours = new Map<number, number>();
+  const mergedPalette: number[] = [255, 0, 255];
+  const toMerged = (table: Uint8Array) => {
+    const map = new Int16Array(table.length / 3);
+    for (let i = 0; i < map.length; i++) {
+      const rgb = (table[i * 3]! << 16) | (table[i * 3 + 1]! << 8) | table[i * 3 + 2]!;
+      let n = colours.get(rgb);
+      if (n === undefined) {
+        n = colours.size + 1;
+        if (n > 255) throw new Error("GIF: more than 255 colours across its frames' palettes");
+        colours.set(rgb, n);
+        mergedPalette.push(table[i * 3]!, table[i * 3 + 1]!, table[i * 3 + 2]!);
+      }
+      map[i] = n;
+    }
+    return map;
+  };
+  const globalMap = merged && globalTable ? toMerged(globalTable) : null;
   const frames: Uint8Array[] = [];
   const BLANK = -1;
   let canvas = new Int16Array(width * height).fill(BLANK);
-  let frameTransparent = -1, disposal = 0, transparent = -1;
+  let frameTransparent = -1, disposal = 0, transparent = merged ? 0 : -1;
   while (p < bytes.length) {
     const block = bytes[p++]!;
     if (block === 0x3b) break;
@@ -43,7 +65,7 @@ export function readGif(bytes: Uint8Array): Gif {
         const f = bytes[p + 1]!;
         disposal = (f >> 2) & 7;
         frameTransparent = f & 1 ? bytes[p + 4]! : -1;
-        if (frameTransparent >= 0) {
+        if (frameTransparent >= 0 && !merged) {
           if (transparent >= 0 && transparent !== frameTransparent) throw new Error("GIF frames use different transparent colours");
           transparent = frameTransparent;
         }
@@ -55,8 +77,14 @@ export function readGif(bytes: Uint8Array): Gif {
     if (block !== 0x2c) throw new Error(`GIF: unknown block ${block} at byte ${p - 1}`);
     const x = u16(p), y = u16(p + 2), w = u16(p + 4), h = u16(p + 6), f = bytes[p + 8]!;
     p += 9;
-    if (f & 0x80) throw new Error("GIF frames with their own palettes aren't supported");
+    let map = globalMap;
+    if (f & 0x80) {
+      const local = bytes.slice(p, p + 3 * 2 ** ((f & 7) + 1));
+      p += local.length;
+      map = toMerged(local);
+    }
     if (f & 0x40) throw new Error("interlaced GIF frames aren't supported");
+    if (merged && !map) throw new Error("GIF: a frame with no palette");
     const minCode = bytes[p++]!;
     const chunks: Uint8Array[] = [];
     while (bytes[p]) { chunks.push(bytes.subarray(p + 1, p + 1 + bytes[p]!)); p += bytes[p]! + 1; }
@@ -69,7 +97,7 @@ export function readGif(bytes: Uint8Array): Gif {
     for (let j = 0; j < h; j++) {
       for (let i = 0; i < w; i++) {
         const v = pixels[j * w + i]!;
-        if (v !== frameTransparent && x + i < width && y + j < height) canvas[(y + j) * width + x + i] = v;
+        if (v !== frameTransparent && x + i < width && y + j < height) canvas[(y + j) * width + x + i] = map ? map[v]! : v;
       }
     }
     const frame = new Uint8Array(width * height);
@@ -79,7 +107,29 @@ export function readGif(bytes: Uint8Array): Gif {
     if (disposal === 2) for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) canvas[(y + j) * width + x + i] = BLANK;
     else if (before) canvas = before;
   }
+  const palette = merged ? Uint8Array.from(mergedPalette) : globalTable!;
   return { width, height, palette, transparent, frames };
+}
+
+/** Whether any image in the GIF (from byte `p`, after the header and global table) brings its own palette. */
+function hasLocalTables(bytes: Uint8Array, p: number): boolean {
+  while (p < bytes.length) {
+    const block = bytes[p++]!;
+    if (block === 0x3b) return false;
+    if (block === 0x21) {
+      p++;
+      while (bytes[p]) p += bytes[p]! + 1;
+      p++;
+      continue;
+    }
+    if (block !== 0x2c) return false;
+    const f = bytes[p + 8]!;
+    if (f & 0x80) return true;
+    p += 10;
+    while (bytes[p]) p += bytes[p]! + 1;
+    p++;
+  }
+  return false;
 }
 
 /** GIF image data: variable-width LZW codes, least significant bit first. */

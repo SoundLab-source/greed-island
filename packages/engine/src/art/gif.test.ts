@@ -51,7 +51,36 @@ function makeGif(width: number, height: number, frames: { x: number; y: number; 
   return Uint8Array.from(b);
 }
 
+/** The same GIF, but each frame with a 4-colour palette of its own (given as RGB triples), and no global one. */
+function makeLocalGif(width: number, height: number, frames: { px: number[]; table: number[] }[]): Uint8Array {
+  const b: number[] = [...Buffer.from("GIF89a"), width & 0xff, width >> 8, height & 0xff, height >> 8, 0, 0, 0];
+  for (const f of frames) {
+    b.push(0x21, 0xf9, 4, (1 << 2) | 1, 10, 0, 3, 0);
+    b.push(0x2c, 0, 0, 0, 0, width & 0xff, width >> 8, height & 0xff, height >> 8, 0x81, ...f.table);
+    const data = lzwEncode(f.px, 2);
+    b.push(2);
+    for (let i = 0; i < data.length; i += 255) { const c = data.slice(i, i + 255); b.push(c.length, ...c); }
+    b.push(0);
+  }
+  b.push(0x3b);
+  return Uint8Array.from(b);
+}
+
 describe("readGif", () => {
+  it("gathers frames' own palettes into one by colour, index 0 for nothing", () => {
+    const red = [255, 0, 0], green = [0, 255, 0], blue = [0, 0, 255], spare = [9, 9, 9];
+    const gif = readGif(makeLocalGif(2, 1, [
+      { px: [1, 3], table: [...spare, ...red, ...green, ...spare] },
+      { px: [2, 1], table: [...spare, ...blue, ...red, ...spare] },
+    ]));
+    expect(gif.transparent).toBe(0);
+    // Red, then blue, in the order first used; colour 3 (transparent in each frame) is never drawn.
+    expect([...gif.frames[0]!]).toEqual([2, 0]);
+    expect([...gif.frames[1]!]).toEqual([2, 4]);
+    expect([...gif.palette.subarray(6, 9)]).toEqual(red);
+    expect([...gif.palette.subarray(12, 15)]).toEqual(blue);
+  });
+
   it("composes frames on the canvas, keeping what a frame leaves transparent", () => {
     const gif = readGif(makeGif(2, 2, [
       { x: 0, y: 0, w: 2, h: 2, px: [1, 2, 3, 1] },

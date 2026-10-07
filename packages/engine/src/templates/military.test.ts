@@ -3,8 +3,8 @@ import { MATADOR, MILITARY, RED_COMET, rocketArt, WANDERING_RONIN } from "./mili
 import { checkSpec, cellList } from "./spec.ts";
 
 describe("the Tasen military combat fighters", () => {
-  it("are four cape-and-bazooka fighters, each a complete fighter", () => {
-    expect(MILITARY.map((t) => t.name)).toEqual(["Matador", "Purple Prowler", "Wandering Ronin", "Red Comet"]);
+  it("are five cape-and-bazooka fighters, each a complete fighter", () => {
+    expect(MILITARY.map((t) => t.name)).toEqual(["Matador", "Purple Prowler", "Wandering Ronin", "Red Comet", "Mardi Gras"]);
     for (const t of MILITARY) {
       expect(checkSpec(t)).toEqual([]);
       const frames = t.art.columns * t.art.rows;

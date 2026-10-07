@@ -275,4 +275,15 @@ export const RED_COMET = militaryFighter({
   ],
 });
 
-export const MILITARY: readonly TemplateSpec[] = [MATADOR, PURPLE_PROWLER, WANDERING_RONIN, RED_COMET];
+/** A tall alien in purple, orange and a green cape: Mardi Gras colours (its GIF has a palette per frame). */
+export const MARDI_GRAS = militaryFighter({
+  body: { id: "tasen-woman-2-military", file: "Tasen woman 2 Tasen mil. combat 13ABT001.gif", who: "Tasen woman 2", sha256: "e0784f8501e223d11713ebcd332f22b74e607595a0da00a4e71ef5bb6e466f2f", width: 232, height: 194, frames: 1281, x0: 92, x1: 157, y1: 189, tall: 107, size: 1.1, map: S([0, 0], [7, 1]) },
+  id: "gi-mardi-gras", name: "Mardi Gras", base: ALL_ROUNDER,
+  outfits: [
+    ["Ember", [shift(265, 275, 0), shift(25, 35, 45), shift(115, 125, 30)]],
+    ["Ocean", [shift(265, 275, 215), shift(25, 35, 190), shift(115, 125, 200)]],
+    ["Jungle", [shift(265, 275, 130), shift(25, 35, 60), shift(115, 125, 90)]],
+  ],
+});
+
+export const MILITARY: readonly TemplateSpec[] = [MATADOR, PURPLE_PROWLER, WANDERING_RONIN, RED_COMET, MARDI_GRAS];

@@ -265,4 +265,15 @@ export const VIOLET_STORK = farmerFighter({
   ],
 });
 
-export const FARMERS: readonly TemplateSpec[] = [IRON_HERON, PINK_FLAMINGO, BARN_OWL, VIOLET_STORK];
+/** A straw hat, a white suit, blue gloves and boots (its GIF has a palette per frame). One frame fewer from 671. */
+export const SCARECROW = farmerFighter({
+  body: { id: "susa-farmer", file: "Susa No Mikoto Farmer's dream 06ADT002.gif", who: "Susa No Mikoto", sha256: "1cf6268646bed089f089cbcc39865be0f6649a945dfea6fe5639b97d677c7321", width: 254, height: 173, frames: 731, x0: 72, x1: 113, y1: 154, tall: 95, map: S([0, 0], [671, -1]) },
+  id: "gi-scarecrow", name: "Scarecrow", base: RUSHDOWN,
+  outfits: [
+    ["Green Scarecrow", [shift(200, 245, 130)]],
+    ["Purple Scarecrow", [shift(200, 245, 280)]],
+    ["Pumpkin Scarecrow", [shift(200, 245, 28)]],
+  ],
+});
+
+export const FARMERS: readonly TemplateSpec[] = [IRON_HERON, PINK_FLAMINGO, BARN_OWL, VIOLET_STORK, SCARECROW];

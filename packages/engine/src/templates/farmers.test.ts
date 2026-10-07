@@ -3,8 +3,8 @@ import { BARN_OWL, FARMERS, IRON_HERON, pitchforkArt, PINK_FLAMINGO } from "./fa
 import { checkSpec, cellList } from "./spec.ts";
 
 describe("the Farmer's dream fighters", () => {
-  it("are four spear fighters on one move list, each a complete fighter that throws a pitchfork", () => {
-    expect(FARMERS.map((t) => t.name)).toEqual(["Iron Heron", "Pink Flamingo", "Barn Owl", "Violet Stork"]);
+  it("are five spear fighters on one move list, each a complete fighter that throws a pitchfork", () => {
+    expect(FARMERS.map((t) => t.name)).toEqual(["Iron Heron", "Pink Flamingo", "Barn Owl", "Violet Stork", "Scarecrow"]);
     for (const t of FARMERS) {
       expect(checkSpec(t)).toEqual([]);
       const frames = t.art.columns * t.art.rows;

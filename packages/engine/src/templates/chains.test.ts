@@ -3,8 +3,8 @@ import { CHAINS, GHOST_MANTIS, laserArt, LAVA_LIZARD, NEON_MOTH, steps, SWAMP_CR
 import { checkSpec, cellList } from "./spec.ts";
 
 describe("the Chains of compassion fighters", () => {
-  it("are seven bodies on one kung-fu move list, each a complete fighter with a blaster", () => {
-    expect(CHAINS.map((t) => t.name)).toEqual(["Lava Lizard", "Blue Jay", "Swamp Croc", "Jungle Boar", "Snow Rhino", "Ghost Mantis", "Neon Moth"]);
+  it("are eight bodies on one kung-fu move list, each a complete fighter with a blaster", () => {
+    expect(CHAINS.map((t) => t.name)).toEqual(["Lava Lizard", "Blue Jay", "Swamp Croc", "Jungle Boar", "Snow Rhino", "Ghost Mantis", "Neon Moth", "Iron Raven"]);
     for (const t of CHAINS) {
       expect(checkSpec(t)).toEqual([]);
       const frames = t.art.columns * t.art.rows;
