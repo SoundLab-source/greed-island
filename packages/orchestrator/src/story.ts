@@ -1,0 +1,191 @@
+/**
+ * The announcer (docs/ENGAGEMENT.md §1): a fight's facts said out loud. Before the fight, the most interesting
+ * lines (a debut, a win streak, a one-sided head-to-head, a rivalry, a long-shot underdog, a dead-even fight, which
+ * styles tend to win this matchup); after it, one headline when there's a story (an upset, a streak broken or
+ * extended, a promotion, a debut win). Pure: `storyFacts` gathers the facts from the database.
+ */
+import type { Archetype } from "@greed-island/shared";
+import type { Db } from "@greed-island/db";
+
+type Side = 1 | 2;
+const other = (s: Side): Side => (s === 1 ? 2 : 1);
+
+export interface StoryFacts {
+  sides: Record<Side, { name: string; archetype: Archetype; debut: boolean; streak: { kind: "W" | "L"; n: number } | null; tier: string; tierAfter: string | null }>;
+  /** Their meetings before this fight. */
+  headToHead: { fights: number; wins: Record<Side, number>; lastWinner: Side | null };
+  /** Win chances (locked, or the live estimate) and payouts, when known. */
+  chancePct: Record<Side, number> | null;
+  multiplier: Record<Side, string> | null;
+  /** "final", "semi-final"... for a tournament match (shared roundName). */
+  tournamentRound: string | null;
+  /** Which style tends to win this matchup on this roster, when the data says so. */
+  styleEdge: { winner: Archetype; loser: Archetype; pct: number; fights: number } | null;
+  result: { winnerSide: Side } | null;
+}
+
+export interface Story {
+  /** Before the fight: the best few lines, most interesting first. */
+  lines: string[];
+  /** After it: the one headline worth shouting, if any. */
+  headline: { kind: "upset" | "streak-broken" | "streak" | "promoted" | "debut-win"; text: string } | null;
+}
+
+/** Each style's name on the roster (the templates'), plural. */
+export const STYLE_NAMES: Record<Archetype, string> = { ALL_ROUNDER: "Brawlers", RUSHDOWN: "Strikers", HEAVY: "Bruisers", GRAPPLER: "Wrestlers", ZONER: "Sages" };
+
+const TIERS = ["P", "B", "A", "S", "X"];
+const pct = (n: number) => `${Math.round(n)}%`;
+/** "an 18%", "a 20%": numbers said with a vowel first (eight, eleven, eighteen, eighty...). */
+const article = (n: number) => (/^(8|11|18)$/.test(String(Math.round(n))) || (Math.round(n) >= 80 && Math.round(n) < 90) ? "an" : "a");
+
+export function fightStory(f: StoryFacts, max = 3): Story {
+  const lines: { score: number; text: string }[] = [];
+  const add = (score: number, text: string) => lines.push({ score, text });
+  const name = (s: Side) => f.sides[s].name;
+  const h = f.headToHead;
+
+  if (f.tournamentRound === "final") add(100, "Tournament final: the winner takes the title");
+  else if (f.tournamentRound === "semi-final") add(80, "Tournament semi-final: a place in the final on the line");
+  for (const s of [1, 2] as const) {
+    const x = f.sides[s];
+    if (x.debut) add(90, `First fight ever for ${x.name}`);
+    if (x.streak?.kind === "W" && x.streak.n >= 3) add(60 + 2 * x.streak.n, `${x.name} is on a ${x.streak.n}-fight win streak`);
+    if (x.streak?.kind === "L" && x.streak.n >= 4) add(44 + x.streak.n, `${x.name} has lost ${x.streak.n} in a row`);
+  }
+  if (h.fights >= 3 && (h.wins[1] === 0 || h.wins[2] === 0)) {
+    const loser: Side = h.wins[1] === 0 ? 1 : 2;
+    add(75 + h.fights, `${name(loser)} has never beaten ${name(other(loser))} (0-${h.fights})`);
+  } else if (h.fights >= 4 && Math.abs(h.wins[1] - h.wins[2]) <= 1) {
+    const lead: Side | null = h.wins[1] === h.wins[2] ? null : h.wins[1] > h.wins[2] ? 1 : 2;
+    add(70, lead ? `Rivalry: ${name(lead)} leads ${name(other(lead))} ${h.wins[lead]}-${h.wins[other(lead)]}` : `Rivalry: all square at ${h.wins[1]}-${h.wins[2]}`);
+  } else if (h.fights >= 1 && h.lastWinner) {
+    add(50, `Rematch: ${name(h.lastWinner)} won their last meeting`);
+  }
+  if (f.chancePct) {
+    const dog: Side = f.chancePct[1] <= f.chancePct[2] ? 1 : 2;
+    const c = f.chancePct[dog];
+    if (c <= 25) add(55 + (25 - c), `Upset alert: ${name(dog)} is ${article(c)} ${pct(c)} underdog${f.multiplier ? `, paying ${f.multiplier[dog].replace("x", "×")}` : ""}`);
+    else if (Math.abs(f.chancePct[1] - f.chancePct[2]) <= 6) add(35, `Dead even: ${pct(f.chancePct[1])} to ${pct(f.chancePct[2])}`);
+  }
+  if (f.styleEdge) {
+    const e = f.styleEdge;
+    add(28 + (e.pct - 55), `${STYLE_NAMES[e.winner]} beat ${STYLE_NAMES[e.loser]} ${pct(e.pct)} of the time on this roster`);
+  }
+
+  return { lines: lines.sort((a, b) => b.score - a.score).slice(0, max).map((l) => l.text), headline: f.result ? headline(f, f.result.winnerSide) : null };
+}
+
+function headline(f: StoryFacts, w: Side): Story["headline"] {
+  const l = other(w);
+  const winner = f.sides[w], loser = f.sides[l];
+  const chance = f.chancePct?.[w];
+  if (chance !== undefined && chance <= 30) {
+    return { kind: "upset", text: `UPSET! ${winner.name} wins at ${pct(chance)}${f.multiplier ? `, paying ${f.multiplier[w].replace("x", "×")}` : ""}` };
+  }
+  if (loser.streak?.kind === "W" && loser.streak.n >= 3) return { kind: "streak-broken", text: `STREAK BROKEN: ${loser.name}'s ${loser.streak.n}-fight run is over` };
+  if (winner.tierAfter && TIERS.indexOf(winner.tierAfter) > TIERS.indexOf(winner.tier)) return { kind: "promoted", text: `${winner.name} moves up to ${winner.tierAfter} tier!` };
+  if (winner.streak?.kind === "W" && winner.streak.n >= 2) return { kind: "streak", text: `${winner.name} makes it ${winner.streak.n + 1} in a row` };
+  if (winner.debut) return { kind: "debut-win", text: `${winner.name} wins on debut!` };
+  return null;
+}
+
+/** A run of the same result, newest first: "WWWL..." gives 3 wins. */
+export function streakOf(results: readonly ("W" | "L")[]): { kind: "W" | "L"; n: number } | null {
+  if (!results.length) return null;
+  let n = 0;
+  while (n < results.length && results[n] === results[0]) n++;
+  return { kind: results[0]!, n };
+}
+
+/** Wins between styles on settled fights, `wins[a][b]` = how often a beat b (mirror matches left out). */
+export type StyleWins = Partial<Record<Archetype, Partial<Record<Archetype, number>>>>;
+
+/** Which of two styles tends to win, when there are enough fights and the edge is clear. */
+export function styleEdge(wins: StyleWins, a: Archetype, b: Archetype, minFights = 40, minPct = 57): StoryFacts["styleEdge"] {
+  if (a === b) return null;
+  const ab = wins[a]?.[b] ?? 0, ba = wins[b]?.[a] ?? 0, total = ab + ba;
+  if (total < minFights) return null;
+  const top = ab >= ba ? { winner: a, loser: b, n: ab } : { winner: b, loser: a, n: ba };
+  const share = (100 * top.n) / total;
+  return share >= minPct ? { winner: top.winner, loser: top.loser, pct: Math.round(share), fights: total } : null;
+}
+
+// ----- Gathering the facts -----
+
+let styleCache: { at: number; db: Db; wins: StyleWins } | null = null;
+
+/** Every settled fight's styles and winner, tallied (kept for five minutes: it changes slowly). */
+export async function styleWins(db: Db, now = Date.now()): Promise<StyleWins> {
+  if (styleCache && styleCache.db === db && now - styleCache.at < 5 * 60_000) return styleCache.wins;
+  const rows = await db.$queryRaw<{ a1: Archetype; a2: Archetype; w: number; n: number }[]>`
+    SELECT f1.archetype::text AS a1, f2.archetype::text AS a2, fi.winner_side::int AS w, COUNT(*)::int AS n
+    FROM fight fi
+    JOIN character c1 ON c1.id = fi.side1_character_id JOIN fighter f1 ON f1.id = c1.fighter_id
+    JOIN character c2 ON c2.id = fi.side2_character_id JOIN fighter f2 ON f2.id = c2.fighter_id
+    WHERE fi.state = 'SETTLED' AND fi.winner_side IS NOT NULL
+    GROUP BY 1, 2, 3`;
+  const wins: StyleWins = {};
+  for (const r of rows) {
+    if (r.a1 === r.a2) continue;
+    const [won, lost] = r.w === 1 ? [r.a1, r.a2] : [r.a2, r.a1];
+    const row = (wins[won] ??= {});
+    row[lost] = (row[lost] ?? 0) + Number(r.n);
+  }
+  styleCache = { at: now, db, wins };
+  return wins;
+}
+
+/** A character's results before fight number `before`, newest first. */
+async function formBefore(db: Db, characterId: string, before: number, n = 12): Promise<("W" | "L")[]> {
+  const fights = await db.fight.findMany({
+    where: { state: "SETTLED", number: { lt: before }, OR: [{ side1CharacterId: characterId }, { side2CharacterId: characterId }] },
+    orderBy: { number: "desc" },
+    take: n,
+    select: { winnerCharacterId: true },
+  });
+  return fights.map((x) => (x.winnerCharacterId === characterId ? "W" : "L"));
+}
+
+/** The facts for a fight, as of when it was booked (streaks and meetings before it). */
+export async function storyFacts(
+  db: Db,
+  fight: { number: number; side1CharacterId: string; side2CharacterId: string; winnerSide: number | null; state: string },
+  view: {
+    sides: Record<Side, { name: string; tier: string; tierAfter?: string | null; record?: { wins: number; losses: number }; wins?: number; losses?: number }>;
+    odds: { chancePct: Record<Side, number>; multiplier: Record<Side, string> } | null;
+    tournament: { roundName: string } | null;
+  },
+): Promise<StoryFacts> {
+  const ids: Record<Side, string> = { 1: fight.side1CharacterId, 2: fight.side2CharacterId };
+  const chars = await db.character.findMany({ where: { id: { in: [ids[1], ids[2]] } }, select: { id: true, fighter: { select: { archetype: true } } } });
+  const archetype = (s: Side) => chars.find((c) => c.id === ids[s])!.fighter.archetype as Archetype;
+  const forms = { 1: await formBefore(db, ids[1], fight.number), 2: await formBefore(db, ids[2], fight.number) };
+  const meetings = await db.fight.findMany({
+    where: {
+      state: "SETTLED",
+      number: { lt: fight.number },
+      OR: [
+        { side1CharacterId: ids[1], side2CharacterId: ids[2] },
+        { side1CharacterId: ids[2], side2CharacterId: ids[1] },
+      ],
+    },
+    orderBy: { number: "desc" },
+    select: { winnerCharacterId: true },
+  });
+  const wins = { 1: meetings.filter((m) => m.winnerCharacterId === ids[1]).length, 2: meetings.filter((m) => m.winnerCharacterId === ids[2]).length };
+  const last = meetings[0]?.winnerCharacterId;
+  const side = (s: Side) => {
+    const v = view.sides[s];
+    return { name: v.name, archetype: archetype(s), debut: forms[s].length === 0, streak: streakOf(forms[s]), tier: v.tier, tierAfter: v.tierAfter ?? null };
+  };
+  return {
+    sides: { 1: side(1), 2: side(2) },
+    headToHead: { fights: meetings.length, wins, lastWinner: last === ids[1] ? 1 : last === ids[2] ? 2 : null },
+    chancePct: view.odds ? view.odds.chancePct : null,
+    multiplier: view.odds ? view.odds.multiplier : null,
+    tournamentRound: view.tournament?.roundName ?? null,
+    styleEdge: styleEdge(await styleWins(db), archetype(1), archetype(2)),
+    result: fight.state === "SETTLED" && (fight.winnerSide === 1 || fight.winnerSide === 2) ? { winnerSide: fight.winnerSide } : null,
+  };
+}

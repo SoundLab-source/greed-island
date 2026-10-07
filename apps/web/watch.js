@@ -106,6 +106,19 @@
 
   const form = (last10) => `<span class="form">${last10.length ? last10.map((r) => `<span class="${r === "W" ? "w" : "l"}">${r}</span>`).join("") : '<span class="muted">new</span>'}</span>`;
 
+  // The announcer (docs/ENGAGEMENT.md §1): the fight's story before it, its headline after.
+  function renderStory(f) {
+    const s = f.story;
+    const el = $("story");
+    if (s && s.headline && f.state === "SETTLED") {
+      el.className = `story headline ${s.headline.kind}`;
+      el.textContent = s.headline.text;
+    } else {
+      el.className = "story";
+      el.innerHTML = s ? s.lines.slice(0, 2).map((l) => `<span>${esc(l)}</span>`).join("") : "";
+    }
+  }
+
   // One line of facts under the stake: head to head and stage (the bets and pools are in the left column).
   function renderMatchup(f) {
     const h = f.headToHead;
@@ -187,6 +200,7 @@
         ? "Pick a stake, then click a side. You can change it until betting closes."
         : "";
     renderMatchup(f);
+    renderStory(f);
     renderClock();
     renderBets();
   }
@@ -260,9 +274,11 @@
       bet: onBet,
       odds_locked: () => refreshFight().catch(() => {}),
       fight_result: async (d) => {
-        const f = d.fightId === fight?.id ? fight : await api("GET", `/api/fights/${d.fightId}`).catch(() => null);
+        // Fetched fresh: the headline needs the result.
+        const f = await api("GET", `/api/fights/${d.fightId}`).catch(() => null);
         if (!f) return;
-        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins` : `Fight #${d.number}: no contest, bets refunded`);
+        const headline = f.story && f.story.headline ? ` <span class="headline ${f.story.headline.kind}">${esc(f.story.headline.text)}</span>` : "";
+        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}` : `Fight #${d.number}: no contest, bets refunded`);
       },
       title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),
       tournament: (d) => {

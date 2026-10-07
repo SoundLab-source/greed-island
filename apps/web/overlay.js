@@ -88,7 +88,7 @@
     const f = fight;
     if (!f) {
       $("segment").innerHTML = "";
-      $("card1").innerHTML = $("card2").innerHTML = $("chance").innerHTML = $("pools").innerHTML = $("meta").innerHTML = "";
+      $("card1").innerHTML = $("card2").innerHTML = $("chance").innerHTML = $("pools").innerHTML = $("meta").innerHTML = $("story").innerHTML = "";
       $("status").innerHTML = statusHtml(null);
       return;
     }
@@ -104,6 +104,8 @@
     $("pools").innerHTML = o && o.locked ? `Pools <b>${o.pool[1]}</b> / <b>${o.pool[2]}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}` : "";
     const h = f.headToHead;
     $("meta").innerHTML = `Fight #${f.number} · ${esc(f.stage.displayName)} · ${h.fights ? `head-to-head ${h.wins[1]}–${h.wins[2]}` : "first meeting"}`;
+    // The announcer's lines (docs/ENGAGEMENT.md §1).
+    $("story").innerHTML = f.story ? f.story.lines.map((l) => `<li>${esc(l)}</li>`).join("") : "";
     renderClock();
   }
 
@@ -166,7 +168,8 @@
         f.result && f.result.ownerReward ? `owner ${esc(w.owner.name)} earns <b>${f.result.ownerReward} Salt</b>` : "",
       ].filter(Boolean);
       el.className = `banner ${side === 1 ? "red" : "blue"}`;
-      el.innerHTML = `<div class="kicker">${side === 1 ? "RED" : "BLUE"} CORNER WINS</div><div class="who">${esc(w.name)}</div><div class="lines">${lines.join(" · ")}</div>`;
+      const headline = f.story && f.story.headline ? `<div class="headline ${esc(f.story.headline.kind)}">${esc(f.story.headline.text)}</div>` : "";
+      el.innerHTML = `${headline}<div class="kicker">${side === 1 ? "RED" : "BLUE"} CORNER WINS</div><div class="who">${esc(w.name)}</div><div class="lines">${lines.join(" · ")}</div>`;
     } else {
       el.className = "banner void";
       const why = { DRAW: "a draw", ENGINE_CRASH: "a technical problem", ENGINE_TIMEOUT: "the fight ran too long" }[d.voidReason] ?? "the fight was stopped";

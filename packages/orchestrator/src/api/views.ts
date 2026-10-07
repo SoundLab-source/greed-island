@@ -29,6 +29,7 @@ import {
 } from "@greed-island/shared";
 import { mySeason } from "./season-views.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
+import { fightStory, storyFacts } from "../story.ts";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -275,6 +276,10 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     if (b) myBet = { side: b.side, stake: b.stake.toFixed(0), status: b.status, returned: b.returned?.toFixed(0) ?? null };
   }
 
+  // The announcer's lines before the fight, and its headline after (docs/ENGAGEMENT.md §1).
+  const tournament = tm ? { roundName: roundName(tm.round, tm.tournament.size) } : null;
+  const story = fightStory(await storyFacts(db, f, { sides: { 1: s1, 2: s2 }, odds: odds as { chancePct: Record<Side, number>; multiplier: Record<Side, string> } | null, tournament }));
+
   return {
     id: f.id,
     number: f.number,
@@ -312,6 +317,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     myBet,
     bets,
     betsRevealed,
+    story,
   };
 }
 

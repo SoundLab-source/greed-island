@@ -64,6 +64,12 @@
 .my-bet b { color: var(--ink); }
 .center .msg { text-align: center; font-size: 13px; }
 /* One line of facts: head to head, stage, pools. */
+/* The announcer's lines, and the headline after a fight. */
+.story { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; min-height: 16px; font-size: 12px; color: var(--ink); text-align: center; }
+.story span::before { content: "▸ "; color: var(--gold); }
+.story.headline, .feed .headline { color: var(--gold); font-weight: 800; letter-spacing: .5px; }
+.story.headline.upset, .feed .headline.upset { color: var(--red); }
+.feed .headline { display: block; font-size: 11px; }
 .matchup { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; color: var(--dim); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
 .matchup b { color: var(--ink); letter-spacing: 0; text-transform: none; }
 .form { letter-spacing: 1px; font-weight: 800; }

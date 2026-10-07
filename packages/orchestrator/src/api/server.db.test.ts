@@ -152,6 +152,8 @@ describe("fights and bets", () => {
     expect(view.odds).toMatchObject({ locked: false, multiplier: { 1: "1.90x", 2: "1.90x" } });
     expect(view.headToHead).toEqual({ fights: 0, wins: { 1: 0, 2: 0 } });
     expect(view.odds.pool).toBeUndefined(); // no crowd split before lock
+    // The announcer: both are new, and the odds are even.
+    expect(view.story).toEqual({ lines: [`First fight ever for ${view.sides[1].name}`, `First fight ever for ${view.sides[2].name}`, "Dead even: 50% to 50%"], headline: null });
   });
 
   it("places, changes and replays a bet; shows it as the viewer's bet", async () => {
@@ -330,6 +332,8 @@ describe("stats after fights", () => {
     expect(catalog.titles.map((t: { code: string }) => t.code)).toContain("GIANT_SLAYER");
     const current = (await app.inject({ method: "GET", url: "/api/fights/current" })).json();
     expect(current.headToHead.fights).toBe(3);
+    // Before this third meeting they'd met twice: the announcer calls it a rematch.
+    expect(current.story.lines.some((l: string) => l.startsWith("Rematch: "))).toBe(true);
     expect(current.sides[1].cosmetics).toMatchObject({ nameplate: { id: expect.any(String) } });
     expect(current.result).not.toBeNull();
     const board = (await app.inject({ method: "GET", url: "/api/leaderboard" })).json();
