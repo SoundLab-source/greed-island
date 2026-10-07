@@ -16,7 +16,7 @@ const SIZE = 340 / 106;
 
 export interface Body {
   id: string;
-  /** The GIF, and who it is in the set. */
+  /** The GIF (in art/sources/mustermenschen, or a path from there to another folder), and who it is. */
   file: string;
   who: string;
   sha256: string;
@@ -35,7 +35,7 @@ export interface Body {
 }
 
 /** A body's art source: its GIF laid out 30 to a row, its standard get-hit sprites, credited to its style. */
-export function bodyArt(b: Body, style: string, standardSprites: Readonly<Record<string, StandardSprite>>): ArtSource {
+export function bodyArt(b: Body, style: string, standardSprites: Readonly<Record<string, StandardSprite>>, source?: string): ArtSource {
   return {
     id: b.id,
     file: `${MUSTERMENSCHEN}/${b.file}`,
@@ -49,7 +49,8 @@ export function bodyArt(b: Body, style: string, standardSprites: Readonly<Record
     stray: [],
     localcoord: Math.round((SIZE * b.tall) / (b.size ?? 1)),
     standardSprites,
-    credit: `Sprites: Mustermenschen V1 (${b.who}, ${style}) by Puffolotti (CC0), ${MUSTERMENSCHEN_URL}`,
+    // `source`: a body published on its own page rather than in the collection.
+    credit: source ? `Sprites: ${b.who} (${style}) by Puffolotti (CC0), ${source}` : `Sprites: Mustermenschen V1 (${b.who}, ${style}) by Puffolotti (CC0), ${MUSTERMENSCHEN_URL}`,
   };
 }
 

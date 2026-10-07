@@ -99,9 +99,9 @@ export function laserArt(state: number): ProjectileArt {
   return { sprites, actions };
 }
 
-export function chainsFighter(o: { body: Body; id: string; name: string; base: TemplateSpec; outfits: [string, HueShift[]][] }): TemplateSpec {
+export function chainsFighter(o: { body: Body; id: string; name: string; base: TemplateSpec; outfits: [string, HueShift[]][]; source?: string }): TemplateSpec {
   const m = o.body.map ?? ((n: number) => n);
-  const art = bodyArt(o.body, STYLE, Object.fromEntries(Object.entries(STANDARD).map(([k, n]) => [k, { cell: m(n), anchor: "feet" as const }])));
+  const art = bodyArt(o.body, STYLE, Object.fromEntries(Object.entries(STANDARD).map(([k, n]) => [k, { cell: m(n), anchor: "feet" as const }])), o.source);
   const range = (from: number, to: number) => cellRange(from, to).map(m);
   const at = (...cells: number[]) => cells.map(m);
   const base: TemplateSpec = { ...o.base, art };
@@ -333,4 +333,32 @@ export const IRON_RAVEN = chainsFighter({
   ],
 });
 
-export const CHAINS: readonly TemplateSpec[] = [LAVA_LIZARD, BLUE_JAY, SWAMP_CROC, JUNGLE_BOAR, SNOW_RHINO, GHOST_MANTIS, NEON_MOTH, IRON_RAVEN];
+/**
+ * The Tasen commanders Maeja and Ukall, published on their own (art/sources/tasen-maeja and tasen-ukall: GIFs a
+ * little longer than the collection's, with a few more frames in five places), in detailed armour with a bigger gun.
+ */
+const TASEN_URL = (who: string) => `https://opengameart.org/content/tasen-soldiercommander-${who}-for-fighting-games`;
+
+/** Maeja: teal skin, grey and maroon armour. */
+export const SKY_MARSHAL = chainsFighter({
+  body: { id: "maeja-chains", file: "../tasen-maeja/chains.gif", who: "Tasen commander Maeja", sha256: "03e6b5c47cd42d36cf9d1d91a73b04b9a5e3a297fb8f0bfb1d320cc377441e86", width: 132, height: 109, frames: 1149, x0: 39, x1: 76, y1: 101, tall: 70, size: 1.15, map: S([0, 0], [19, -6], [22, -7], [475, -15], [756, -14], [1046, -21], [1054, -28]) },
+  id: "gi-sky-marshal", name: "Sky Marshal", base: ZONER, source: TASEN_URL("maeja"),
+  outfits: [
+    ["Crimson Marshal", [shift(160, 195, 355, { minSat: 0.18 })]],
+    ["Gold Marshal", [shift(160, 195, 45, { minSat: 0.18 })]],
+    ["Violet Marshal", [shift(160, 195, 275, { minSat: 0.18 })]],
+  ],
+});
+
+/** Ukall: navy and steel-blue armour with red plates. */
+export const STAR_SERGEANT = chainsFighter({
+  body: { id: "ukall-chains", file: "../tasen-ukall/chains.gif", who: "Tasen commander Ukall", sha256: "9d51a07cff1b3d33502e29a9beae7219b7e40c47a61e8c8da6551c936a8a22ba", width: 137, height: 113, frames: 1141, x0: 41, x1: 80, y1: 104, tall: 72, size: 1.18, map: S([0, 0], [19, -6], [22, -7], [475, -15], [756, -14], [1046, -29], [1054, -36]) },
+  id: "gi-star-sergeant", name: "Star Sergeant", base: HEAVY, source: TASEN_URL("ukall"),
+  outfits: [
+    ["Desert Sergeant", [shift(210, 242, 35, { minSat: 0.18 })]],
+    ["Forest Sergeant", [shift(210, 242, 120, { minSat: 0.18 })]],
+    ["Royal Sergeant", [shift(210, 242, 280, { minSat: 0.18 })]],
+  ],
+});
+
+export const CHAINS: readonly TemplateSpec[] = [LAVA_LIZARD, BLUE_JAY, SWAMP_CROC, JUNGLE_BOAR, SNOW_RHINO, GHOST_MANTIS, NEON_MOTH, IRON_RAVEN, SKY_MARSHAL, STAR_SERGEANT];
