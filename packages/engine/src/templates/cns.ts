@@ -11,6 +11,8 @@
  * Shared states (walking, jumping, guarding, getting hit) come from the
  * engine's common1.cns.
  */
+import { FX_DEF } from "../fx/pack.ts";
+import { gagStates, gagTriggers } from "../mugen/gags.ts";
 import type { AttackSpec, Command, HitSpec, TemplateSpec, ThrowSpec } from "./spec.ts";
 
 /** Round for a .cns file. */
@@ -308,6 +310,7 @@ export function statesFile(spec: TemplateSpec): string {
   );
   for (const a of spec.attacks) parts.push(attackState(spec, a));
   for (const t of spec.throws ?? []) parts.push(throwStates(spec, t));
+  if (spec.gags?.length) parts.push(gagStates(spec.gags, unitScale(spec)));
   return parts.join("\n");
 }
 
@@ -393,6 +396,7 @@ export function commandsFile(spec: TemplateSpec, reach?: ReadonlyMap<number, num
     ["[Command]", 'name = "holddown"', "command = /$D", "time = 1"].join("\n"), "",
     "[Statedef -1]",
     "",
+    ...gagTriggers(spec.gags ?? []),
   ];
   /** A ChangeState; triggers starting with "all:" are triggerall, the rest trigger1, trigger2... */
   const change = (title: string, value: number | string, triggers: string[]) => {
@@ -534,6 +538,7 @@ export function defFile(spec: TemplateSpec, palettes: number, about = `a Greed I
     "sprite = gi.sff",
     "anim = gi.air",
     ...(spec.sounds ? ["sound = gi.snd"] : []),
+    ...(spec.gags?.length ? [`fx = ${FX_DEF}`] : []),
     "",
     "[Palette Keymap]",
     "x = 1", "y = 2", "z = 3", "a = 4", "b = 5", "c = 6",

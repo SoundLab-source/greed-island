@@ -20,9 +20,13 @@ export const EXPLOSION_HIT_ANIM = 7771;
 /** Share of the opponent's life the explosion takes. */
 export const EXPLOSION_DAMAGE = 0.45;
 
-/** The states file of a character's gags. */
-export function gagStates(gags: readonly Gag[]): string {
+/**
+ * The states file of a character's gags. `scale` is the character's units per 320-wide unit (its localcoord / 320),
+ * so the blast throws everyone as far and shakes the screen as hard whatever the character's size.
+ */
+export function gagStates(gags: readonly Gag[], scale = 1): string {
   if (!gags.includes("explosion")) return "";
+  const k = (x: number) => String(Math.round(x * scale * 100) / 100);
   return [
     "; Greed Island gags (mugen.json \"gags\", pnpm mugen:import). Generated; do not edit.",
     "",
@@ -63,7 +67,7 @@ export function gagStates(gags: readonly Gag[]): string {
     "type = EnvShake",
     "trigger1 = Time = 21",
     "time = 36",
-    "ampl = 8",
+    `ampl = ${k(8)}`,
     "freq = 60",
     "",
     `[State ${EXPLOSION_STATE}, the blast]`,
@@ -87,8 +91,8 @@ export function gagStates(gags: readonly Gag[]): string {
     "air.type = High",
     "ground.slidetime = 20",
     "ground.hittime = 20",
-    "ground.velocity = -5, -7",
-    "air.velocity = -5, -7",
+    `ground.velocity = ${k(-5)}, ${k(-7)}`,
+    `air.velocity = ${k(-5)}, ${k(-7)}`,
     "fall = 1",
     "air.fall = 1",
     "fall.recover = 0",
@@ -106,10 +110,13 @@ export function gagStates(gags: readonly Gag[]): string {
   ].join("\n");
 }
 
+/** The explosion hit's one big hitbox around the opponent, in 320-wide units. */
+export const EXPLOSION_BOX = [-75, -175, 75, 5] as const;
+
 /** The animation of the explosion's hit: no picture (sprite -1), one big hitbox around the opponent. */
 export function gagAir(gags: readonly Gag[], eol = "\n"): string {
   if (!gags.includes("explosion")) return "";
-  return ["", "; Greed Island gag: the big explosion's hit (no picture, one big hitbox). Generated; do not edit.", `[Begin Action ${EXPLOSION_HIT_ANIM}]`, "Clsn1Default: 1", " Clsn1[0] = -75, -175, 75, 5", "-1, 0, 0, 0, 30", ""].join(eol);
+  return ["", "; Greed Island gag: the big explosion's hit (no picture, one big hitbox). Generated; do not edit.", `[Begin Action ${EXPLOSION_HIT_ANIM}]`, "Clsn1Default: 1", ` Clsn1[0] = ${EXPLOSION_BOX.join(", ")}`, "-1, 0, 0, 0, 30", ""].join(eol);
 }
 
 /** For the character's [Statedef -1]: the AI sets a gag off at random, at most once a round. */

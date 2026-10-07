@@ -331,3 +331,16 @@ describe("outfits by hue", () => {
     expect(g4).toBe(b4);
   });
 });
+
+describe("outfits by hue on grey coats", () => {
+  it("tint greys in a lightness band and leave bright colours (eyes) alone", async () => {
+    const { shiftHues } = await import("./art.ts");
+    // 0 transparent, 1 mid grey, 2 near white, 3 bright cyan eye.
+    const palette = new Uint8Array([0, 0, 0, 110, 112, 114, 245, 245, 245, 20, 200, 200]);
+    const out = shiftHues(palette, [{ from: 0, to: 360, minSat: 0, maxSat: 0.2, lights: [0.2, 0.8], hue: 20, tint: 0.5 }]);
+    const [r, g, b] = out.subarray(3, 6);
+    expect(r).toBeGreaterThan(g! + 20);
+    expect(g).toBeGreaterThan(b!);
+    expect([...out.subarray(6, 12)]).toEqual([...palette.subarray(6, 12)]);
+  });
+});

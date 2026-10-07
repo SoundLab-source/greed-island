@@ -11,6 +11,7 @@
 import type { StandardSprite } from "./standard.ts";
 import type { Archetype } from "@greed-island/shared";
 import type { AirAction, Box } from "../art/air.ts";
+import type { Gag } from "../mugen/gags.ts";
 import type { SffSprite } from "../art/sff.ts";
 import type { Sheet } from "../art/sheet.ts";
 import type { SndSound } from "../art/snd.ts";
@@ -176,6 +177,8 @@ export interface ThrowSpec {
   /** The reach, as an animation on action `state`; `catchFrames` are when it can grab. */
   reach: AnimSpec;
   catchFrames: readonly number[];
+  /** A hand-made grab box (sheet pixels from the axis), for reach frames where nothing reaches out (a lunge that moves the whole body). */
+  box?: Box;
   /** Forward movement during the reach (320 units per tick), like AttackSpec.moves. */
   moves?: readonly { frame: number; x: number }[];
   /** Holding and throwing, frame by frame: the thrower's cell and ticks, and where the victim is held (in front, up; 320 units). */
@@ -257,6 +260,8 @@ export interface TemplateSpec {
   /** Sounds of its own (written to gi.snd at build time), played by `cues` and HitSpec.hitSound. */
   sounds?: () => readonly SndSound[];
   /** Effects of its own drawn over the fighter (Explods started by `cues`): extra sprites and animations, made at build time. */
+  /** Gags (mugen/gags.ts), like the imported characters': e.g. "explosion", a rare random cartoon blast on the opponent. */
+  gags?: readonly Gag[];
   effectArt?: () => { sprites: SffSprite[]; actions: AirAction[] };
   /** A sound or an effect that starts when one of the fighter's animations reaches a frame. */
   cues?: readonly Cue[];
@@ -307,6 +312,10 @@ export interface HueShift {
   minSat?: number;
   /** Only colours this light (0-1): e.g. dark leather the same hue as skin. Default all. */
   lights?: readonly [number, number];
+  /** Only colours at most this saturated (0-1): a grey coat, but not the bright eyes in it. Default 1. */
+  maxSat?: number;
+  /** Saturation after the shift is at least this (0-1), so a grey can take a colour. Default 0. */
+  tint?: number;
   /** The new hue (degrees), or null to drain the colour to grey. */
   hue: number | null;
   /** Multiply saturation and lightness (default 1). */
@@ -374,7 +383,8 @@ export function checkSpec(spec: TemplateSpec): string[] {
   }
   for (const p of spec.palettes) for (const s of p.shifts ?? []) {
     const deg = (n: number | null) => n === null || (n >= 0 && n <= 360);
-    if (!deg(s.from) || !deg(s.to) || !deg(s.hue) || (s.minSat ?? 0) < 0 || (s.minSat ?? 0) > 1 || (s.sat ?? 1) < 0 || (s.light ?? 1) < 0) problems.push(`palette ${p.name}: bad hue shift`);
+    const unit = (n: number | undefined) => n === undefined || (n >= 0 && n <= 1);
+    if (!deg(s.from) || !deg(s.to) || !deg(s.hue) || !unit(s.minSat) || !unit(s.maxSat) || !unit(s.tint) || (s.sat ?? 1) < 0 || (s.light ?? 1) < 0) problems.push(`palette ${p.name}: bad hue shift`);
   }
   for (const p of spec.looks ?? []) {
     if (p.art.columns !== spec.art.columns || p.art.rows !== spec.art.rows) problems.push(`look from ${p.art.id}: its sheet isn't on this one's layout`);

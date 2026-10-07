@@ -41,7 +41,10 @@ export function previewPages(sheet: CellSource, axis: { x: number; y: number }, 
     pageRows.forEach((row, r) => {
       row.frames.forEach((f, c) => {
         const ox = c * fw, oy = r * fh;
-        const src = sheet.cell(slots.get(`${f.group},${f.number}`)!);
+        // Frames with no picture (sprite -1: the explosion gag's hit) leave their box empty.
+        const slot = slots.get(`${f.group},${f.number}`);
+        if (slot === undefined) return;
+        const src = sheet.cell(slot);
         const dy = f.y ?? 0;
         for (let y = 0; y < fh; y++) {
           for (let x = 0; x < fw; x++) {

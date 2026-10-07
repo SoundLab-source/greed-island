@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 import { writeAir, type AirAction, type AirFrame, type Box } from "../art/air.ts";
 import { hitbox, hurtboxes } from "../art/clsn.ts";
 import { gifSheet, readGif } from "../art/gif.ts";
+import { EXPLOSION_BOX, EXPLOSION_HIT_ANIM } from "../mugen/gags.ts";
 import { readSff, writeSff, type SffPalette, type SffSprite } from "../art/sff.ts";
 import { bounds, crop, isCellSource, scale, sheetCells, type CellSource, type IndexedImage, type Sheet } from "../art/sheet.ts";
 import { readPng, writePng } from "../art/png.ts";
@@ -97,10 +98,12 @@ export function shiftHues(from: Uint8Array, shifts: readonly HueShift[]): Uint8A
   for (let i = 1; i < out.length / 3; i++) {
     const [h, s, l] = rgbToHsl(out[i * 3]!, out[i * 3 + 1]!, out[i * 3 + 2]!);
     const shift = shifts.find(
-      (x) => s >= (x.minSat ?? 0.25) && l >= (x.lights?.[0] ?? 0) && l <= (x.lights?.[1] ?? 1) && (x.from <= x.to ? h >= x.from && h <= x.to : h >= x.from || h <= x.to),
+      (x) =>
+        s >= (x.minSat ?? 0.25) && s <= (x.maxSat ?? 1) && l >= (x.lights?.[0] ?? 0) && l <= (x.lights?.[1] ?? 1) && (x.from <= x.to ? h >= x.from && h <= x.to : h >= x.from || h <= x.to),
     );
     if (!shift) continue;
-    out.set(hslToRgb(shift.hue ?? h, shift.hue === null ? 0 : Math.min(1, s * (shift.sat ?? 1)), Math.min(1, l * (shift.light ?? 1))), i * 3);
+    const sat = shift.hue === null ? 0 : Math.min(1, Math.max(shift.tint ?? 0, s * (shift.sat ?? 1)));
+    out.set(hslToRgb(shift.hue ?? h, sat, Math.min(1, l * (shift.light ?? 1))), i * 3);
   }
   return out;
 }
@@ -166,7 +169,7 @@ export function buildTemplateArt(spec: TemplateSpec, from: Sheet | CellSource, o
     for (const h of a.hits) for (const f of h.frames) frames.set(f, h.box);
     hitFrames.set(a.state, frames);
   }
-  for (const t of spec.throws ?? []) hitFrames.set(t.state, new Map(t.catchFrames.map((f) => [f, undefined])));
+  for (const t of spec.throws ?? []) hitFrames.set(t.state, new Map(t.catchFrames.map((f) => [f, t.box])));
 
   const actions: AirAction[] = [];
   const seen = new Set<number>();
@@ -204,6 +207,13 @@ export function buildTemplateArt(spec: TemplateSpec, from: Sheet | CellSource, o
     });
     for (const f of hits?.keys() ?? []) if (f >= list.length) throw new Error(`action ${anim.action}: hit frame ${f} is past the last frame`);
     actions.push({ action: anim.action, frames, loopStart: anim.loop === false ? undefined : anim.loop, comment: anim.comment ?? spec.attacks.find((a) => a.state === anim.action)?.name ?? spec.throws?.find((t) => t.state === anim.action)?.name });
+  }
+  // The explosion gag's hit: no picture, one big hitbox around the opponent (in this fighter's units).
+  if (spec.gags?.includes("explosion")) {
+    const k = spec.art.localcoord / 320;
+    const box = EXPLOSION_BOX.map((v) => Math.round(v * k)) as unknown as Box;
+    actions.push({ action: EXPLOSION_HIT_ANIM, comment: "explosion gag: the hit (no picture)", frames: [{ group: -1, number: 0, ticks: 30, clsn1: [box] }] });
+    seen.add(EXPLOSION_HIT_ANIM);
   }
   const victims = (spec.throws ?? []).flatMap(victimActions);
   const projectiles = spec.attacks.filter((a) => a.projectile).map((a) => (a.projectile!.art ?? projectileArt)(a.state));

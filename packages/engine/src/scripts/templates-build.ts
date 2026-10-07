@@ -6,6 +6,7 @@ import { loadRepoEnv, REPO_ROOT } from "@greed-island/db";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Sheet } from "../art/sheet.ts";
+import { FX_DEF, writeFxPack } from "../fx/pack.ts";
 import { loadArtSheet } from "../templates/art.ts";
 import { templateFiles, writeTemplate } from "../templates/build.ts";
 import { BUILT_FIGHTERS, type ArtSource, type TemplateSpec } from "../templates/index.ts";
@@ -29,6 +30,8 @@ if (unknown.length) {
 }
 const roster = await loadRoster();
 const todo = BUILT_FIGHTERS.filter((t) => only.length === 0 || only.includes(t.id));
+// Fighters with gags play their effects from our effect pack (data/gifx/), built when it changes.
+if (todo.some((t) => t.gags?.length)) console.log(`  effects   ${await writeFxPack(ikemenDir)}  ${FX_DEF}`);
 // Each sheet is loaded once (with the checksum check) and let go once no fighter still to build uses it: a sheet is
 // about half a gigabyte unpacked. A fighter's looks (TemplateSpec.looks) need their models' sheets too.
 const artOf = (spec: TemplateSpec): ArtSource[] => [spec.art, ...(spec.looks ?? []).map((p) => p.art)];
