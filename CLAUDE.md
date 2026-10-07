@@ -16,7 +16,7 @@ Phase 3: Community roster (see DESIGN.md §13): all seven steps of its plan are 
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
 - `apps/web`: the player site (plain HTML/JS, no build step; shared `site.css`/`site.js`): home = watch and bet (`index.html`), `shop.html`, `fighters.html`, `fighter.html`, `rankings.html`, `vote.html`, `account.html`, `how-to-play.html`, `terms.html`, `privacy.html`; plus the stream overlay (`overlay.html`) for OBS, the staff page (`staff.html`), the fighter submission page (`submit.html`) and the plain dev page (`dev.html`)
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
-- `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, PHASE3, ikemen-notes, obs-notes, nft-notes
+- `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, PHASE3, ENGAGEMENT (a proposal), ikemen-notes, obs-notes, nft-notes
 
 ## Commands
 <!-- Claude: keep this list accurate as scripts are added. -->
