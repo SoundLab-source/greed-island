@@ -94,7 +94,16 @@
     return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"} ${GI.badges(s.cosmetics)}</span>
       <span>${GI.plate(s.name, s.cosmetics)}</span>
       <span class="odds">${odds}</span>
-      <span class="sub">${chance ? `<b>${chance}</b> · ` : ""}${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} ${form((s.last10 ?? []).slice(-5))}</span>`;
+      <span class="sub">${chance ? `<b>${chance}</b> · ` : ""}${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} ${form((s.last10 ?? []).slice(-5))}</span>
+      <span class="sub style">${scoutLine(n, f)}</span>`;
+  }
+
+  // The scouting card (docs/ENGAGEMENT.md §2): each side's style, and its record against the other's.
+  function scoutLine(n, f) {
+    const sc = f.scouting;
+    if (!sc) return "";
+    const vs = sc.vsStyle[n], other = sc.styles[n === 1 ? 2 : 1];
+    return `<b>${esc(sc.styles[n])}</b>${vs.fights ? ` · ${vs.wins}–${vs.fights - vs.wins} vs ${esc(other)}s` : ""}`;
   }
 
   function label(f) {
@@ -122,7 +131,9 @@
   // One line of facts under the stake: head to head and stage (the bets and pools are in the left column).
   function renderMatchup(f) {
     const h = f.headToHead;
-    $("matchup").innerHTML = `<span>Head to head <b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b></span><span>${esc(f.stage.displayName)}</span>`;
+    const sc = f.scouting, r = sc && sc.styleRecord;
+    const styles = !sc ? "" : r ? (r.fights ? `<span>${esc(sc.styles[1])}s <b>${r.wins[1]}–${r.wins[2]}</b> ${esc(sc.styles[2])}s</span>` : "") : `<span><b>Mirror match</b></span>`;
+    $("matchup").innerHTML = `<span>Head to head <b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b></span>${styles}<span>${esc(f.stage.displayName)}</span>`;
   }
 
   // ---- Bets: who's betting how much, and on which side once betting closes ----

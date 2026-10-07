@@ -53,6 +53,7 @@
       <div>${plate(s)}</div>
       ${badges(s)}
       <div class="owner">${owner}${s.firstEdition ? " · First Edition" : ""}</div>
+      ${scout(n, f)}
       <div class="stats">
         <span class="tier tier-${esc(s.tier)}">${esc(s.tier)}</span>
         <span class="stat"><b>${s.rating}</b><i>rating ±${s.deviation}</i></span>
@@ -61,6 +62,14 @@
       ${form ? `<div class="form">${form}</div>` : ""}
       ${boosts.length ? `<div class="boosts">${esc(boosts.join(" · "))}</div>` : ""}
       ${o ? `<div class="odds"><b>${mult(o.multiplier[n])}</b><i>payout</i></div>` : ""}`;
+  }
+
+  // The scouting card (docs/ENGAGEMENT.md §2): the style, and its record against the other's.
+  function scout(n, f) {
+    const sc = f.scouting;
+    if (!sc) return "";
+    const vs = sc.vsStyle[n], other = sc.styles[n === 1 ? 2 : 1];
+    return `<div class="scout"><b>${esc(sc.styles[n])}</b>${vs.fights ? ` · ${vs.wins}–${vs.fights - vs.wins} vs ${esc(other)}s` : ""}</div>`;
   }
 
   function statusHtml(f) {
@@ -103,7 +112,9 @@
       : "";
     $("pools").innerHTML = o && o.locked ? `Pools <b>${o.pool[1]}</b> / <b>${o.pool[2]}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}` : "";
     const h = f.headToHead;
-    $("meta").innerHTML = `Fight #${f.number} · ${esc(f.stage.displayName)} · ${h.fights ? `head-to-head ${h.wins[1]}–${h.wins[2]}` : "first meeting"}`;
+    const r = f.scouting && f.scouting.styleRecord;
+    const styles = r && r.fights ? ` · ${esc(f.scouting.styles[1])}s ${r.wins[1]}–${r.wins[2]} ${esc(f.scouting.styles[2])}s` : "";
+    $("meta").innerHTML = `Fight #${f.number} · ${esc(f.stage.displayName)} · ${h.fights ? `head-to-head ${h.wins[1]}–${h.wins[2]}` : "first meeting"}${styles}`;
     // The announcer's lines (docs/ENGAGEMENT.md §1).
     $("story").innerHTML = f.story ? f.story.lines.map((l) => `<li>${esc(l)}</li>`).join("") : "";
     renderClock();

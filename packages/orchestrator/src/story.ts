@@ -189,3 +189,40 @@ export async function storyFacts(
     result: fight.state === "SETTLED" && (fight.winnerSide === 1 || fight.winnerSide === 2) ? { winnerSide: fight.winnerSide } : null,
   };
 }
+
+// ----- The scouting card (docs/ENGAGEMENT.md §2) -----
+
+export interface Scouting {
+  /** Each side's style, by its roster name ("Wrestler"). */
+  styles: Record<Side, string>;
+  /** How the two styles have done against each other on this roster (settled fights; none for a mirror match). */
+  styleRecord: { fights: number; wins: Record<Side, number> } | null;
+  /** Each character's own record against the other's style, before this fight. */
+  vsStyle: Record<Side, { fights: number; wins: number }>;
+}
+
+/** Each style's name on the roster, singular. */
+export const STYLE_NAME: Record<Archetype, string> = { ALL_ROUNDER: "Brawler", RUSHDOWN: "Striker", HEAVY: "Bruiser", GRAPPLER: "Wrestler", ZONER: "Sage" };
+
+/** The scouting card's numbers for a fight. */
+export async function scouting(db: Db, fight: { number: number; side1CharacterId: string; side2CharacterId: string }): Promise<Scouting> {
+  const ids: Record<Side, string> = { 1: fight.side1CharacterId, 2: fight.side2CharacterId };
+  const chars = await db.character.findMany({ where: { id: { in: [ids[1], ids[2]] } }, select: { id: true, fighter: { select: { archetype: true } } } });
+  const style = (s: Side) => chars.find((c) => c.id === ids[s])!.fighter.archetype as Archetype;
+  const wins = await styleWins(db);
+  const a1 = style(1), a2 = style(2);
+  const styleRecord = a1 === a2 ? null : { fights: (wins[a1]?.[a2] ?? 0) + (wins[a2]?.[a1] ?? 0), wins: { 1: wins[a1]?.[a2] ?? 0, 2: wins[a2]?.[a1] ?? 0 } };
+  const vs = async (s: Side) => {
+    const c = ids[s], against = style(s === 1 ? 2 : 1);
+    const [row] = await db.$queryRaw<{ fights: number; wins: number }[]>`
+      SELECT COUNT(*)::int AS fights, COUNT(*) FILTER (WHERE fi.winner_character_id = ${c}::uuid)::int AS wins
+      FROM fight fi
+      JOIN character o ON o.id = CASE WHEN fi.side1_character_id = ${c}::uuid THEN fi.side2_character_id ELSE fi.side1_character_id END
+      JOIN fighter f ON f.id = o.fighter_id
+      WHERE fi.state = 'SETTLED' AND fi.number < ${fight.number}
+        AND (fi.side1_character_id = ${c}::uuid OR fi.side2_character_id = ${c}::uuid)
+        AND f.archetype::text = ${against}`;
+    return { fights: Number(row?.fights ?? 0), wins: Number(row?.wins ?? 0) };
+  };
+  return { styles: { 1: STYLE_NAME[a1], 2: STYLE_NAME[a2] }, styleRecord, vsStyle: { 1: await vs(1), 2: await vs(2) } };
+}

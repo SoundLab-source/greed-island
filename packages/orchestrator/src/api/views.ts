@@ -29,7 +29,7 @@ import {
 } from "@greed-island/shared";
 import { mySeason } from "./season-views.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
-import { fightStory, storyFacts } from "../story.ts";
+import { fightStory, scouting, storyFacts } from "../story.ts";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -318,6 +318,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     bets,
     betsRevealed,
     story,
+    scouting: await scouting(db, f),
   };
 }
 

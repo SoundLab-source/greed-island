@@ -115,6 +115,8 @@ body[data-scene="betting"] #hud { opacity: 0; }
 }
 .owner { color: var(--dim); font-size: calc(22 * var(--u)); }
 .owner strong { color: var(--ink); }
+.scout { color: var(--dim); font-size: calc(22 * var(--u)); }
+.scout b { color: var(--gold); letter-spacing: calc(1 * var(--u)); }
 
 .stats { display: flex; gap: calc(28 * var(--u)); align-items: baseline; }
 .blue .stats { justify-content: flex-end; }
