@@ -291,6 +291,19 @@ The owner asked for the best way to make original characters, with Ryon Teaches 
 
 **Recommendation:** route 2 now (starting with Nyan Cat) and route 1 when you say yes to the downloads; then route 3 as the next big build, first proven with a fighter drawn entirely in code, then opened to artists and NFT trait kits. Route 5 for a few stars later; route 4 only if a 3D look is wanted.
 
+**Decided (owner, 2026-10-06): routes 1 and 2 together:** more free bodies, each given moves of its own drawn in code.
+
+### More bodies: Mustermenschen V1 (started 2026-10-06)
+
+Puffolotti's CC0 collection (art/SOURCES.md) is 35 GIFs: about 20 people (and a few Iji-style aliens) in six fighting styles. A style's GIFs have nearly the same frame count (Thai boxing 835-841, WrongCookieDo 552-561, Chains of compassion 1,105-1,126, Farmer's dream 726-732, Tasen military combat 1,280-1,281, Alpha Contact 686-688), so one catalogue per style serves its bodies. Each GIF is a catalogue of moves back to back with no return to the guard between them, so the frames are read by eye in numbered contact sheets (60 at a time) and the strikes measured in code. What the first one taught:
+
+- **Small sprites.** The people are about 70-105 pixels tall (the Universal Prototype models about 220): drawn at localcoord ~340 they stand as tall as the others, chunky like classic arcade sprites. Rhivan at 315 stood a head over Copper Tiger.
+- **Hit boxes are relative to the axis in the cell,** not to each frame's lowest pixel (the feet anchor moves box and frame together): for jumping frames the two differ by 20-40 pixels, and the first air moves had their boxes under the leg.
+- **Palettes come in five-step ramps** (1-5, 6-10, ... 37-41), so outfits recolour whole ramps: for Rhivan, the camo's green, the tee and the gloves.
+- Five of the 35 GIFs keep a palette per frame, which `art/gif.ts` doesn't read yet.
+
+**Camo Cobra** (`templates/camo-cobra.ts`, art `templates/rhivan-thai.ts`, RUSHDOWN) is the first: the Striker's numbers and AI, every animation his own (catalogue in `rhivan-thai.ts`). Three real fights, every round a knockout, nothing missing in the logs.
+
 ## NFTs as fighters
 
 The owner's direction (2026-09-29), for step 7 and after the templates exist.
