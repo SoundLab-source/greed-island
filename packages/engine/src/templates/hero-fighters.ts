@@ -7,7 +7,7 @@ import { ALL_ROUNDER } from "./all-rounder.ts";
 import type { Box } from "../art/air.ts";
 import { GRAPPLER } from "./grappler.ts";
 import { HEAVY } from "./heavy.ts";
-import { disc, line, put, star, type PackCanvas } from "./pack-kit.ts";
+import { arcs, disc, line, put, star, type PackCanvas } from "./pack-kit.ts";
 import { coin, drawnProjectile, effects, flames, FX, heroFighter, pan, SOUNDS, waveArt, type Hero, type HeroCtx } from "./heroes.ts";
 import { RUSHDOWN } from "./rushdown.ts";
 import type { AttackSpec, TemplateSpec, ThrowSpec } from "./spec.ts";
@@ -161,21 +161,22 @@ function marshmallow(k: HeroCtx): number[] {
 // ----- Stabby: the goblin, a knife and a bag of bombs -----
 
 const GOBLIN = "Monsters_Creatures_Fantasy/Monsters_Creatures_Fantasy/Goblin";
+const GOBLIN_12 = "Monster_Creatures_Fantasy(Version 1.2)/Monster_Creatures_Fantasy(Version 1.2)/Goblin";
 const GOBLIN_13 = "Monster_Creatures_Fantasy(Version 1.3)/Monster_Creatures_Fantasy(Version 1.3)/Goblin";
 export const STABBY = hero({
   id: "gi-stabby", name: "Stabby", base: RUSHDOWN, localcoord: 443,
   pack: { name: "Monsters Creatures Fantasy", url: "https://luizmelo.itch.io/monsters-creatures-fantasy" },
   strips: {
     idle: [`${GOBLIN}/Idle.png`, 4], run: [`${GOBLIN}/Run.png`, 8], hurt: [`${GOBLIN}/Take Hit.png`, 4], death: [`${GOBLIN}/Death.png`, 4],
-    attack1: [`${GOBLIN}/Attack.png`, 8], bomb: [`${GOBLIN_13}/Bomb_sprite.png`, 19],
+    attack1: [`${GOBLIN}/Attack.png`, 8], attack2: [`${GOBLIN_12}/Attack2.png`, 8], attack3: [`${GOBLIN_13}/Attack3.png`, 12], bomb: [`${GOBLIN_13}/Bomb_sprite.png`, 19],
   },
   body: { front: 16, back: 17, height: 36 },
-  sha256: "3c1d2f9fde66589eb7b38068403952bb5d45c3904b2955e84c22cf9fec22bd2f",
-  room: { l: 44, r: 44, u: 46, d: 0 },
+  sha256: "16539796ddf6c3459a199aa9ffa1318d72d4fb2a7c211d0d21f10d2b7547fa22",
+  room: { l: 44, r: 68, u: 46, d: 0 },
   slash: { colours: ["#ffffff"] },
   hurt: [0, 2, 3],
   down: 3,
-  attacks: [{ strip: "attack1", frames: [4, 5, 6, 7], hits: [2] }, { strip: "attack1", frames: [2, 3, 4, 5, 6, 7], hits: [4] }, { strip: "attack1", hits: [6] }],
+  attacks: [{ strip: "attack1", frames: [4, 5, 6, 7], hits: [2] }, { strip: "attack1", frames: [2, 3, 4, 5, 6, 7], hits: [4] }, { strip: "attack2", hits: [6] }, { strip: "attack1", hits: [6] }],
   outfits: [
     { name: "Red Cap", colors: {}, shifts: [hue(60, 170, 0, { minSat: 0.3 })] },
     { name: "Blue", colors: {}, shifts: [hue(60, 170, 210, { minSat: 0.3 })] },
@@ -184,19 +185,20 @@ export const STABBY = hero({
   words: { cry: "STABBY!", intro: "SHINY?", win: "MINE NOW!", taunt: "HEHEHE!" },
   more: (k) => ({
     attacks: [bombRoll(k)],
-    cues: [{ action: 1400, frame: 3, sound: SOUNDS.whoosh }],
+    cues: [{ action: 1400, frame: 2, sound: SOUNDS.fire }, { action: 1400, frame: 5, sound: SOUNDS.whoosh }],
   }),
 });
 
 /** A lit bomb, rolled along the ground: it blows up on whoever doesn't jump it. */
 function bombRoll(k: HeroCtx): AttackSpec {
   const { STAND } = k.cells;
-  const cells = [2, 3, 4, 5].map((f) => k.c(`bomb throw ${f}`, { s: "attack1", f, sy: f === 5 ? 0.92 : 1 }));
+  // The later pack's throw: lights the fuse, winds up, and lets go on frame 10.
+  const cells = [5, 6, 7, 8, 9, 10, 11].map((f) => k.c(`bomb throw ${f}`, { s: "attack3", f }));
   return {
     state: 1400, name: "Bomb Roll", from: "stand", command: "QCB_x", special: true,
-    anim: { action: 1400, cells: [...cells, STAND[0]!], ticks: [3, 4, 4, 6, 5] },
-    hits: [{ frames: [3], damage: 60, chip: 8, height: "low", weight: "heavy", hitStun: 24, blockStun: 14, push: 5, knockdown: true, launch: [2, -5], hitSound: SOUNDS.boom }],
-    projectile: { frame: 3, speed: 3.2, height: k.units(4), offset: k.units(k.body.front + 6), art: k.stripProjectile({ strip: "bomb", frames: [0, 1, 2] }, { strip: "bomb", frames: [12, 13, 14, 15, 16, 17, 18] }) },
+    anim: { action: 1400, cells: [...cells, STAND[0]!], ticks: [3, 3, 4, 4, 4, 6, 5, 4] },
+    hits: [{ frames: [5], damage: 60, chip: 8, height: "low", weight: "heavy", hitStun: 24, blockStun: 14, push: 5, knockdown: true, launch: [2, -5], hitSound: SOUNDS.boom }],
+    projectile: { frame: 5, speed: 3.2, height: k.units(4), offset: k.units(k.body.front + 6), art: k.stripProjectile({ strip: "bomb", frames: [0, 1, 2] }, { strip: "bomb", frames: [12, 13, 14, 15, 16, 17, 18] }) },
     ai: { range: 300, weight: 0.6 },
   };
 }
@@ -659,4 +661,368 @@ function theLook(k: HeroCtx): AttackSpec {
   };
 }
 
-export const HEROES: readonly TemplateSpec[] = [SIR_BONKALOT, HOT_TAKES, STABBY, NIGHT_SHIFT, CAPE_CRUSADER, JAVELINA, ROBIN_HOODIE, HAT_TRICK, NO_SHIRT_KURT, KING_ME, ARMS_DEALER, BLUE_STEEL];
+// ----- More drawings -----
+
+/** A wedge of cheese (about 12 x 8) with holes, turned over every other frame. */
+function cheese(img: IndexedImage, x: number, y: number, t: number) {
+  const flip = t % 2 ? -1 : 1;
+  for (let v = 0; v < 8; v++) for (let u = 0; u <= 12 - v * 1.4; u++) put(img, x - 6 + u, y + flip * (3 - v), v === 0 || u >= 11 - v * 1.4 ? FX.cheeseDark : FX.cheese);
+  for (const [u, v] of [[2, 1], [6, 2], [3, 4]] as const) put(img, x - 6 + u, y + flip * (3 - v), FX.cheeseDark);
+}
+/** A green glob with a shine and drips. */
+function glob(img: IndexedImage, x: number, y: number, t: number) {
+  disc(img, x, y, 5, FX.stinkDark);
+  disc(img, x - 0.5, y - 0.5, 4, FX.green);
+  put(img, x - 2, y - 2, FX.white), put(img, x - 1, y - 2, FX.white);
+  for (let i = 0; i < 3; i++) put(img, x + 5 + i * 2 + (t % 2), y + 1 + (i % 2), FX.green);
+}
+/** Sound waves. */
+function screech(img: IndexedImage, x: number, y: number, t: number) {
+  arcs(img, x - 8, y, 5 + (t % 3) * 2, 3, 4, FX.purple, 100);
+  arcs(img, x - 8, y, 6 + (t % 3) * 2, 2, 4, FX.white, 60);
+}
+/** A gold crown spinning. */
+function crown(img: IndexedImage, x: number, y: number, t: number) {
+  const w = [7, 5, 2, 5][t % 4]!;
+  for (let u = -w; u <= w; u++) for (let v = 0; v < 4; v++) put(img, x + u, y + v, v === 3 ? FX.coinDark : FX.coin);
+  for (const p of [-1, 0, 1]) for (let v = 1; v <= 3; v++) if (Math.abs(p * w) - v / 2 <= w) put(img, x + Math.round(p * w * 0.8), y - v, FX.coin);
+  if (w > 3) put(img, x, y + 1, FX.red);
+}
+/** A red glare. */
+function glare(img: IndexedImage, x: number, y: number, t: number) {
+  for (let u = -14; u <= 14; u++) {
+    put(img, x + u, y, FX.white);
+    put(img, x + u, y - 1, FX.red), put(img, x + u, y + 1, FX.red);
+    if ((u + t) % 5 === 0) put(img, x + u, y - 2, FX.red), put(img, x + u, y + 2, FX.red);
+  }
+}
+/** Flames creeping along the ground. */
+function floorFire(img: IndexedImage, x: number, y: number, t: number) {
+  for (let i = -1; i <= 1; i++) flames(img, x + i * 7, y + 9, 8 + ((i + t) % 3) * 2, t + i);
+}
+
+// ----- Royal Pain: the second Medieval King -----
+
+const KING_2 = "Medieval King Pack 2/Medieval King Pack 2/Sprites";
+export const ROYAL_PAIN = hero({
+  id: "gi-royal-pain", name: "Royal Pain", base: RUSHDOWN, localcoord: 518,
+  pack: { name: "Medieval King Pack 2", url: "https://luizmelo.itch.io/medieval-king-pack-2" },
+  strips: {
+    idle: [`${KING_2}/Idle.png`, 8], run: [`${KING_2}/Run.png`, 8], jump: [`${KING_2}/Jump.png`, 2], fall: [`${KING_2}/Fall.png`, 2],
+    hurt: [`${KING_2}/Take Hit.png`, 4], death: [`${KING_2}/Death.png`, 6], attack1: [`${KING_2}/Attack1.png`, 4], attack2: [`${KING_2}/Attack2.png`, 4], attack3: [`${KING_2}/Attack3.png`, 4],
+  },
+  widths: { idle: 160, run: 160, jump: 160, fall: 160, hurt: 160, death: 160, attack1: 160, attack2: 160, attack3: 160 },
+  body: { front: 15, back: 16, height: 54 },
+  sha256: "6889943b90a66660dcaf9ba47e2a93ae4d934129e78a240dd33c5bc86d67920a",
+  room: { l: 64, r: 79, u: 103, d: 0 },
+  slash: { colours: ["#ffffff", "#b4b4b4", "#949292", "#c8c8c8"] },
+  hurt: [0, 1, 2],
+  down: 5,
+  attacks: [{ strip: "attack1", hits: [2] }, { strip: "attack2", hits: [2] }, { strip: "attack3", hits: [2] }],
+  outfits: [
+    { name: "Red Cape", colors: {}, shifts: [hue(185, 235, 0, { minSat: 0.3 })] },
+    { name: "Green Cape", colors: {}, shifts: [hue(185, 235, 130, { minSat: 0.3 })] },
+    { name: "Purple Cape", colors: {}, shifts: [hue(185, 235, 280, { minSat: 0.3 })] },
+  ],
+  words: { cry: "HAH!", intro: "BOW DOWN!", win: "LONG LIVE!", taunt: "HOW RUDE." },
+  more: (k) => {
+    const cells = [0, 1].map((f) => k.c(`crown toss ${f}`, { s: "attack2", f }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Crown Toss", command: "QCB_x", cells: [...cells, k.c("crown toss 2", { s: "attack2", f: 3 }), k.cells.STAND[0]!], ticks: [4, 5, 8, 6], frame: 2, art: spinner(crown, 4, { w: 22, h: 14, box: [-8, -4, 8, 5] }), speed: 5.5, height: k.body.height * 0.7, damage: 50, hitSound: SOUNDS.coin })],
+      cues: [{ action: 1400, frame: 2, sound: SOUNDS.whoosh, effect: k.say("CATCH!", 0, 24, FX.coin) }],
+    };
+  },
+});
+
+// ----- Fun Guy: the mushroom -----
+
+const MUSHROOM = "Monsters_Creatures_Fantasy/Monsters_Creatures_Fantasy/Mushroom";
+const MUSHROOM_12 = "Monster_Creatures_Fantasy(Version 1.2)/Monster_Creatures_Fantasy(Version 1.2)/Mushroom";
+const MUSHROOM_13 = "Monster_Creatures_Fantasy(Version 1.3)/Monster_Creatures_Fantasy(Version 1.3)/Mushroom";
+const MONSTERS = { name: "Monsters Creatures Fantasy", url: "https://luizmelo.itch.io/monsters-creatures-fantasy" };
+export const FUN_GUY = hero({
+  id: "gi-fun-guy", name: "Fun Guy", base: HEAVY, localcoord: 444,
+  pack: MONSTERS,
+  strips: {
+    idle: [`${MUSHROOM}/Idle.png`, 4], run: [`${MUSHROOM}/Run.png`, 8], hurt: [`${MUSHROOM}/Take Hit.png`, 4], death: [`${MUSHROOM}/Death.png`, 4],
+    attack1: [`${MUSHROOM}/Attack.png`, 8], attack2: [`${MUSHROOM_12}/Attack2.png`, 8], attack3: [`${MUSHROOM_13}/Attack3.png`, 11], spore: [`${MUSHROOM_13}/Projectile_sprite.png`, 8],
+  },
+  body: { front: 11, back: 12, height: 37 },
+  sha256: "2480a9bdc19b70c55b7ba33adbc956e5b282b91159652e36cfa622e0ba7fc6a7",
+  room: { l: 32, r: 46, u: 52, d: 0 },
+  slash: { colours: ["#ffffff"] },
+  hurt: [0, 2, 3],
+  down: 3,
+  attacks: [{ strip: "attack1", frames: [4, 5, 6, 7], hits: [2] }, { strip: "attack1", hits: [6] }, { strip: "attack2", hits: [6] }],
+  outfits: [
+    { name: "Blue Cap", colors: {}, shifts: [hue(330, 20, 215, { minSat: 0.3 })] },
+    { name: "Green Cap", colors: {}, shifts: [hue(330, 20, 120, { minSat: 0.3 })] },
+    { name: "Golden Cap", colors: {}, shifts: [hue(330, 20, 42, { minSat: 0.3, light: 1.3 })] },
+  ],
+  words: { cry: "SMASH!", intro: "FUN GUY!", win: "FUN TIMES!", taunt: "SHROOM!" },
+  more: (k) => {
+    const { STAND } = k.cells;
+    const throwCells = [3, 4, 5, 6].map((f) => k.c(`spore throw ${f}`, { s: "attack1", f }));
+    const burst = range(11).map((f) => k.c(`spore burst ${f}`, { s: "attack3", f }));
+    return {
+      attacks: [
+        thrown(k, { state: 1400, name: "Spore Shot", command: "QCB_x", cells: [...throwCells, STAND[0]!], ticks: [3, 4, 4, 7, 6], frame: 3, art: k.stripProjectile({ strip: "spore", frames: [0, 1, 2, 3] }, { strip: "spore", frames: [4, 5, 6, 7] }), speed: 4, height: k.body.height * 0.55, damage: 45 }),
+        {
+          state: 1500, name: "Spore Cloud", from: "stand", command: "QCF_a", special: true,
+          anim: { action: 1500, cells: [...burst, STAND[0]!], ticks: [3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 4] },
+          hits: [{ frames: [7, 8, 9], damage: 60, chip: 10, height: "mid", weight: "medium", hitStun: 26, blockStun: 14, push: 6, box: k.bx(-k.body.back - 16, -k.body.height * 1.2, k.body.front + 18, 0) }],
+          ai: { range: 40, weight: 0.5 },
+        },
+      ],
+      cues: [{ action: 1400, frame: 3, sound: SOUNDS.splat }, { action: 1500, frame: 7, sound: SOUNDS.fart, effect: k.say("ACHOO!", 0, 26) }],
+    };
+  },
+});
+
+// ----- Calcium Carl: the skeleton, shield up, sword to throw -----
+
+const SKELETON = "Monsters_Creatures_Fantasy/Monsters_Creatures_Fantasy/Skeleton";
+const SKELETON_12 = "Monster_Creatures_Fantasy(Version 1.2)/Monster_Creatures_Fantasy(Version 1.2)/Skeleton";
+const SKELETON_13 = "Monster_Creatures_Fantasy(Version 1.3)/Monster_Creatures_Fantasy(Version 1.3)/Skeleton";
+export const CALCIUM_CARL = hero({
+  id: "gi-calcium-carl", name: "Calcium Carl", base: ALL_ROUNDER, localcoord: 470,
+  pack: MONSTERS,
+  strips: {
+    idle: [`${SKELETON}/Idle.png`, 4], run: [`${SKELETON}/Walk.png`, 4], hurt: [`${SKELETON}/Take Hit.png`, 4], death: [`${SKELETON}/Death.png`, 4],
+    attack1: [`${SKELETON}/Attack.png`, 8], block: [`${SKELETON}/Shield.png`, 4], attack2: [`${SKELETON_12}/Attack2.png`, 8], attack3: [`${SKELETON_13}/Attack3.png`, 6],
+    sword: [`${SKELETON_13}/Sword_sprite.png`, 8],
+  },
+  widths: { sword: 92 },
+  body: { front: 22, back: 23, height: 51 },
+  sha256: "3ad5a89ac0da5fb9bffc56683a317cf3344ecee638285aa7406fc3d87d53021e",
+  room: { l: 39, r: 65, u: 87, d: 2 },
+  slash: { colours: ["#ffffff"] },
+  hurt: [0, 2, 3],
+  down: 3,
+  attacks: [{ strip: "attack1", frames: [4, 5, 6, 7], hits: [2] }, { strip: "attack1", hits: [6] }, { strip: "attack2", hits: [6] }],
+  outfits: [
+    { name: "Blue Rust", colors: {}, shifts: [hue(5, 45, 215, { minSat: 0.35 })] },
+    { name: "Green Rust", colors: {}, shifts: [hue(5, 45, 120, { minSat: 0.35 })] },
+    { name: "Gold", colors: {}, shifts: [hue(5, 45, 48, { minSat: 0.35, light: 1.3, sat: 1.4 })] },
+  ],
+  words: { cry: "NYEH!", intro: "SPOOKY!", win: "CALCIUM!", taunt: "MILK TIME" },
+  more: (k) => {
+    const cells = range(6).map((f) => k.c(`sword toss ${f}`, { s: "attack3", f }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Sword Toss", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [3, 4, 4, 8, 5, 5, 5], frame: 3, art: k.stripProjectile({ strip: "sword", frames: [0, 1, 2] }, { strip: "sword", frames: [3, 4, 5, 6, 7] }), speed: 5, height: k.body.height * 0.6, damage: 55, hitSound: SOUNDS.shing })],
+      anims: [{ action: 195, cells: range(8).map((t) => k.c(`milk ${t}`, { s: "idle", f: t % 4, fx: [(cv) => carton(cv.img, cv.x + 8, cv.y - Math.round(k.body.height * 0.55) - (t % 2))] })), ticks: 6, comment: "taunt: a carton of milk" }],
+      cues: [{ action: 1400, frame: 3, sound: SOUNDS.whoosh }],
+    };
+  },
+});
+
+// ----- Eye Spy: the flying eye -----
+
+const EYE = "Monsters_Creatures_Fantasy/Monsters_Creatures_Fantasy/Flying eye";
+const EYE_12 = "Monster_Creatures_Fantasy(Version 1.2)/Monster_Creatures_Fantasy(Version 1.2)/Flying eye";
+const EYE_13 = "Monster_Creatures_Fantasy(Version 1.3)/Monster_Creatures_Fantasy(Version 1.3)/Flying eye";
+export const EYE_SPY = hero({
+  id: "gi-eye-spy", name: "Eye Spy", base: ZONER, localcoord: 425,
+  pack: MONSTERS,
+  strips: {
+    idle: [`${EYE}/Flight.png`, 8], hurt: [`${EYE}/Take Hit.png`, 4], death: [`${EYE}/Death.png`, 4], attack1: [`${EYE}/Attack.png`, 8],
+    attack2: [`${EYE_12}/Attack2.png`, 8], attack3: [`${EYE_13}/Attack3.png`, 6], blob: [`${EYE_13}/projectile_sprite.png`, 8],
+  },
+  body: { front: 20, back: 21, height: 31 },
+  sha256: "9cdd2f76328a2517663919b2d34b1c6391a11519613a1793ad0a998f5cd87dd8",
+  room: { l: 28, r: 28, u: 43, d: 9 },
+  slash: { colours: ["#ffffff"] },
+  hurt: [0, 2, 3],
+  down: 3,
+  hover: 8,
+  deathLift: 9,
+  attacks: [{ strip: "attack1", frames: [4, 5, 6, 7], hits: [2, 3] }, { strip: "attack1", hits: [6, 7] }, { strip: "attack2", hits: [5] }],
+  shot: { strip: "attack3", hits: [3] },
+  projectile: { name: "Eye Goo", fly: { strip: "blob", frames: [0, 1, 2] }, hit: { strip: "blob", frames: [3, 4, 5, 6, 7] }, speed: 4.5, sound: SOUNDS.splat },
+  outfits: [
+    { name: "Green", colors: {}, shifts: [hue(5, 50, 110, { minSat: 0.2 })] },
+    { name: "Purple", colors: {}, shifts: [hue(5, 50, 280, { minSat: 0.2 })] },
+    { name: "Blue", colors: {}, shifts: [hue(5, 50, 210, { minSat: 0.2 })] },
+  ],
+  words: { cry: "BLINK!", intro: "I SEE YOU", win: "EYE WIN!", taunt: "STARING..." },
+  more: (k) => {
+    const cells = [0, 1, 2, 3].map((f) => k.c(`stink eye ${f}`, { s: "idle", f, sx: f === 2 ? 1.1 : 1 }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Stink Eye", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [4, 4, 8, 6, 5], frame: 2, art: spinner(glare, 4, { w: 32, h: 8, box: [-14, -2, 14, 2] }), speed: 9, height: k.body.height * 0.5 + k.lift, damage: 40 })],
+      cues: [{ action: 1400, frame: 2, sound: SOUNDS.zap, effect: k.say("STINK EYE!", 0, 26, FX.red) }],
+    };
+  },
+});
+
+// ----- Spicy Noodle: the fire worm -----
+
+const WORM = "Fire Worm/Fire Worm/Sprites";
+export const SPICY_NOODLE = hero({
+  id: "gi-spicy-noodle", name: "Spicy Noodle", base: ZONER, localcoord: 463,
+  pack: { name: "Fire Worm", url: "https://luizmelo.itch.io/fire-worm" },
+  strips: {
+    idle: [`${WORM}/Worm/Idle.png`, 9], run: [`${WORM}/Worm/Walk.png`, 9], hurt: [`${WORM}/Worm/Get Hit.png`, 3], death: [`${WORM}/Worm/Death.png`, 8],
+    attack1: [`${WORM}/Worm/Attack.png`, 16], ball: [`${WORM}/Fire Ball/Move.png`, 6], blast: [`${WORM}/Fire Ball/Explosion.png`, 7],
+  },
+  body: { front: 25, back: 26, height: 41 },
+  sha256: "525d86e7e857417460a20b455f6374637646141358dd673acd4f59ec17b411a8",
+  room: { l: 30, r: 47, u: 54, d: 0 },
+  hurt: [0, 1, 2],
+  down: 7,
+  attacks: [{ strip: "attack1", frames: [8, 9, 10, 11], hits: [2] }, { strip: "attack1", frames: [6, 7, 8, 9, 10, 11, 12], hits: [4, 5] }],
+  shot: { strip: "attack1", frames: [6, 7, 8, 9, 10, 11, 12, 13], hits: [5] },
+  projectile: { name: "Fire Ball", fly: { strip: "ball", frames: range(6) }, hit: { strip: "blast", frames: range(7) }, speed: 4.5, sound: SOUNDS.fire },
+  outfits: [
+    { name: "Blue Noodle", colors: {}, shifts: [hue(55, 100, 205, { minSat: 0.25 })] },
+    { name: "Purple Noodle", colors: {}, shifts: [hue(55, 100, 285, { minSat: 0.25 })] },
+    { name: "Red Noodle", colors: {}, shifts: [hue(55, 100, 0, { minSat: 0.25 })] },
+  ],
+  words: { cry: "HSSS!", intro: "SPICY!", win: "EXTRA HOT", taunt: "MILD?" },
+  more: (k) => {
+    const cells = [4, 5, 6, 7].map((f) => k.c(`spicy floor ${f}`, { s: "attack1", f, sy: 0.92 }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Spicy Floor", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [3, 4, 5, 8, 6], frame: 3, art: spinner(floorFire, 4, { w: 30, h: 22, box: [-12, -2, 12, 10] }), speed: 2.6, height: 9, damage: 50, low: true })],
+      cues: [{ action: 1400, frame: 3, sound: SOUNDS.fire, effect: k.say("TOO SPICY", 0, 26, FX.flameLight) }],
+    };
+  },
+});
+
+// ----- Big Cheese: the rat -----
+
+const RAT = "Monsters Creatures Fantasy 2/Monsters Creatures Fantasy 2/Rat";
+const MONSTERS_2 = { name: "Monsters Creatures Fantasy 2", url: "https://luizmelo.itch.io/monsters-creatures-fantasy-2" };
+export const BIG_CHEESE = hero({
+  id: "gi-big-cheese", name: "Big Cheese", base: RUSHDOWN, localcoord: 400,
+  pack: MONSTERS_2,
+  strips: { idle: [`${RAT}/idle.png`, 10], run: [`${RAT}/run.png`, 8], hurt: [`${RAT}/hurt.png`, 3], death: [`${RAT}/rat-death.png`, 6], attack1: [`${RAT}/attack_bite.png`, 12] },
+  body: { front: 20, back: 20, height: 20 },
+  sha256: "da76a6896870d30b7b39fbf9a8474b7044954c0232925f96f64b6efa82da1117",
+  room: { l: 32, r: 27, u: 22, d: 0 },
+  hurt: [0, 1, 2],
+  down: 5,
+  attacks: [{ strip: "attack1", frames: [6, 7, 8, 9], hits: [2], box: [16, -14, 28, -2] }, { strip: "attack1", hits: [8], box: [16, -14, 28, -2] }],
+  outfits: [
+    { name: "Brown Rat", colors: {}, shifts: [hue(180, 280, 28, { minSat: 0.05, tint: 0.35 })] },
+    { name: "Lab Rat", colors: {}, shifts: [hue(180, 280, null, { minSat: 0.05, light: 2 })] },
+    { name: "Black Rat", colors: {}, shifts: [hue(180, 280, null, { minSat: 0.05, light: 0.5 })] },
+  ],
+  words: { cry: "SQUEAK!", intro: "CHEESE?", win: "BIG CHEESE", taunt: "NOM NOM" },
+  more: (k) => {
+    const cells = [3, 4, 5, 6].map((f) => k.c(`cheese toss ${f}`, { s: "attack1", f }));
+    const H = k.body.height, F = k.body.front;
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Cheese Wedge", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [3, 4, 4, 7, 5], frame: 3, art: spinner(cheese, 4, { w: 18, h: 14, box: [-6, -4, 6, 4] }), speed: 5, height: H * 0.6, damage: 40, hitSound: SOUNDS.squeak })],
+      anims: [{ action: 195, cells: range(8).map((t) => k.c(`nibble ${t}`, { s: "idle", f: t, fx: [(cv) => cheese(cv.img, cv.x + F + 4, cv.y - Math.round(H * 0.45) - (t % 2), 0)] })), ticks: 6, comment: "taunt: nibbles cheese" }],
+      cues: [{ action: 1400, frame: 3, sound: SOUNDS.whoosh }, { action: 195, frame: 1, sound: SOUNDS.squeak }],
+    };
+  },
+});
+
+// ----- Snot Rocket: the slime -----
+
+const SLIME = "Monsters Creatures Fantasy 2/Monsters Creatures Fantasy 2/Slime";
+export const SNOT_ROCKET = hero({
+  id: "gi-snot-rocket", name: "Snot Rocket", base: HEAVY, localcoord: 376,
+  pack: MONSTERS_2,
+  strips: { idle: [`${SLIME}/idle.png`, 14], run: [`${SLIME}/walk.png`, 6], hurt: [`${SLIME}/hurt.png`, 3], death: [`${SLIME}/death.png`, 11], attack1: [`${SLIME}/attack.png`, 19] },
+  body: { front: 22, back: 22, height: 18 },
+  sha256: "18555ea166945497a92590864caa5d0fccc2ec487dcb1ca24fd90de575885b82",
+  room: { l: 34, r: 77, u: 35, d: 0 },
+  hurt: [0, 1, 2],
+  down: 10,
+  attacks: [{ strip: "attack1", frames: [8, 9, 10, 11, 12], hits: [2, 3] }, { strip: "attack1", hits: [10, 11, 12] }],
+  outfits: [
+    { name: "Blue Goo", colors: {}, shifts: [hue(60, 160, 200, { minSat: 0.2 })] },
+    { name: "Pink Goo", colors: {}, shifts: [hue(60, 160, 320, { minSat: 0.2 })] },
+    { name: "Orange Goo", colors: {}, shifts: [hue(60, 160, 28, { minSat: 0.2 })] },
+  ],
+  words: { cry: "BLORP!", intro: "SQUISH!", win: "GOOD GOO", taunt: "BLEGH!" },
+  more: (k) => {
+    const cells = [4, 5, 6, 7, 8].map((f) => k.c(`snot ${f}`, { s: "attack1", f }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Snot Rocket", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [3, 3, 4, 5, 8, 6], frame: 4, art: spinner(glob, 2, { w: 22, h: 14, box: [-5, -5, 5, 5] }), speed: 4.5, height: k.body.height * 0.6, damage: 50, hitSound: SOUNDS.splat })],
+      cues: [{ action: 1400, frame: 4, sound: SOUNDS.splat, effect: k.say("HONK!", 0, 22, FX.green) }],
+    };
+  },
+});
+
+// ----- Free Loot: the mimic -----
+
+const MIMIC = "Monsters Creatures Fantasy 2/Monsters Creatures Fantasy 2/Mimic";
+export const FREE_LOOT = hero({
+  id: "gi-free-loot", name: "Free Loot", base: GRAPPLER, localcoord: 436,
+  pack: MONSTERS_2,
+  strips: {
+    idle: [`${MIMIC}/idle_transformed.png`, 9], run: [`${MIMIC}/walk.png`, 6], hurt: [`${MIMIC}/hurt.png`, 3], death: [`${MIMIC}/death.png`, 6],
+    attack1: [`${MIMIC}/attack_1.png`, 14], attack2: [`${MIMIC}/attack_2.png`, 13], closed: [`${MIMIC}/Idle_closed.png`, 1], opening: [`${MIMIC}/opening.png`, 6], transform: [`${MIMIC}/transform.png`, 7],
+  },
+  body: { front: 21, back: 21, height: 30 },
+  sha256: "dc12baa4e3feeb80d40179e874d5c6bf9a2e7f3e4e1c4dc696d4457ebe93f2af",
+  room: { l: 45, r: 68, u: 44, d: 0 },
+  hurt: [0, 1, 2],
+  down: 5,
+  attacks: [{ strip: "attack1", frames: [10, 11, 12, 13], hits: [3] }, { strip: "attack2", hits: [8, 9] }],
+  outfits: [
+    { name: "Gold Chest", colors: {}, shifts: [hue(0, 40, 45, { minSat: 0.15, sat: 1.6, light: 1.2 })] },
+    { name: "Ice Chest", colors: {}, shifts: [hue(0, 40, 200, { minSat: 0.15 })] },
+    { name: "Cursed Chest", colors: {}, shifts: [hue(0, 40, 280, { minSat: 0.15 })] },
+  ],
+  words: { cry: "CHOMP!", intro: "FREE LOOT?", win: "SUCKER!", taunt: "OPEN ME!" },
+  more: (k) => {
+    const { STAND } = k.cells;
+    const closed = k.c("closed", { s: "closed" }, true);
+    const opening = range(6).map((f) => k.c(`opening ${f}`, { s: "opening", f }, true));
+    const transform = range(7).map((f) => k.c(`transform ${f}`, { s: "transform", f }, true));
+    const spit = [0, 1, 2, 3].map((f) => k.c(`coin spit ${f}`, { s: "attack1", f: 4 + f * 2 }));
+    const coins = (img: IndexedImage, x: number, y: number, t: number) => [-5, 0, 5].forEach((dx, i) => coin(img, x + dx, y + (i % 2 ? -2 : 2), t + i));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Coin Spit", command: "QCB_x", cells: [...spit, STAND[0]!], ticks: [3, 4, 4, 8, 6], frame: 3, art: spinner(coins, 4, { w: 22, h: 12, box: [-9, -4, 9, 4] }), speed: 5, height: k.body.height * 0.55, damage: 45, hitSound: SOUNDS.coin })],
+      anims: [
+        { action: 190, cells: [closed, closed, ...opening, ...transform, STAND[0]!], ticks: [40, 20, ...opening.map(() => 4), ...transform.map(() => 4), 10], comment: "intro: just a treasure chest... (FREE LOOT?)" },
+        { action: 181, cells: [...[...transform].reverse(), closed], ticks: [...transform.map(() => 4), 60], loop: false, comment: "win: back into a chest (SUCKER!)" },
+      ],
+      cues: [
+        { action: 190, frame: 0, effect: k.say("FREE LOOT?", 0, 50, FX.coin) },
+        { action: 190, frame: 2, sound: SOUNDS.chomp },
+        { action: 181, frame: 6, sound: SOUNDS.chomp, effect: k.say("SUCKER!", 0, 60, FX.yellow) },
+        { action: 1400, frame: 3, sound: SOUNDS.coin },
+      ],
+    };
+  },
+});
+
+// ----- Batty: the bat -----
+
+const BAT = "Monsters Creatures Fantasy 2/Monsters Creatures Fantasy 2/Bat";
+export const BATTY = hero({
+  id: "gi-batty", name: "Batty", base: RUSHDOWN, localcoord: 453,
+  pack: MONSTERS_2,
+  strips: { idle: [`${BAT}/fly.png`, 11], hurt: [`${BAT}/hurt.png`, 3], death: [`${BAT}/death.png`, 4], attack1: [`${BAT}/attack.png`, 11], hang: [`${BAT}/fall.png`, 5] },
+  body: { front: 27, back: 27, height: 33 },
+  sha256: "371296f56b62115c468ce4025ce58c85ed72be7038aa9ae2fcb20ccc3d86ecaa",
+  room: { l: 33, r: 39, u: 46, d: 10 },
+  slash: { colours: ["#f7e4cd"] },
+  hurt: [0, 1, 2],
+  down: 3,
+  hover: 10,
+  attacks: [{ strip: "attack1", frames: [6, 7, 8, 9], hits: [2, 3] }, { strip: "attack1", hits: [8, 9] }],
+  outfits: [
+    { name: "Blue Bat", colors: {}, shifts: [hue(280, 360, 220, { minSat: 0.1, tint: 0.3 })] },
+    { name: "Green Bat", colors: {}, shifts: [hue(280, 360, 130, { minSat: 0.1, tint: 0.3 })] },
+    { name: "Brown Bat", colors: {}, shifts: [hue(280, 360, 25, { minSat: 0.1, tint: 0.35 })] },
+  ],
+  words: { cry: "EEEE!", intro: "BAT TIME!", win: "FANGTASTIC", taunt: "HANGING..." },
+  more: (k) => {
+    const cells = [0, 1, 2].map((f) => k.c(`screech ${f}`, { s: "idle", f, sx: 1.05 }));
+    return {
+      attacks: [thrown(k, { state: 1400, name: "Screech", command: "QCB_x", cells: [...cells, k.cells.STAND[0]!], ticks: [3, 4, 8, 6], frame: 2, art: spinner(screech, 3, { w: 30, h: 26, box: [-10, -9, 10, 9] }), speed: 5, height: k.body.height * 0.5 + k.lift, damage: 40 })],
+      anims: [{ action: 195, cells: range(5).map((f) => k.c(`hang ${f}`, { s: "hang", f, dy: -20 })), ticks: 8, comment: "taunt: hangs upside down" }],
+      cues: [{ action: 1400, frame: 2, sound: SOUNDS.zap, effect: k.say("EEEEE!", 0, 22, FX.purple) }],
+    };
+  },
+});
+
+export const HEROES: readonly TemplateSpec[] = [
+  SIR_BONKALOT, HOT_TAKES, STABBY, NIGHT_SHIFT, CAPE_CRUSADER, JAVELINA, ROBIN_HOODIE, HAT_TRICK, NO_SHIRT_KURT, KING_ME, ARMS_DEALER, BLUE_STEEL,
+  ROYAL_PAIN, FUN_GUY, CALCIUM_CARL, EYE_SPY, SPICY_NOODLE, BIG_CHEESE, SNOT_ROCKET, FREE_LOOT, BATTY,
+];

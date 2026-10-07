@@ -305,7 +305,9 @@ export function heroFighter(h: Hero): TemplateSpec {
   const normal = (state: number, name: string, s: { cells: number[]; hits: number[]; box?: Box }, t: [number, number, number], extra: Parameters<typeof redrawMove>[6] = {}) =>
     move(state, name, s.cells, tk(s.cells, s.hits, ...t), s.hits, s.box, extra);
   const kick = (): AttackSpec => {
-    const cells = [STAND[0]!, c("kick 1", { s: "run", f: 1, dx: 1, rot: -8, mid: true }), c("kick 2", { s: "run", f: 2, dx: 4, rot: -14, mid: true, fx: [hitStar(F + 8, H * 0.35, 5)] }), c("kick 3", { s: "run", f: 2, dx: 2, rot: -8, mid: true }), STAND[0]!];
+    // A lunge on the run's frames (or the idle's, for a flyer): no attack strip to spare.
+    const s = has("run") ? "run" : "idle";
+    const cells = [STAND[0]!, c("kick 1", { s, f: 1, dx: 1, rot: -8, mid: true }), c("kick 2", { s, f: 2, dx: 4, rot: -14, mid: true, fx: [hitStar(F + 8, H * 0.35, 5)] }), c("kick 3", { s, f: 2, dx: 2, rot: -8, mid: true }), STAND[0]!];
     return move(230, "Boot", cells, [2, 3, 4, 3, 3], [2], bx(F, -H * 0.55, F + 12, -H * 0.1));
   };
   const S = (i: number, tag: string, pose: Partial<PackPose> = {}) => strike(i, tag, pose);
