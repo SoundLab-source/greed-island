@@ -374,6 +374,26 @@
       "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=10993",
       "author": "Pre-to",
       "notes": "Touhou's Marisa redone in Type-Moon style. Own AI."
+    },
+    {
+      "id": "mugen-son-goku",
+      "name": "Son Goku",
+      "archetype": "ALL_ROUNDER",
+      "file": "Songoku_US.rar",
+      "sha256": "54eca0cf7d577c2c9ad93e7bd7f6b0d99b5a1a141c9005f0f7fa4f14d40fad33",
+      "source": "https://mugenarchive.com/",
+      "author": "280gou",
+      "notes": "A 2018 MUGEN Goku (Dragon Ball) by 280gou, version 2.0. Downloaded by the owner 2026-10-06; the exact page is still to note."
+    },
+    {
+      "id": "mugen-ishowspeed",
+      "name": "IShowSpeed",
+      "archetype": "RUSHDOWN",
+      "file": "Ishowspeed_2D.zip",
+      "sha256": "bc57c8b06de0db303cbe94710df32618106698ebc3c44d871ad39200b380f08b",
+      "source": "https://mugenarchive.com/",
+      "author": "YanOnMugen (from Nimame's character)",
+      "notes": "\"IShowSpeed 2D (Jojo)\": a joke character of the streamer, sprites by JohnVyttalRay, sounds edited by Iver. Downloaded by the owner 2026-10-06; the exact page is still to note."
     }
   ],
   "stages": [
@@ -385,6 +405,235 @@
       "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=211517",
       "author": "Williamasonic",
       "notes": "\"Sapphire Diamond Resurrection\" (2010): a space stage with its own music. Downloaded by the owner 2026-10-06 (5.14 MB)."
+    },
+    {
+      "id": "mugen-universe-0",
+      "name": "Universe 0",
+      "file": "Universe0.zip",
+      "sha256": "41632f750e47c47c35aa601577776fe420f9ae0bdbd37a1e8571f34a3733da4c",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=220017",
+      "author": "Jor8a",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-emerald-abyss",
+      "name": "Emerald Abyss",
+      "file": "Emerald_Abyss.rar",
+      "sha256": "4dc3b99b0c0bd464146ba9963602008c0439ee3fa66f5a795757031aadef0c8b",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=218022",
+      "author": "SK MUGEN",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-sakura-garden-night",
+      "name": "Sakura Garden Night",
+      "file": "Sakura_Garden_Night.rar",
+      "sha256": "88991ed4ab1bd57872c9d12cc2d8856fa6e5b20fd6bac52c7f3564ee4f438771",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=217693",
+      "author": "Gus Saints",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-wonka",
+      "name": "Willy Wonka Meme",
+      "file": "wonka_.zip",
+      "sha256": "1bf183e36375575c14b2ac6011d6aac6070947c2e189ad3645e3b2782ea1f6e3",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=215555",
+      "author": "ThatRandomDudeoo7",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-fbi-seized",
+      "name": "FBI Seized",
+      "file": "fbi.zip",
+      "sha256": "53cc3c23d082cf17117b6849a65013491d058724ceaeac135dcc04500fa05da8",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=215542",
+      "author": "harry",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-epstein-island",
+      "name": "Epstein Island",
+      "file": "epstein_island.zip",
+      "sha256": "b67b92692b8af5224cb7771e5bb2c3b569fb9d231273d9f2d98fe8781f08929f",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=215458",
+      "author": "MrMato",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-mc-logo",
+      "name": "Mc Logo",
+      "file": "Mc_logo_Stage.zip",
+      "sha256": "800bf66d8475803c716285200eef0e57bbb3c8b6fb4fcd268d049448f976aeb5",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=214698",
+      "author": "Unknown",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-evil-goddess",
+      "name": "Evil Goddess",
+      "file": "Evil_Goddess.rar",
+      "sha256": "a7f6cc39e65194af6d494de74f77d76d09e0900c64ac4a8c707227f8fe242e0e",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=214471",
+      "author": "Gus Saints",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-lblj",
+      "name": "LBLJ",
+      "file": "LBLJ_Stage.zip",
+      "sha256": "1193dbfcd4902f256a64eff87e359cea4d63014d9e04c6d9b5925dc6254287e1",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=212971",
+      "author": "Maincrosift",
+      "def": "LBLJ.def",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-lblj-alt",
+      "name": "LBLJ (Alt)",
+      "file": "LBLJ_Stage.zip",
+      "sha256": "1193dbfcd4902f256a64eff87e359cea4d63014d9e04c6d9b5925dc6254287e1",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=212971",
+      "author": "Maincrosift",
+      "def": "LBLJ (Alt).def",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-saphire-diamond",
+      "name": "Saphire Diamond",
+      "file": "Saphire_Diamond.zip",
+      "sha256": "d8a1a57cafb914ff6ea38133d5966c880004ddf44835bef70fc5346582893e69",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=212451",
+      "author": "Unknown",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-sky-bell-tower",
+      "name": "Sky Bell Tower",
+      "file": "sky_bell_Tower.zip",
+      "sha256": "e2af937be5665464edc8cc54ff4f055f2971317488383626c2d7e732c44360a7",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=212446",
+      "author": "SPAN",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-meteor-storm",
+      "name": "Meteor Storm",
+      "file": "MStormHR.zip",
+      "sha256": "bd8c5e05bfab3c89acf1c60cc36b989ee7047a164c80ddd452a4587675eaa346",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=211522",
+      "author": "SyN",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-lair-of-the-goddess",
+      "name": "Lair of the Goddess of Death",
+      "file": "Lair_of_The_Goddess_of_Death.rar",
+      "sha256": "0c9b72d44b09ee81c62e79223efcb7a529f3adfdbca5b466e53b689ddee65328",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=210256",
+      "author": "Gus Saints",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-windows-11-light",
+      "name": "Windows 11 (Light)",
+      "file": "Windows_11_stages.zip",
+      "sha256": "ba802e64422c49d37c25da074c4915d6aca084c243d3630b8b67dee845f4073b",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=207776",
+      "author": "Maincrosift",
+      "def": "Win11 (Light).def",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-windows-11-dark",
+      "name": "Windows 11 (Dark)",
+      "file": "Windows_11_stages.zip",
+      "sha256": "ba802e64422c49d37c25da074c4915d6aca084c243d3630b8b67dee845f4073b",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=207776",
+      "author": "Maincrosift",
+      "def": "Win11 (Dark).def",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-nyan-windows-98",
+      "name": "Nyan Windows 98",
+      "file": "Nyan_windows_98.rar",
+      "sha256": "f564ecaf5ee9c1dc2eaa97f9a0023b530732d5374f22f3ddc149152d5c1e287b",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=207659",
+      "author": "xxjumpscarezxx the fox",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-windows-xp-bliss",
+      "name": "Windows XP Bliss",
+      "file": "wxp.zip",
+      "sha256": "d033cc27667e88ecf8663194d11bfeb3a1b9d1a28cd0989901a03a645b1227bd",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=203981",
+      "author": "Microsoft & ModifiedB13",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-onigashima",
+      "name": "Onigashima",
+      "file": "Onigashima.rar",
+      "sha256": "b58c4df06b5a5373903b38807ee13bde878f3ce58a8958f9d993fa5ade9d8f55",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=151522",
+      "author": "Kennedy Mugen",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-moonlight-destiny",
+      "name": "Moonlight Destiny",
+      "file": "Moonlight_Destiny_-Princess_K.rar",
+      "sha256": "6667fc7dd4fc931ee136cfa0cc6abc724213025a5c1817bef8d0c4089a60a264",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=82731",
+      "author": "Alan KOF/The Darkness",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-ocean-ride",
+      "name": "Ocean Ride",
+      "file": "OceanRide_1_1.zip",
+      "sha256": "35a7936b918919febf9be88bbfb5a6f2117f7641b4854881957a94b743dd1f85",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=67960",
+      "author": "Kaled Kalil, edited by Manuz",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-pssm-stage-10",
+      "name": "PSSM Stage 10",
+      "file": "SM10.zip",
+      "sha256": "73045e20ae833142d8a52ab6f3ff462d6b07410ec351d1108c5940bc2bbbb3a4",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=64424",
+      "author": "Navana",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-okama-bar",
+      "name": "Okama Bar",
+      "file": "Okama_Bar.rar",
+      "sha256": "b00048a17841e72533ff440175743e2143620e36e98d12dce0189fa57bf45810",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=58572",
+      "author": "Wenchu",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-thriller-bark-bridge",
+      "name": "Thriller Bark Bridge",
+      "file": "ThrillerBark_Bridge.zip",
+      "sha256": "7d2fdd38159a48da6aa5931f47daaa68199990e0564e73d6cc20b9bd9cde041e",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=58425",
+      "author": "wenchu",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
+    },
+    {
+      "id": "mugen-little-east-blue-cliff",
+      "name": "Little East Blue Cliff",
+      "file": "Little_East_Blue_Cliff.zip",
+      "sha256": "2e700f0b2808c769bd0f66d6b91453a7dec1d350479564bd1e7e8852d1c64edb",
+      "source": "https://mugenarchive.com/forums/downloads.php?do=file&id=51610",
+      "author": "Mikel8888",
+      "notes": "Downloaded by the owner 2026-10-06 (MD5 checked against the page)."
     }
   ]
 }

@@ -29,14 +29,21 @@ export async function stageDefs(dir: string, files: readonly string[]): Promise<
 /**
  * Point the stage's sprite and music paths at files really in its folder (`files`, relative to the .def): a path
  * that doesn't match one (other capitals, or MUGEN's sound/ folder) is replaced by the file with the same name.
- * Returns the changes and the paths that match nothing.
+ * A file only found elsewhere in the archive (`elsewhere`, e.g. a sound/ folder beside stages/) is to be copied in
+ * next to the .def (`copies`). Returns the changes and the paths that match nothing.
  */
-export function fixStagePaths(defText: string, files: readonly string[]): { text: string; changed: Record<string, string>; missing: string[] } {
+export function fixStagePaths(
+  defText: string,
+  files: readonly string[],
+  elsewhere: readonly string[] = [],
+): { text: string; changed: Record<string, string>; missing: string[]; copies: { from: string; to: string }[] } {
   const ini = parseIni(defText);
   const byLower = new Map(files.map((f) => [f.toLowerCase(), f]));
   const byName = new Map(files.map((f) => [path.posix.basename(f).toLowerCase(), f]));
+  const outside = new Map(elsewhere.map((f) => [path.posix.basename(f).toLowerCase(), f]));
   const changed: Record<string, string> = {};
   const missing: string[] = [];
+  const copies: { from: string; to: string }[] = [];
   let text = defText;
   const fix = (section: string, keys: (k: string) => boolean) => {
     const patch: Record<string, string> = {};
@@ -45,8 +52,12 @@ export function fixStagePaths(defText: string, files: readonly string[]): { text
       const want = unquote(raw.split(";")[0]!).replace(/\\/g, "/");
       if (!want || files.includes(want)) continue;
       const real = byLower.get(want.toLowerCase()) ?? byName.get(path.posix.basename(want).toLowerCase());
+      const away = real ? undefined : outside.get(path.posix.basename(want).toLowerCase());
       if (real) patch[key] = `"${real}"`;
-      else missing.push(`${key} = ${raw}`);
+      else if (away) {
+        patch[key] = `"${path.posix.basename(away)}"`;
+        copies.push({ from: away, to: path.posix.basename(away) });
+      } else missing.push(`${key} = ${raw}`);
     }
     if (Object.keys(patch).length) {
       text = patchIni(text, section, patch);
@@ -55,7 +66,7 @@ export function fixStagePaths(defText: string, files: readonly string[]): { text
   };
   fix("BGdef", (k) => k === "spr");
   fix("Music", (k) => k.startsWith("bgmusic"));
-  return { text, changed, missing };
+  return { text, changed, missing, copies };
 }
 
 export interface InstalledStage {
@@ -92,11 +103,13 @@ export async function installMugenStage(ikemenDir: string, entry: MugenStage, ar
     // The stage's own folder becomes stages/<id>/.
     const dir = path.posix.dirname(def);
     const inFolder = all.filter((f) => dir === "." || f.startsWith(`${dir}/`)).map((f) => (dir === "." ? f : f.slice(dir.length + 1)));
-    const fixed = fixStagePaths(await readDef(path.join(tmp, def)), inFolder);
+    const outside = all.filter((f) => dir !== "." && !f.startsWith(`${dir}/`));
+    const fixed = fixStagePaths(await readDef(path.join(tmp, def)), inFolder, outside);
     if (fixed.missing.some((m) => m.startsWith("spr"))) throw new Error(`${entry.file}: its sprites aren't in the archive (${fixed.missing.join(", ")})`);
     await rm(staged, { recursive: true, force: true });
     await cp(dir === "." ? tmp : path.join(tmp, dir), staged, { recursive: true });
     for (const f of removed) await rm(path.join(staged, dir === "." ? f : f.slice(dir.length + 1)), { force: true });
+    for (const c of fixed.copies) await cp(path.join(tmp, c.from), path.join(staged, c.to));
     await rm(path.join(staged, path.posix.basename(def)));
     await writeFile(path.join(staged, `${entry.id}.def`), patchIni(fixed.text, "Info", { name: `"${entry.name}"`, displayname: `"${entry.name}"` }), "latin1");
     await writeFile(path.join(staged, MARKER), JSON.stringify({ id: entry.id, name: entry.name, sha256: entry.sha256, source: entry.source, generatedBy: "pnpm mugen:import" }, null, 2) + "\n");

@@ -47,3 +47,12 @@ describe("MUGEN stages", () => {
     expect(stageRosterEntry(recipe.stages[0]!, "stages/mugen-space/mugen-space.def")).toMatchObject({ id: "mugen-space", commercialUse: false, def: "stages/mugen-space/mugen-space.def" });
   });
 });
+
+describe("MUGEN stages packed in MUGEN's folders", () => {
+  it("bring in music kept in a sound/ folder beside the stage's", () => {
+    const r = fixStagePaths(DEF.replace("SPACE.SFF", "space.sff"), ["space.sff"], ["sound/Space Theme.mp3", "readme.txt"]);
+    expect(r.missing).toEqual([]);
+    expect(r.copies).toEqual([{ from: "sound/Space Theme.mp3", to: "Space Theme.mp3" }]);
+    expect(r.text).toMatch(/^bgmusic = "Space Theme\.mp3"$/m);
+  });
+});
