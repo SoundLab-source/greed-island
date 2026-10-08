@@ -7,8 +7,11 @@
  */
 import { writeSff, type SffPalette, type SffSprite } from "../art/sff.ts";
 import { floorTiles, hex, ridge, rng, silhouette, skyline } from "./draw.ts";
+import { DRAGONS_HOARD } from "./dragons-hoard.ts";
 import { GOLD_RUSH } from "./gold-rush.ts";
 import { disc, floor, GROUND, HEIGHT, scenery, sky, stars, WIDE, WIDTH, type Layer, type StageDesign } from "./layers.ts";
+import { MINT } from "./mint.ts";
+import { PENTHOUSE } from "./penthouse.ts";
 import { TRADING_FLOOR } from "./trading-floor.ts";
 import { TREASURE_ISLAND } from "./treasure-island.ts";
 import { VAULT } from "./vault.ts";
@@ -77,6 +80,9 @@ export const STAGES: readonly StageDesign[] = [
   VAULT,
   TRADING_FLOOR,
   GOLD_RUSH,
+  MINT,
+  DRAGONS_HOARD,
+  PENTHOUSE,
 ];
 
 /** The stage's sprite file and .def for IKEMEN. */
@@ -104,6 +110,7 @@ export function stageFiles(design: StageDesign): { sff: Buffer; def: string } {
       `tile = ${l.tile ? 1 : 0}, ${l.tileY ? 1 : 0}`,
       ...(l.tileSpacing ? [`tilespacing = ${l.tileSpacing}, 0`] : []),
       ...(l.velocity ? [`velocity = ${l.velocity[0]}, ${l.velocity[1]}`] : []),
+      ...(l.sway ? [`sin.x = ${l.sway[0]}, ${l.sway[1]}, 0`] : []),
       ...(l.bob ? [`sin.y = ${l.bob[0]}, ${l.bob[1]}, 0`] : []),
       ...(l.light ? ["trans = add"] : []),
       "",

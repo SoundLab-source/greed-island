@@ -1767,6 +1767,30 @@
       "enabled": true
     },
     {
+      "id": "gi-the-mint",
+      "displayName": "The Mint",
+      "def": "stages/gi-the-mint.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
+      "id": "gi-dragons-hoard",
+      "displayName": "Dragon's Hoard",
+      "def": "stages/gi-dragons-hoard.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
+      "id": "gi-penthouse",
+      "displayName": "The Penthouse",
+      "def": "stages/gi-penthouse.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
       "id": "mugen-sapphire-diamond",
       "displayName": "Sapphire Diamond",
       "def": "stages/mugen-sapphire-diamond/mugen-sapphire-diamond.def",

@@ -32,6 +32,8 @@ export interface Layer {
   velocity?: readonly [number, number];
   /** Bobs up and down: how far and how many ticks a bob takes ("sin.y"). */
   bob?: readonly [number, number];
+  /** Sways side to side, the same way ("sin.x"). */
+  sway?: readonly [number, number];
   /** Light: added onto what's behind ("trans = add"). */
   light?: boolean;
 }

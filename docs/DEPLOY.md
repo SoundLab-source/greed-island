@@ -149,7 +149,7 @@ GI_PUBLIC_URL=https://play.your-domain.com
 GI_SMTP_URL=smtps://…
 GI_MAIL_FROM="Greed Island <no-reply@your-domain.com>"
 GI_TWITCH_CHANNEL=yourchannel
-GI_COMMERCIAL_ONLY=true                   # only fighters and stages cleared for commercial use (our own fighters and 7 stages; on since 2026-10-05)
+GI_COMMERCIAL_ONLY=true                   # only fighters and stages cleared for commercial use (our own fighters and 10 stages; on since 2026-10-05)
 ```
 
 Before telling anyone the address:

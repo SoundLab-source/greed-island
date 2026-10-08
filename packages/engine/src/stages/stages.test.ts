@@ -46,10 +46,12 @@ describe("drawn stages", () => {
         { canvas: frame(), y: 0, delta: [0, 0] as const, tile: false },
         { canvas: frame(), frames: [frame(), frame()], ticks: 5, y: 600, x: -2000, delta: [1, 1] as const, tile: true, tileSpacing: 4200, velocity: [2.4, 0] as const, bob: [5, 34] as const },
         { canvas: frame(), y: 10, delta: [0.8, 0.8] as const, tile: true, tileY: true, light: true },
+        { canvas: frame(), y: 40, delta: [0.04, 0.02] as const, tile: false, sway: [160, 520] as const },
       ],
     };
     const { sff, def } = stageFiles(design);
-    expect(readSff(sff).sprites.map((s) => `${s.group},${s.number}`)).toEqual(["0,0", "1,0", "1,1", "1,2", "2,0"]);
+    expect(readSff(sff).sprites.map((s) => `${s.group},${s.number}`)).toEqual(["0,0", "1,0", "1,1", "1,2", "2,0", "3,0"]);
+    expect(def).toContain("[BG 3]\ntype = normal\nspriteno = 3, 0\nlayerno = 0\nstart = 0, 40\ndelta = 0.04, 0.02\nmask = 1\ntile = 0, 0\nsin.x = 160, 520, 0\n");
     expect(def).toContain("[BG 1]\ntype = anim\nactionno = 101\nlayerno = 0\nstart = -2000, 600\ndelta = 1, 1\nmask = 1\ntile = 1, 0\ntilespacing = 4200, 0\nvelocity = 2.4, 0\nsin.y = 5, 34, 0\n");
     expect(def).toContain("[Begin Action 101]\n1,0, 0,0, 5\n1,1, 0,0, 5\n1,2, 0,0, 5\n");
     expect(def).toContain("[BG 2]\ntype = normal\nspriteno = 2, 0\nlayerno = 0\nstart = 0, 10\ndelta = 0.8, 0.8\nmask = 1\ntile = 1, 1\ntrans = add\n");
