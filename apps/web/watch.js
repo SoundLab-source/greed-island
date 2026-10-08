@@ -329,10 +329,50 @@
     if (fight && fight.state === "BETTING_OPEN") renderClock();
   }, 250);
 
+  // ---- Recaps (orchestrator recap.ts, docs/ENGAGEMENT.md §5): what happened while you were away, and after a
+  // long session, the session's own numbers. Gentle, once in a while, and only when something happened. ----
+  const SEEN_KEY = "gi_last_seen", NUDGE_KEY = "gi_last_nudge", START_KEY = "gi_session_start";
+  const AWAY_MS = 2 * 3_600_000, LONG_MS = 3 * 3_600_000, NUDGE_EVERY_MS = 2 * 3_600_000;
+  const store = (s, k, v) => {
+    try {
+      if (v === undefined) return Number(s.getItem(k)) || 0;
+      s.setItem(k, String(v));
+    } catch {
+      /* private mode: no recaps */
+    }
+    return 0;
+  };
+  async function showRecap(since, title) {
+    const r = await api("GET", `/api/me/recap?since=${encodeURIComponent(new Date(since).toISOString())}`).catch(() => null);
+    if (!r || !r.lines.length) return false;
+    $("recap-title").textContent = title;
+    $("recap-lines").innerHTML = r.lines.map((l) => `<li>${esc(l)}</li>`).join("");
+    $("recap").hidden = false;
+    return true;
+  }
+  async function recaps() {
+    const now = Date.now();
+    const lastSeen = store(localStorage, SEEN_KEY);
+    if (!store(sessionStorage, START_KEY)) store(sessionStorage, START_KEY, now);
+    if (lastSeen && now - lastSeen > AWAY_MS) await showRecap(lastSeen, "While you were away");
+    const mark = () => !document.hidden && store(localStorage, SEEN_KEY, Date.now());
+    mark();
+    setInterval(mark, 60_000);
+    // After three hours in one session: its numbers, at most every two hours.
+    setInterval(async () => {
+      const start = store(sessionStorage, START_KEY), last = store(localStorage, NUDGE_KEY), t = Date.now();
+      if (!start || t - start < LONG_MS || (last && t - last < NUDGE_EVERY_MS) || document.hidden) return;
+      store(localStorage, NUDGE_KEY, t);
+      await showRecap(start, `${Math.floor((t - start) / 3_600_000)} hours of fights`);
+    }, 5 * 60_000);
+  }
+  $("recap-close").onclick = () => ($("recap").hidden = true);
+
   (async () => {
     wireControls();
     await GI.ready;
     await Promise.all([setupEmbeds(), refreshFight()]);
     connect();
+    recaps().catch(() => {});
   })().catch((e) => ($("bet-msg").textContent = `Couldn't load: ${e.message}`));
 })();

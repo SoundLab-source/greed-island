@@ -153,12 +153,12 @@ window.GI = (() => {
         <span class="balance" title="Salt: free play money"><b id="gi-balance">…</b> Salt</span>
         <span id="gi-tsalt" class="tsalt" hidden></span>
         <button id="gi-grant" class="btn small" hidden>Claim daily Salt</button>
-        <button id="gi-bailout" class="btn small" hidden>Bailout</button>
+        <button id="gi-bailout" class="btn small" hidden title="Out of Salt? Take some to keep playing">Back on your feet</button>
         <a id="gi-account" class="ghost small" href="/account.html">Account</a>
       </div>`;
     document.body.prepend(header);
     GI.$("gi-grant").onclick = () => GI.act(() => GI.api("POST", "/api/me/daily-grant"), (r) => `+${GI.fmt(r.amount)} Salt`).then(GI.refreshMe);
-    GI.$("gi-bailout").onclick = () => GI.act(() => GI.api("POST", "/api/me/bailout"), (r) => `Bailout: +${GI.fmt(r.amount)} Salt`).then(GI.refreshMe);
+    GI.$("gi-bailout").onclick = () => GI.act(() => GI.api("POST", "/api/me/bailout"), (r) => `Back on your feet: here's ${GI.fmt(r.amount)} Salt. Good luck!`).then(GI.refreshMe);
 
     const foot = document.createElement("footer");
     foot.className = "foot";

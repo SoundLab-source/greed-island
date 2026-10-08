@@ -96,6 +96,7 @@ import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.
 import { characterCardData, fighterCardData, renderCard, type CardData } from "../cards.ts";
 import { collectionView, markSeen } from "../collection.ts";
 import { callBoards, myBettorStats } from "../bettor-stats.ts";
+import { recapFor, recapLines } from "../recap.ts";
 import { shareImage } from "../share-image.ts";
 import { fillSharePage, shareMeta } from "./share-page.ts";
 import { lookCharacterId } from "../look-sprites.ts";
@@ -308,6 +309,13 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   // A bettor's own numbers (bettor-stats.ts), and the best-calls boards (public; the viewer's own line when signed in).
   app.get("/api/me/stats", async (req, reply) => send(reply, await myBettorStats(db, config, await requireViewer(req))));
   app.get("/api/boards/calls", async (req, reply) => send(reply, await callBoards(db, config, await viewer(req))));
+  // What happened since a moment (recap.ts): "while you were away", and a long session's own recap.
+  app.get<{ Querystring: { since?: string } }>("/api/me/recap", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const since = z.coerce.date().parse(req.query.since);
+    const recap = await recapFor(db, config, userId, since);
+    return send(reply, { ...recap, lines: recapLines(recap) });
+  });
   // The card collection (collection.ts): every fighter's card, and which ones this player has seen fight or backed.
   app.get("/api/me/collection", async (req, reply) => send(reply, await collectionView(db, await requireViewer(req))));
   // The watch page reports each fight it showed while it was on: both fighters join the player's collection.

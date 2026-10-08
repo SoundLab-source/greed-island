@@ -138,3 +138,9 @@
   .side .odds { font-size: 24px; }
   .side .plate .name { font-size: 15px; }
 }
+
+/* "While you were away" and a long session's recap (recap.ts). */
+.recap { background: var(--panel-2); border: 1px solid rgba(246, 201, 69, 0.35); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; }
+.recap h2 { color: var(--gold); margin: 0; }
+.recap ul { margin: 6px 0 0; padding-left: 16px; font-size: 13px; }
+.recap li { margin: 2px 0; }

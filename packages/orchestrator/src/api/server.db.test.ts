@@ -816,6 +816,24 @@ describe("bettor numbers and boards", () => {
   });
 });
 
+describe("recaps", () => {
+  it("say what happened since a moment: the player's calls", async () => {
+    const s = await session("Back Again");
+    expect((await app.inject({ method: "GET", url: "/api/me/recap?since=2026-01-01T00:00:00Z" })).statusCode).toBe(401);
+    const before = new Date(Date.now() - 60_000).toISOString();
+    expect((await app.inject({ method: "GET", url: `/api/me/recap?since=${before}`, headers: s.auth })).json().lines).toEqual([]);
+    const f = await openFight();
+    await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 1, stake: "20", idempotencyKey: "recap-bet-1" } });
+    for (const type of ["LOCK", "ENGINE_STARTED"] as const) await applyTransition(deps, f.id, { type });
+    await applyTransition(deps, f.id, { type: "MATCH_END", winnerSide: 1 });
+    await applyTransition(deps, f.id, { type: "SETTLED_OK" });
+    const r = (await app.inject({ method: "GET", url: `/api/me/recap?since=${before}`, headers: s.auth })).json();
+    expect(r.bets).toMatchObject({ settled: 1, won: 1, saltNet: "18" });
+    expect(r.lines).toEqual(["You called 1 of 1 fight (+18 Salt)"]);
+    expect((await app.inject({ method: "GET", url: "/api/me/recap?since=nope", headers: s.auth })).statusCode).toBe(400);
+  });
+});
+
 describe("roster gallery", () => {
   it("lists the fighters on the stream with their outfits and special moves", async () => {
     const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));
