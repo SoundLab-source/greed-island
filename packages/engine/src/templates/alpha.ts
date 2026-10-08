@@ -3,7 +3,7 @@
  * hunched alien brutes with long swipes, a huge front kick, a pounce, a curled-up roll for a jump, a flying kick and a
  * rocket launcher hoisted onto the shoulder (the rocket and blast from military.ts, KABOOM! above). One move list,
  * in the frame numbers of "Komato berserker alpha contact" (688 frames); Puji's GIF has two frames fewer from 165 on.
- * (Ansaksie's GIF has a palette per frame, which the GIF reader doesn't take yet.) The catalogue behind the choices:
+ * (Ansaksie's GIF is a different move list: Purple Reign, ansaksie.ts.) The catalogue behind the choices:
  *
  *   0-7 guard · 7-10 jab · 10-11 covering up · 11-16 long swipe · 28-33 uppercut · 48-53 lunging straight ·
  *   127-133 big front kick · 144-152 stepping in · 168 crouching down · 172-176 crouching punch · 186-191 crouched ·
