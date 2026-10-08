@@ -61,7 +61,11 @@ export interface BetsDisplayConfig {
    * split until lock (to avoid herding, as Salty Bet does), so the default is false (GI_BETS_LIVE).
    */
   sidesLive: boolean;
+  /** A real player's bet this big (Salt or T-Salt) is called out on the stream (docs/ENGAGEMENT.md §4; GI_BIG_BET). */
+  bigBet: Salt;
 }
+
+export const DEFAULT_BIG_BET: Salt = 1000n;
 
 export const DEFAULT_ECONOMY: Readonly<EconomyConfig> = Object.freeze({
   startingBalance: 400n,
@@ -267,7 +271,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     staff: validateStaff({
       renameCooldownMs: numberFromEnv(env, "GI_RENAME_COOLDOWN_DAYS", DEFAULT_STAFF.renameCooldownMs / 86_400_000) * 86_400_000,
     }),
-    bets: { sidesLive: booleanFromEnv(env, "GI_BETS_LIVE", false) },
+    bets: { sidesLive: booleanFromEnv(env, "GI_BETS_LIVE", false), bigBet: saltFromEnv(env, "GI_BIG_BET", DEFAULT_BIG_BET) },
     bettors: validateBettors({
       ...DEFAULT_BETTORS,
       minCallStake: saltFromEnv(env, "GI_MIN_CALL_STAKE", DEFAULT_BETTORS.minCallStake),

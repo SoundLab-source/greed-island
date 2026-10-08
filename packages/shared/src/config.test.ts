@@ -13,6 +13,12 @@ describe("loadConfig", () => {
     expect(cfg.economy.maxPayout).toBe(25n);
   });
 
+  it("reads what's shown of bets: sides live and the big bet called out on stream", () => {
+    expect(loadConfig({}).bets).toEqual({ sidesLive: false, bigBet: 1000n });
+    expect(loadConfig({ GI_BETS_LIVE: "true", GI_BIG_BET: "5000" }).bets).toEqual({ sidesLive: true, bigBet: 5000n });
+    expect(() => loadConfig({ GI_BIG_BET: "lots" })).toThrow(ConfigError);
+  });
+
   it("rejects fractional amounts", () => {
     expect(() => loadConfig({ GI_DAILY_GRANT: "10.5" })).toThrow(ConfigError);
   });

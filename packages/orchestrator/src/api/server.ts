@@ -645,7 +645,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   });
 
   // What the watch page embeds.
-  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null, localVideo: deps.localVideo === true }));
+  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null, localVideo: deps.localVideo === true, bigBet: config.bets.bigBet }));
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db, config)));

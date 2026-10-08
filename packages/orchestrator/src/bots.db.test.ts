@@ -116,7 +116,7 @@ describe("bot players", () => {
   });
 
   it("show sides live when the server says so", async () => {
-    const live: Config = { ...config, bets: { sidesLive: true } };
+    const live: Config = { ...config, bets: { ...config.bets, sidesLive: true } };
     const bots = botPlayers(12, live);
     await bots.ensure();
     const f = (await bookFight(deps, rng(), "fake"))!;

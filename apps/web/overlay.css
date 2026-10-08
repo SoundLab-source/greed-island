@@ -208,6 +208,23 @@ body[data-scene="betting"] #hud { opacity: 0; }
 .banner .lines b { color: var(--gold); }
 .banner .why { display: flex; flex-direction: column; gap: calc(4 * var(--u)); margin-top: calc(10 * var(--u)); font-size: calc(30 * var(--u)); font-weight: 700; color: var(--ink); }
 .banner .why span::before { content: "▸ "; color: var(--gold); }
+/* A moment worth clipping (docs/ENGAGEMENT.md §4): a stamp on the banner's top edge. */
+.banner .clip {
+  position: absolute;
+  right: 12%;
+  top: calc(-30 * var(--u));
+  background: rgba(5, 7, 13, 0.96);
+  padding: calc(6 * var(--u)) calc(18 * var(--u));
+  border: calc(4 * var(--u)) solid var(--gold);
+  border-radius: calc(8 * var(--u));
+  color: var(--gold);
+  font-size: calc(34 * var(--u));
+  font-weight: 900;
+  letter-spacing: calc(4 * var(--u));
+  transform: rotate(-10deg);
+  animation: stamp 0.35s ease-out 0.4s both;
+}
+@keyframes stamp { from { transform: rotate(-10deg) scale(2.2); opacity: 0; } to { transform: rotate(-10deg) scale(1); opacity: 1; } }
 .banner .headline { font-size: calc(44 * var(--u)); font-weight: 900; color: var(--gold); letter-spacing: calc(2 * var(--u)); margin-bottom: calc(12 * var(--u)); }
 .banner .headline.upset { color: #fff; text-shadow: 0 0 calc(18 * var(--u)) var(--red), 0 0 calc(4 * var(--u)) var(--red); }
 /* The announcer's lines on the betting screen. */
