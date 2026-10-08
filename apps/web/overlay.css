@@ -199,6 +199,8 @@ body[data-scene="betting"] #hud { opacity: 0; }
 .banner.void .kicker { color: var(--dim); }
 .banner .lines { color: var(--dim); font-size: calc(26 * var(--u)); margin-top: calc(10 * var(--u)); }
 .banner .lines b { color: var(--gold); }
+.banner .why { display: flex; flex-direction: column; gap: calc(4 * var(--u)); margin-top: calc(10 * var(--u)); font-size: calc(30 * var(--u)); font-weight: 700; color: var(--ink); }
+.banner .why span::before { content: "▸ "; color: var(--gold); }
 .banner .headline { font-size: calc(44 * var(--u)); font-weight: 900; color: var(--gold); letter-spacing: calc(2 * var(--u)); margin-bottom: calc(12 * var(--u)); }
 .banner .headline.upset { color: #fff; text-shadow: 0 0 calc(18 * var(--u)) var(--red), 0 0 calc(4 * var(--u)) var(--red); }
 /* The announcer's lines on the betting screen. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fightStory, streakOf, styleEdge, type StoryFacts } from "./story.ts";
+import { fightBreakdown, fightStory, streakOf, styleEdge, type RoundRecord, type StoryFacts } from "./story.ts";
 
 const facts = (more: Partial<StoryFacts> = {}, sides: Partial<Record<1 | 2, Partial<StoryFacts["sides"][1]>>> = {}): StoryFacts => ({
   sides: {
@@ -56,5 +56,34 @@ describe("the announcer", () => {
     expect(styleEdge(wins, "HEAVY", "GRAPPLER")).toBeNull(); // 39 fights: not enough
     expect(styleEdge({ ZONER: { HEAVY: 52 }, HEAVY: { ZONER: 48 } }, "ZONER", "HEAVY")).toBeNull(); // too close to call
     expect(styleEdge(wins, "ZONER", "ZONER")).toBeNull();
+  });
+});
+
+describe("the post-fight breakdown", () => {
+  const names = { 1: "Free Loot", 2: "Big Cheese" } as const;
+  const r = (round: number, winnerSide: 0 | 1 | 2, more: Partial<RoundRecord> = {}): RoundRecord => ({ round, winnerSide, reason: "ko", life: null, low: null, firstHit: null, ticks: null, ...more });
+
+  it("says why it was won, most telling first, at most three lines", () => {
+    const rounds = [
+      r(1, 2, { life: { 1: 0, 2: 400 }, low: { 1: 0, 2: 400 }, firstHit: 2, ticks: 2400 }),
+      r(2, 1, { life: { 1: 1000, 2: 0 }, low: { 1: 1000, 2: 0 }, firstHit: 1, ticks: 900 }),
+      r(3, 1, { life: { 1: 120, 2: 0 }, low: { 1: 80, 2: 0 }, firstHit: 2, ticks: 3000 }),
+    ];
+    // A comeback from 8% outranks a perfect round.
+    expect(fightBreakdown(rounds, names, 1)).toEqual(["Came back from 8% life to win round 3", "Free Loot won round 2 without taking a hit", "Won the deciding round with just 12% life left"]);
+    expect(fightBreakdown(rounds, names, 1, 5).slice(3)).toEqual(["Lost the first round, then won the next two", "Knocked out Big Cheese in 15 seconds in round 2"]);
+  });
+
+  it("counts first hits and rounds won on the clock", () => {
+    const hitFirst = [r(1, 1, { firstHit: 1, reason: "time" }), r(2, 1, { firstHit: 1 })];
+    expect(fightBreakdown(hitFirst, names, 1)).toEqual(["Landed the first hit in every round", "Won round 1 on the clock"]);
+    const neverFirst = [r(1, 2, { firstHit: 1 }), r(2, 2, { firstHit: 1 })];
+    expect(fightBreakdown(neverFirst, names, 2)).toEqual(["Won without landing the first hit in any round"]);
+  });
+
+  it("says only what older fights' rounds hold, and nothing for a plain win", () => {
+    expect(fightBreakdown([r(1, 2), r(2, 1), r(3, 1)], names, 1)).toEqual(["Lost the first round, then won the next two"]);
+    expect(fightBreakdown([r(1, 1), r(2, 1)], names, 1)).toEqual([]);
+    expect(fightBreakdown([r(1, 1, { life: { 1: 640, 2: 0 } }), r(2, 1, { life: { 1: 520, 2: 0 } })], names, 1)).toEqual(["Finished with 52% life left"]);
   });
 });

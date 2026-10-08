@@ -119,9 +119,10 @@
   function renderStory(f) {
     const s = f.story;
     const el = $("story");
-    if (s && s.headline && f.state === "SETTLED") {
-      el.className = `story headline ${s.headline.kind}`;
-      el.textContent = s.headline.text;
+    if (f.state === "SETTLED" && ((s && s.headline) || (f.breakdown && f.breakdown.length))) {
+      // After the fight: its headline, then why it was won (the breakdown).
+      el.className = "story";
+      el.innerHTML = (s && s.headline ? `<b class="headline ${esc(s.headline.kind)}">${esc(s.headline.text)}</b>` : "") + (f.breakdown ?? []).slice(0, 2).map((l) => `<span>${esc(l)}</span>`).join("");
     } else {
       el.className = "story";
       el.innerHTML = s ? s.lines.slice(0, 2).map((l) => `<span>${esc(l)}</span>`).join("") : "";
@@ -299,7 +300,8 @@
         const f = await api("GET", `/api/fights/${d.fightId}`).catch(() => null);
         if (!f) return;
         const headline = f.story && f.story.headline ? ` <span class="headline ${f.story.headline.kind}">${esc(f.story.headline.text)}</span>` : "";
-        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}` : `Fight #${d.number}: no contest, bets refunded`);
+        const why = f.breakdown && f.breakdown.length ? ` <span class="muted">${esc(f.breakdown[0])}</span>` : "";
+        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}${why}` : `Fight #${d.number}: no contest, bets refunded`);
       },
       title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),
       bettor_title: (d) => {

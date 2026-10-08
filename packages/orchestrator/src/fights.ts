@@ -390,7 +390,16 @@ export async function applyTransition(deps: FightDeps, fightId: string, event: F
 export async function recordRound(db: Db, fightId: string, round: RoundEndEvent): Promise<void> {
   await db.fightRound.upsert({
     where: { fightId_round: { fightId, round: round.round } },
-    create: { fightId, round: round.round, winnerSide: round.winnerSide, reason: round.reason },
+    create: {
+      fightId,
+      round: round.round,
+      winnerSide: round.winnerSide,
+      reason: round.reason,
+      ...(round.life ? { life1: round.life[0], life2: round.life[1] } : {}),
+      ...(round.low ? { low1: round.low[0], low2: round.low[1] } : {}),
+      ...(round.firstHit !== undefined ? { firstHit: round.firstHit } : {}),
+      ...(round.ticks !== undefined ? { ticks: round.ticks } : {}),
+    },
     update: {},
   });
 }

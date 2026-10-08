@@ -10,9 +10,36 @@ import type { EventSource, FightSpec, RunOptions } from "./types.ts";
 
 export type FakeEnding = "normal" | "crash" | "hang" | "bad_events";
 
+export interface FakeRound {
+  winnerSide: WinnerSide;
+  reason: "ko" | "time";
+  /** The event mod's round detail (life left, lowest life, first hit, ticks); made up when a script leaves it out. */
+  life?: [number, number];
+  low?: [number, number];
+  firstHit?: 0 | 1 | 2;
+  ticks?: number;
+}
+
 export interface FakeScript {
-  rounds: { winnerSide: WinnerSide; reason: "ko" | "time" }[];
+  rounds: FakeRound[];
   ending: FakeEnding;
+}
+
+/**
+ * A plausible round detail for a round's result, from its own random stream (so adding it changed no fight's
+ * winner): the winner keeps 5-100% of its life (a knockout leaves the loser at 0), dips lower on the way, and
+ * usually lands the first hit.
+ */
+export function fakeRoundDetail(random: () => number, round: FakeRound): Required<Pick<FakeRound, "life" | "low" | "firstHit" | "ticks">> {
+  const w = round.winnerSide;
+  const keep = Math.round(50 + random() * 950);
+  const left = round.reason === "ko" ? 0 : Math.round(random() * keep);
+  const life: [number, number] = w === 1 ? [keep, left] : w === 2 ? [left, keep] : [keep, keep];
+  const dip = (v: number) => Math.max(0, Math.round(v - random() * Math.min(v, 300)));
+  const low: [number, number] = [dip(life[0]), dip(life[1])];
+  const firstHit = w === 0 ? (random() < 0.5 ? 1 : 2) : random() < 0.7 ? w : w === 1 ? 2 : 1;
+  const ticks = round.reason === "time" ? 5940 : Math.round(900 + random() * 4200);
+  return { life, low, firstHit, ticks };
 }
 
 export interface FakeOptions {
@@ -85,9 +112,10 @@ export function createFakeSource(options: FakeOptions = {}): EventSource {
           return { kind: "engine_timeout", detail: "fake engine hung" };
         }
         const wins: [number, number] = [0, 0];
+        const detail = seededRandom(`${options.seed ?? "fake"}:${spec.fightId}:detail`);
         for (const [i, round] of script.rounds.entries()) {
           await emit({ type: "round_start", round: i + 1 });
-          await emit({ type: "round_end", round: i + 1, winnerSide: round.winnerSide, reason: round.reason });
+          await emit({ type: "round_end", round: i + 1, ...fakeRoundDetail(detail, round), ...round });
           if (round.winnerSide === 1) wins[0]++;
           if (round.winnerSide === 2) wins[1]++;
           if (script.ending === "crash") return tracker.outcome("fake engine crashed");

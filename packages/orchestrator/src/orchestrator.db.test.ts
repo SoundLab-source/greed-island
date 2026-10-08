@@ -11,6 +11,7 @@ import { applyTransition, bookFight, IllegalTransitionError, StaleFightError, ty
 import { acquireOrchestratorLock, OrchestratorAlreadyRunningError } from "./lock.ts";
 import type { Rng } from "./matchmaking.ts";
 import { Orchestrator } from "./orchestrator.ts";
+import { fightView } from "./api/views.ts";
 import { lookDefPath } from "./look-sprites.ts";
 import { reconcile } from "./reconcile.ts";
 
@@ -132,6 +133,11 @@ describe("Orchestrator with the fake engine", () => {
     expect(fight.state).toBe("SETTLED");
     expect(fight.winnerCharacterId).toBe(fight.side1CharacterId);
     expect(fight.rounds).toHaveLength(2);
+    // Each round keeps the event mod's detail (the fake engine makes it up): side 2 was knocked out both times.
+    for (const r of fight.rounds) expect(r).toMatchObject({ life2: 0, firstHit: expect.any(Number), ticks: expect.any(Number) });
+    const view = await fightView(db, config, fight.id);
+    expect(Array.isArray(view!.breakdown)).toBe(true);
+    expect(view!.rounds[0]).toMatchObject({ life: { 2: 0 }, seconds: expect.any(Number) });
     const payout = (100n * BigInt(fight.odds!.multiplierBp1)) / 10_000n;
     expect(await getBalance(db, bettors[0]!)).toBe(300n + payout);
     expect(await getBalance(db, bettors[2]!)).toBe(300n);

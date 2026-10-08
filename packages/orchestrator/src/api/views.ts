@@ -29,7 +29,7 @@ import {
 } from "@greed-island/shared";
 import { mySeason } from "./season-views.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
-import { fightStory, scouting, storyFacts } from "../story.ts";
+import { fightBreakdown, fightStory, scouting, storyFacts, type RoundRecord } from "../story.ts";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -279,6 +279,17 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   // The announcer's lines before the fight, and its headline after (docs/ENGAGEMENT.md §1).
   const tournament = tm ? { roundName: roundName(tm.round, tm.tournament.size) } : null;
   const story = fightStory(await storyFacts(db, f, { sides: { 1: s1, 2: s2 }, odds: odds as { chancePct: Record<Side, number>; multiplier: Record<Side, string> } | null, tournament }));
+  // Why it was won, from the rounds (DESIGN §14), once it's settled.
+  const rounds: RoundRecord[] = f.rounds.map((r) => ({
+    round: r.round,
+    winnerSide: r.winnerSide as 0 | 1 | 2,
+    reason: r.reason,
+    life: r.life1 !== null && r.life2 !== null ? { 1: r.life1, 2: r.life2 } : null,
+    low: r.low1 !== null && r.low2 !== null ? { 1: r.low1, 2: r.low2 } : null,
+    firstHit: r.firstHit as 0 | 1 | 2 | null,
+    ticks: r.ticks,
+  }));
+  const breakdown = f.state === "SETTLED" && (f.winnerSide === 1 || f.winnerSide === 2) ? fightBreakdown(rounds, { 1: s1.name, 2: s2.name }, f.winnerSide) : [];
 
   return {
     id: f.id,
@@ -301,7 +312,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     headToHead: { fights: h2h.fights, wins: { 1: h2h.wins[f.side1CharacterId] ?? 0, 2: h2h.wins[f.side2CharacterId] ?? 0 } },
     odds,
     roundsToWin: f.roundsToWin,
-    rounds: f.rounds.map((r) => ({ round: r.round, winnerSide: r.winnerSide, reason: r.reason })),
+    rounds: rounds.map((r) => ({ round: r.round, winnerSide: r.winnerSide, reason: r.reason, life: r.life, firstHit: r.firstHit, seconds: r.ticks === null ? null : Math.round(r.ticks / 60) })),
     challenge: challenge ? { challenger: playerName(challenge.challenger), challenged: playerName(challenge.challenged), acceptedAt: challenge.acceptedAt } : null,
     /** Which currency bets on this fight use: tournament fights use that tournament's T-Salt. */
     currency: tm ? ("T-Salt" as const) : ("Salt" as const),
@@ -318,6 +329,8 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     bets,
     betsRevealed,
     story,
+    /** After a settled fight: why it was won, up to three lines. */
+    breakdown,
     scouting: await scouting(db, f),
   };
 }

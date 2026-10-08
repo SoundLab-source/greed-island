@@ -59,3 +59,23 @@ describe("fake engine", () => {
     expect(await running).toMatchObject({ kind: "engine_crash", detail: "aborted" });
   });
 });
+
+describe("fake round detail", () => {
+  it("is plausible for the round's result: a knockout leaves the loser at 0, the lowest is never above the end", async () => {
+    const { fakeRoundDetail, seededRandom: rnd } = await import("./fake.ts");
+    const random = rnd("detail");
+    for (let i = 0; i < 200; i++) {
+      const winnerSide = ((i % 3) as 0 | 1 | 2);
+      const reason = i % 4 === 0 ? "time" : "ko";
+      const d = fakeRoundDetail(random, { winnerSide, reason });
+      for (const k of [0, 1] as const) {
+        expect(d.low[k]).toBeLessThanOrEqual(d.life[k]);
+        expect(d.life[k]).toBeGreaterThanOrEqual(0);
+        expect(d.life[k]).toBeLessThanOrEqual(1000);
+      }
+      if (winnerSide !== 0 && reason === "ko") expect(d.life[winnerSide === 1 ? 1 : 0]).toBe(0);
+      expect([0, 1, 2]).toContain(d.firstHit);
+      expect(d.ticks).toBeGreaterThan(0);
+    }
+  });
+});

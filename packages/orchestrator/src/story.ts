@@ -90,6 +90,54 @@ function headline(f: StoryFacts, w: Side): Story["headline"] {
   return null;
 }
 
+// ----- The post-fight breakdown -----
+
+/** One round as stored (fight_round): its winner, how, and the event mod's detail when it has it. */
+export interface RoundRecord {
+  round: number;
+  winnerSide: 0 | 1 | 2;
+  reason: string;
+  /** Per mille of full life, per side. */
+  life: Record<Side, number> | null;
+  low: Record<Side, number> | null;
+  firstHit: 0 | 1 | 2 | null;
+  ticks: number | null;
+}
+
+/**
+ * Why the fight was won, in up to three lines, most telling first (DESIGN §14: a win should make sense, and the next
+ * bet feel informed): a perfect round, a comeback from low life, a close finish, winning after losing the first round,
+ * who hit first, a quick knockout, rounds on the clock. Only facts the rounds hold: older fights (before the event mod
+ * reported life) get only the ones that need no life numbers.
+ */
+export function fightBreakdown(rounds: readonly RoundRecord[], names: Record<Side, string>, winner: Side, max = 3): string[] {
+  const lines: { score: number; text: string }[] = [];
+  const add = (score: number, text: string) => lines.push({ score, text });
+  const w = winner, l = other(winner);
+  const W = names[w], L = names[l];
+  const won = rounds.filter((r) => r.winnerSide === w);
+  const lost = rounds.filter((r) => r.winnerSide === l);
+  const p = (perMille: number) => `${Math.round(perMille / 10)}%`;
+  const sec = (ticks: number) => Math.max(1, Math.round(ticks / 60));
+
+  const perfect = won.filter((r) => r.life && r.life[w] >= 1000 && r.reason === "ko");
+  if (perfect.length) add(90 + perfect.length, perfect.length === 1 ? `${W} won round ${perfect[0]!.round} without taking a hit` : `${W} won ${perfect.length} rounds without taking a hit`);
+  const comeback = won.filter((r) => r.low && r.low[w] <= 250).sort((a, b) => a.low![w] - b.low![w])[0];
+  if (comeback) add(85 + Math.round((250 - comeback.low![w]) / 25), `Came back from ${p(comeback.low![w])} life to win round ${comeback.round}`);
+  const last = rounds[rounds.length - 1];
+  if (last && last.winnerSide === w && last.life && last.life[w] <= 150) add(82, `${lost.length ? "Won the deciding round" : "Finished it"} with just ${p(last.life[w])} life left`);
+  else if (last && last.winnerSide === w && last.life) add(30, `Finished with ${p(last.life[w])} life left`);
+  if (rounds[0]?.winnerSide === l && lost.length === 1 && won.length >= 2) add(70, `Lost the first round, then won ${won.length === 2 ? "the next two" : `${won.length} in a row`}`);
+  const hits = rounds.filter((r) => r.firstHit === 1 || r.firstHit === 2);
+  if (hits.length >= 2 && hits.every((r) => r.firstHit === w)) add(50, `Landed the first hit in every round`);
+  else if (hits.length >= 2 && hits.every((r) => r.firstHit === l)) add(62, `Won without landing the first hit in any round`);
+  const quick = won.filter((r) => r.reason === "ko" && r.ticks !== null && r.ticks > 0 && sec(r.ticks) <= 20).sort((a, b) => a.ticks! - b.ticks!)[0];
+  if (quick) add(55 + (20 - sec(quick.ticks!)), `Knocked out ${L} in ${sec(quick.ticks!)} seconds in round ${quick.round}`);
+  const clock = won.filter((r) => r.reason === "time");
+  if (clock.length) add(45, clock.length === 1 ? `Won round ${clock[0]!.round} on the clock` : `Won ${clock.length} rounds on the clock`);
+  return lines.sort((a, b) => b.score - a.score).slice(0, max).map((x) => x.text);
+}
+
 /** A run of the same result, newest first: "WWWL..." gives 3 wins. */
 export function streakOf(results: readonly ("W" | "L")[]): { kind: "W" | "L"; n: number } | null {
   if (!results.length) return null;

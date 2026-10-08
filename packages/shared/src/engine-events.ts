@@ -19,11 +19,19 @@ export const RoundStartEvent = z.object({
   round: z.number().int().min(1),
 });
 
+const perMille = z.number().int().min(0).max(1000);
 export const RoundEndEvent = z.object({
   type: z.literal("round_end"),
   round: z.number().int().min(1),
   winnerSide,
   reason: z.enum(["ko", "time"]),
+  /** Life left at the end of the round, and the lowest it fell, per side, per mille of full life (event mod v2). */
+  life: z.tuple([perMille, perMille]).optional(),
+  low: z.tuple([perMille, perMille]).optional(),
+  /** The side that landed the first hit, 0 if nobody was hit. */
+  firstHit: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  /** Fighting time of the round in game ticks (60 a second at normal speed). */
+  ticks: z.number().int().min(0).optional(),
 });
 
 export const MatchEndEvent = z.object({

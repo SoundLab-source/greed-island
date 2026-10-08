@@ -4,7 +4,9 @@
 -- `-salty.events <path>`, flushing after every line:
 --   match_start {p1, p2}
 --   round_start {round}
---   round_end   {round, winnerSide (1, 2, or 0 for a draw), reason: "ko"|"time"}
+--   round_end   {round, winnerSide (1, 2, or 0 for a draw), reason: "ko"|"time",
+--                life: [p1, p2] life left and low: [p1, p2] the lowest it fell this round (per mille of full life),
+--                firstHit (the side that hit first, 0 if nobody was hit), ticks (fighting time of the round)}
 --   match_end   {winnerSide, wins: [p1Wins, p2Wins]}
 --
 -- Without the flag it does nothing, so it is safe to leave installed in
@@ -12,7 +14,7 @@
 -- loads it through a generated config: [Common] Lua1 = require('external.mods.salty_events')
 -- See docs/ikemen-notes.md §2. Functions used (all confirmed in v1.0.0 source):
 -- getCommandLineValue, hook.add, roundNo, roundState, player, win, winKO,
--- life, name, matchOver, getWinnerTeam.
+-- life, lifeMax, name, matchOver, getWinnerTeam.
 
 local M = {}
 
@@ -50,6 +52,20 @@ local currentRound = 0
 local roundOpen = false
 local ended = false
 local wins = {0, 0}
+-- This round so far: life (per mille), the lowest it fell, who hit first, fighting ticks.
+local low = {1000, 1000}
+local firstHit = 0
+local roundTicks = 0
+
+local function lifeOf(n)
+  if not player(n) then return 1000 end
+  local max = lifeMax()
+  if max == nil or max <= 0 then return 1000 end
+  local v = math.floor(life() * 1000 / max + 0.5)
+  if v < 0 then v = 0 end
+  if v > 1000 then v = 1000 end
+  return v
+end
 
 local function sideWon(n)
   return player(n) and win()
@@ -90,7 +106,21 @@ local function tick()
   if rs == 2 and rn > currentRound then
     currentRound = rn
     roundOpen = true
+    low = {1000, 1000}
+    firstHit = 0
+    roundTicks = 0
     emit('{"type":"round_start","round":' .. rn .. '}')
+  end
+
+  -- While the round is on: the lowest life each side falls to, and who drew blood first.
+  if roundOpen and rs == 2 then
+    roundTicks = roundTicks + 1
+    local l1, l2 = lifeOf(1), lifeOf(2)
+    if firstHit == 0 then
+      if l2 < 1000 and l1 >= 1000 then firstHit = 1 elseif l1 < 1000 and l2 >= 1000 then firstHit = 2 end
+    end
+    if l1 < low[1] then low[1] = l1 end
+    if l2 < low[2] then low[2] = l2 end
   end
 
   -- Report the round once win poses start: the result can no longer change.
@@ -98,7 +128,12 @@ local function tick()
     roundOpen = false
     local winner = roundWinner()
     if winner > 0 then wins[winner] = wins[winner] + 1 end
-    emit('{"type":"round_end","round":' .. currentRound .. ',"winnerSide":' .. winner .. ',"reason":"' .. roundReason(winner) .. '"}')
+    local reason = roundReason(winner)
+    local l1, l2 = lifeOf(1), lifeOf(2)
+    if l1 < low[1] then low[1] = l1 end
+    if l2 < low[2] then low[2] = l2 end
+    emit('{"type":"round_end","round":' .. currentRound .. ',"winnerSide":' .. winner .. ',"reason":"' .. reason .. '"'
+      .. ',"life":[' .. l1 .. ',' .. l2 .. '],"low":[' .. low[1] .. ',' .. low[2] .. '],"firstHit":' .. firstHit .. ',"ticks":' .. roundTicks .. '}')
     if matchOver() then
       local w = getWinnerTeam()
       if w ~= 1 and w ~= 2 then w = 0 end

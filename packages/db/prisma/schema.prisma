@@ -527,6 +527,14 @@ model FightRound {
   /// 1, 2, or 0 for a drawn round.
   winnerSide Int    @map("winner_side") @db.SmallInt
   reason     String
+  /// The event mod's detail (null before v2 of the mod): life left and the lowest it fell this round, per side, per
+  /// mille of full life; the side that hit first (0: nobody was hit); fighting ticks.
+  life1      Int?   @map("life1") @db.SmallInt
+  life2      Int?   @map("life2") @db.SmallInt
+  low1       Int?   @map("low1") @db.SmallInt
+  low2       Int?   @map("low2") @db.SmallInt
+  firstHit   Int?   @map("first_hit") @db.SmallInt
+  ticks      Int?
 
   @@id([fightId, round])
   @@map("fight_round")
