@@ -79,7 +79,7 @@ Built from 2026-09-30. One template per archetype, each a real IKEMEN character 
 Built 2026-10-02 (step 4, first part). `pnpm templates:balance` runs a round robin of sim fights between the five templates and prints each one's win rate, the range the true rate is likely in, every matchup, and a verdict.
 
 - **Fast enough to use.** Fights run at 100× speed, six at a time: 200 fights take about a minute on the M4 Max (the round robins above took 40 fights a run). Checked that speed doesn't change results: 200 fights at 16× and 200 at 100× gave the same ranking, every win rate within 4 points, and the same average fight length.
-- **Fair by construction.** Each pair swaps sides every fight and plays both sides on a stage before moving to the next (our three stages), so neither side nor stage favours anyone. The report shows how often the player 1 side won, as a check.
+- **Fair by construction.** Each pair swaps sides every fight and plays both sides on a stage before moving to the next (our own stages), so neither side nor stage favours anyone. The report shows how often the player 1 side won, as a check.
 - **Options.** `--fights 50` for more fights per pairing (narrower ranges), `--only bruiser` for one fighter's pairings while tuning it, `--fighters a,b,c` for any roster fighters, `--sides` for the side check (each fighter against itself: the player 1 side should win about half).
 - **What it records.** Wins, rounds, rounds decided by the clock, average fight length, and how much life winners keep, in `runs/balance/<time>/summary.json`. A failed fight (crash or timeout) keeps its artifacts there and makes the command exit with an error.
 

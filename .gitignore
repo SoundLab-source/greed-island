@@ -22,6 +22,8 @@ ikemen-install/
 Ikemen_GO-*/
 chars/
 stages/
+# ...except our own stages' source code (drawn in code: packages/engine/src/stages).
+!packages/engine/src/stages/
 *.sff
 *.snd
 Ikemen_GO

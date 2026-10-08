@@ -1735,6 +1735,38 @@
       "enabled": true
     },
     {
+      "id": "gi-treasure-island",
+      "displayName": "Treasure Island",
+      "def": "stages/gi-treasure-island.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
+      "id": "gi-the-vault",
+      "displayName": "The Vault",
+      "def": "stages/gi-the-vault.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
+      "id": "gi-trading-floor",
+      "displayName": "The Trading Floor",
+      "def": "stages/gi-trading-floor.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
+      "id": "gi-gold-rush",
+      "displayName": "Gold Rush",
+      "def": "stages/gi-gold-rush.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
       "id": "mugen-sapphire-diamond",
       "displayName": "Sapphire Diamond",
       "def": "stages/mugen-sapphire-diamond/mugen-sapphire-diamond.def",

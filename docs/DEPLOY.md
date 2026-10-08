@@ -149,7 +149,7 @@ GI_PUBLIC_URL=https://play.your-domain.com
 GI_SMTP_URL=smtps://…
 GI_MAIL_FROM="Greed Island <no-reply@your-domain.com>"
 GI_TWITCH_CHANNEL=yourchannel
-GI_COMMERCIAL_ONLY=true                   # only fighters and stages cleared for commercial use (our 27 fighters and 3 stages; on since 2026-10-05)
+GI_COMMERCIAL_ONLY=true                   # only fighters and stages cleared for commercial use (our own fighters and 7 stages; on since 2026-10-05)
 ```
 
 Before telling anyone the address:
@@ -160,7 +160,7 @@ Before telling anyone the address:
 - [ ] An uptime monitor on `https://play.your-domain.com/api/health`.
 - [ ] Backups copied off the machine (section 3).
 - [ ] Fighter submissions stay closed (`GI_SUBMISSIONS_OPEN` unset) until the terms are ready; the terms and privacy pages are drafts for the lawyer. (When a submission is sent for review, the server runs its automatic checks as fast background fights, two at a time. That hasn't been tried during a live stream yet: if it makes the stream stutter, set `GI_SUBMISSION_CHECKS=false`.)
-- [x] `GI_COMMERCIAL_ONLY=true` (decided 2026-10-05): the Kung Fu Man copies and the game's own stages (licences unclear: [ikemen-notes.md](ikemen-notes.md) §6) are off; our 27 fighters and our 3 stages remain.
+- [x] `GI_COMMERCIAL_ONLY=true` (decided 2026-10-05): the Kung Fu Man copies and the game's own stages (licences unclear: [ikemen-notes.md](ikemen-notes.md) §6) are off; our fighters and our stages remain.
 
 ## Linux (systemd)
 
