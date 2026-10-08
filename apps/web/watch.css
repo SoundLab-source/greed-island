@@ -150,6 +150,7 @@
 .side.blue .who { justify-content: flex-end; }
 .side .who .plate { min-width: 0; }
 .flame { flex: none; color: #ff9a3c; font-size: 14px; font-weight: 900; white-space: nowrap; }
+.side .cta .newcomer { padding: 1px 6px; border-radius: 4px; background: linear-gradient(90deg, #ff9a3c, var(--gold)); color: #241a00; font-size: 9px; letter-spacing: 1px; }
 .side .cta .against { padding: 1px 6px; border-radius: 4px; background: var(--gold); color: #241a00; font-size: 9px; letter-spacing: 1px; }
 
 /* The sound toggle (site.js GI.sfx). */

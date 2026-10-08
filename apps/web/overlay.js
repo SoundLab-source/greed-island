@@ -36,6 +36,8 @@
     const flame = k ? `<span class="flame">🔥${k}</span>` : "";
     return `<div class="named">${n === 2 ? flame : ""}${plate(s)}${n === 1 ? flame : ""}</div>`;
   }
+  // A fighter's first fight ever (docs/ENGAGEMENT.md §4: a debut gets an entrance); its record is as of the booking.
+  const newcomer = (s) => s.record.wins + s.record.losses === 0;
   // The crowd reveal (docs/ENGAGEMENT.md §2): where the players' Salt went, once betting has closed.
   const crowd = (f) => (f.odds && f.odds.crowd) || null;
   const crowdText = (c) => (c.pct[1] >= c.pct[2] ? `${c.pct[1]}% on Red` : `${c.pct[2]}% on Blue`);
@@ -61,7 +63,7 @@
     ].filter(Boolean);
     const form = s.last10.slice().reverse().map((r) => `<span class="${r}">${r}</span>`).join("");
     return `
-      <div class="corner">${n === 1 ? "RED" : "BLUE"} CORNER${crowd(f) && crowd(f).against === n ? ` <span class="against">AGAINST THE CROWD</span>` : ""}</div>
+      <div class="corner">${n === 1 ? "RED" : "BLUE"} CORNER${newcomer(s) ? ` <span class="newcomer">NEW CHALLENGER</span>` : ""}${crowd(f) && crowd(f).against === n ? ` <span class="against">AGAINST THE CROWD</span>` : ""}</div>
       ${named(n, s, f)}
       ${badges(s)}
       <div class="owner">${owner}${s.firstEdition ? " · First Edition" : ""}</div>

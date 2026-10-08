@@ -105,6 +105,8 @@ body[data-scene="betting"] #hud { opacity: 0; }
 .named .plate { min-width: 0; }
 .flame { flex: none; color: #ff9a3c; font-size: calc(44 * var(--u)); font-weight: 900; white-space: nowrap; text-shadow: 0 0 calc(12 * var(--u)) rgba(255, 120, 40, 0.6); }
 .hud-side .flame { font-size: calc(30 * var(--u)); }
+.newcomer { display: inline-block; vertical-align: middle; margin: 0 calc(10 * var(--u)); padding: calc(2 * var(--u)) calc(10 * var(--u)); border-radius: calc(6 * var(--u)); background: linear-gradient(90deg, #ff9a3c, var(--gold)); color: #241a00; font-size: calc(16 * var(--u)); letter-spacing: calc(2 * var(--u)); animation: newcomer 1.2s ease-in-out infinite alternate; }
+@keyframes newcomer { to { box-shadow: 0 0 calc(18 * var(--u)) rgba(246, 201, 69, 0.8); } }
 .against { display: inline-block; vertical-align: middle; margin: 0 calc(10 * var(--u)); padding: calc(2 * var(--u)) calc(10 * var(--u)); border-radius: calc(6 * var(--u)); background: var(--gold); color: #241a00; font-size: calc(16 * var(--u)); letter-spacing: calc(2 * var(--u)); }
 .badges { display: flex; gap: calc(10 * var(--u)); min-height: calc(40 * var(--u)); }
 .blue .badges { justify-content: flex-end; }
