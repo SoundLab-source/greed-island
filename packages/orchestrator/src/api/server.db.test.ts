@@ -152,6 +152,7 @@ describe("fights and bets", () => {
     expect(view.odds).toMatchObject({ locked: false, multiplier: { 1: "1.90x", 2: "1.90x" } });
     expect(view.headToHead).toEqual({ fights: 0, wins: { 1: 0, 2: 0 } });
     expect(view.odds.pool).toBeUndefined(); // no crowd split before lock
+    expect(view.odds.crowd).toBeUndefined();
     // Its fighter's card and its character's card, as SVG images.
     const card = await app.inject({ method: "GET", url: `/api/cards/characters/${view.sides[1].id}` });
     expect(card.statusCode).toBe(200);
@@ -160,7 +161,7 @@ describe("fights and bets", () => {
     expect((await app.inject({ method: "GET", url: `/api/cards/fighters/${view.sides[1].fighter.id}` })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/api/cards/fighters/nobody" })).statusCode).toBe(404);
     // The announcer: both are new, and the odds are even.
-    expect(view.story).toEqual({ lines: [`First fight ever for ${view.sides[1].name}`, `First fight ever for ${view.sides[2].name}`, "Dead even: 50% to 50%"], headline: null });
+    expect(view.story).toEqual({ lines: [`First fight ever for ${view.sides[1].name}`, `First fight ever for ${view.sides[2].name}`, "Dead even: 50% to 50%"], headline: null, flames: { 1: 0, 2: 0 } });
     // The scouting card: styles by their roster names, and no history yet.
     expect(view.scouting.styles[1]).toMatch(/^(Brawler|Striker|Bruiser|Wrestler|Sage)$/);
     expect(view.scouting.vsStyle).toEqual({ 1: { fights: 0, wins: 0 }, 2: { fights: 0, wins: 0 } });

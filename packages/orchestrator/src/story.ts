@@ -29,7 +29,13 @@ export interface Story {
   lines: string[];
   /** After it: the one headline worth shouting, if any. */
   headline: { kind: "upset" | "streak-broken" | "streak" | "promoted" | "debut-win"; text: string } | null;
+  /** Each side's win streak as it stands (going in; after the result, the winner's grown by one and the loser's gone), when
+   * it's 3 or more: a flame by the name. 0 otherwise. */
+  flames: Record<Side, number>;
 }
+
+/** A win streak this long gets a flame by the name. */
+export const FLAME_AT = 3;
 
 /** Each style's name on the roster (the templates'), plural. */
 export const STYLE_NAMES: Record<Archetype, string> = { ALL_ROUNDER: "Brawlers", RUSHDOWN: "Strikers", HEAVY: "Bruisers", GRAPPLER: "Wrestlers", ZONER: "Sages" };
@@ -73,7 +79,18 @@ export function fightStory(f: StoryFacts, max = 3): Story {
     add(28 + (e.pct - 55), `${STYLE_NAMES[e.winner]} beat ${STYLE_NAMES[e.loser]} ${pct(e.pct)} of the time on this roster`);
   }
 
-  return { lines: lines.sort((a, b) => b.score - a.score).slice(0, max).map((l) => l.text), headline: f.result ? headline(f, f.result.winnerSide) : null };
+  return { lines: lines.sort((a, b) => b.score - a.score).slice(0, max).map((l) => l.text), headline: f.result ? headline(f, f.result.winnerSide) : null, flames: flames(f) };
+}
+
+function flames(f: StoryFacts): Record<Side, number> {
+  const run = (s: Side) => {
+    const st = f.sides[s].streak;
+    const n = st?.kind === "W" ? st.n : 0;
+    if (!f.result) return n;
+    return f.result.winnerSide === s ? n + 1 : 0;
+  };
+  const lit = (n: number) => (n >= FLAME_AT ? n : 0);
+  return { 1: lit(run(1)), 2: lit(run(2)) };
 }
 
 function headline(f: StoryFacts, w: Side): Story["headline"] {
@@ -185,7 +202,7 @@ export async function styleWins(db: Db, now = Date.now()): Promise<StyleWins> {
 }
 
 /** A character's results before fight number `before`, newest first. */
-async function formBefore(db: Db, characterId: string, before: number, n = 12): Promise<("W" | "L")[]> {
+async function formBefore(db: Db, characterId: string, before: number, n = 30): Promise<("W" | "L")[]> {
   const fights = await db.fight.findMany({
     where: { state: "SETTLED", number: { lt: before }, OR: [{ side1CharacterId: characterId }, { side2CharacterId: characterId }] },
     orderBy: { number: "desc" },

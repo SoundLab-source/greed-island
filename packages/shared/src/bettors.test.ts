@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { againstCrowd, bettorStats, bettorTitlesEarned, currentRun, DEFAULT_BETTORS, longestRun, rankBoard, validateBettors, type SettledBet } from "./bettors.ts";
+import { againstCrowd, bettorStats, crowdSplit, bettorTitlesEarned, currentRun, DEFAULT_BETTORS, longestRun, rankBoard, validateBettors, type SettledBet } from "./bettors.ts";
 import { loadConfig } from "./config.ts";
 
 const cfg = DEFAULT_BETTORS;
@@ -49,6 +49,11 @@ describe("bettor titles", () => {
 
   it("against the crowd means less of the players' Salt on your side", () => {
     expect(againstCrowd({ own: 50n, other: 200n })).toBe(true);
+    expect(crowdSplit({ 1: 720n, 2: 280n })).toEqual({ pct: { 1: 72, 2: 28 }, against: 2 });
+    expect(crowdSplit({ 1: 1n, 2: 2n })).toEqual({ pct: { 1: 33, 2: 67 }, against: 1 });
+    expect(crowdSplit({ 1: 1n, 2: 1n })).toEqual({ pct: { 1: 50, 2: 50 }, against: null });
+    expect(crowdSplit({ 1: 0n, 2: 500n })).toEqual({ pct: { 1: 0, 2: 100 }, against: 1 });
+    expect(crowdSplit({ 1: 0n, 2: 0n })).toBeNull();
     expect(againstCrowd({ own: 200n, other: 200n })).toBe(false);
     expect(againstCrowd({ own: 50n, other: 0n })).toBe(false);
   });

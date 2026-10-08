@@ -145,6 +145,13 @@
 .recap ul { margin: 6px 0 0; padding-left: 16px; font-size: 13px; }
 .recap li { margin: 2px 0; }
 
+/* A win streak's flame and the crowd reveal (docs/ENGAGEMENT.md §1-2). */
+.side .who { display: flex; align-items: center; gap: 6px; }
+.side.blue .who { justify-content: flex-end; }
+.side .who .plate { min-width: 0; }
+.flame { flex: none; color: #ff9a3c; font-size: 14px; font-weight: 900; white-space: nowrap; }
+.side .cta .against { padding: 1px 6px; border-radius: 4px; background: var(--gold); color: #241a00; font-size: 9px; letter-spacing: 1px; }
+
 /* The sound toggle (site.js GI.sfx). */
 .sound { background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; font-weight: 700; padding: 1px 8px; margin-left: 8px; }
 .sound:hover { color: var(--ink); }

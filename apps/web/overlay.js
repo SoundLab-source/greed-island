@@ -27,6 +27,15 @@
   const badge = (b) => `<span class="badge" style="background:${esc(b.color)}" title="${esc(b.label)}">${esc(b.glyph)}</span>`;
   const badges = (s) => `<div class="badges">${s.cosmetics.badges.map(badge).join("")}</div>`;
   const roundWins = (f, side) => f.rounds.filter((r) => r.winnerSide === side).length;
+  // A win streak of 3 or more (docs/ENGAGEMENT.md §1): a flame by the name, on the side toward the middle.
+  function named(n, s, f) {
+    const k = f.story && f.story.flames ? f.story.flames[n] : 0;
+    const flame = k ? `<span class="flame">🔥${k}</span>` : "";
+    return `<div class="named">${n === 2 ? flame : ""}${plate(s)}${n === 1 ? flame : ""}</div>`;
+  }
+  // The crowd reveal (docs/ENGAGEMENT.md §2): where the players' Salt went, once betting has closed.
+  const crowd = (f) => (f.odds && f.odds.crowd) || null;
+  const crowdText = (c) => (c.pct[1] >= c.pct[2] ? `${c.pct[1]}% on Red` : `${c.pct[2]}% on Blue`);
 
   function segment(f) {
     if (f.tournament) return `${f.tournament.debut ? "Debut Tournament" : "Tournament"} #${f.tournament.number} · ${esc(f.tournament.tier)} tier<small>${esc(f.tournament.roundName)}</small>`;
@@ -49,8 +58,8 @@
     ].filter(Boolean);
     const form = s.last10.slice().reverse().map((r) => `<span class="${r}">${r}</span>`).join("");
     return `
-      <div class="corner">${n === 1 ? "RED" : "BLUE"} CORNER</div>
-      <div>${plate(s)}</div>
+      <div class="corner">${n === 1 ? "RED" : "BLUE"} CORNER${crowd(f) && crowd(f).against === n ? ` <span class="against">AGAINST THE CROWD</span>` : ""}</div>
+      ${named(n, s, f)}
       ${badges(s)}
       <div class="owner">${owner}${s.firstEdition ? " · First Edition" : ""}</div>
       ${scout(n, f)}
@@ -110,7 +119,8 @@
       ? `<div class="bar"><span class="r" style="width:${o.chancePct[1]}%"></span><span class="b" style="width:${o.chancePct[2]}%"></span></div>
          <div class="bar-labels"><span>${o.chancePct[1].toFixed(1)}%</span><span>${o.locked ? "win chance, locked" : "win chance"}</span><span>${o.chancePct[2].toFixed(1)}%</span></div>`
       : "";
-    $("pools").innerHTML = o && o.locked ? `Pools <b>${o.pool[1]}</b> / <b>${o.pool[2]}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}` : "";
+    const c = crowd(f);
+    $("pools").innerHTML = o && o.locked ? `Pools <b>${o.pool[1]}</b> / <b>${o.pool[2]}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}${c ? ` · the crowd <b>${crowdText(c)}</b>` : ""}` : "";
     const h = f.headToHead;
     const r = f.scouting && f.scouting.styleRecord;
     const styles = r && r.fights ? ` · ${esc(f.scouting.styles[1])}s ${r.wins[1]}–${r.wins[2]} ${esc(f.scouting.styles[2])}s` : "";
@@ -144,7 +154,7 @@
   // ---- Fight bar ----
   function hudSide(n, s, f) {
     const o = f.odds;
-    return `${plate(s)}<div class="hud-grow">${badges(s)}</div><span class="tier tier-${esc(s.tier)}">${esc(s.tier)}</span>${o ? `<div class="odds"><b>${mult(o.multiplier[n])}</b></div>` : ""}`;
+    return `${named(n, s, f)}<div class="hud-grow">${badges(s)}</div><span class="tier tier-${esc(s.tier)}">${esc(s.tier)}</span>${o ? `<div class="odds"><b>${mult(o.multiplier[n])}</b></div>` : ""}`;
   }
 
   function renderHud() {
@@ -235,7 +245,12 @@
       refreshFight();
       if (d.state === "BOOKED" || d.state === "SETTLED" || d.state === "VOIDED") Promise.all([refreshResults(), refreshTournament()]);
     });
-    for (const type of ["odds_live", "odds_locked"]) es.addEventListener(type, () => refreshFight());
+    es.addEventListener("odds_live", () => refreshFight());
+    es.addEventListener("odds_locked", async () => {
+      await refreshFight();
+      const c = fight && crowd(fight);
+      if (c) toast(`<span>Bets locked · <b>the crowd is ${crowdText(c)}</b></span>`);
+    });
     es.addEventListener("engine_event", (e) => {
       if (JSON.parse(e.data).event.type === "round_end") refreshFight();
     });

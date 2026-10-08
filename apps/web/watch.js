@@ -91,12 +91,22 @@
     const o = f.odds;
     const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}` : "–";
     const chance = o ? `${o.chancePct[n].toFixed(1)}% to win` : "";
-    return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"} ${GI.badges(s.cosmetics)}</span>
-      <span>${GI.plate(s.name, s.cosmetics)}</span>
+    const against = f.odds?.crowd?.against === n ? '<span class="against" title="Less of the players\' Salt went on this side">Against the crowd</span>' : "";
+    return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"} ${GI.badges(s.cosmetics)}${against}</span>
+      <span class="who">${n === 2 ? flame(f, n) : ""}${GI.plate(s.name, s.cosmetics)}${n === 1 ? flame(f, n) : ""}</span>
       <span class="odds">${odds}</span>
       <span class="sub">${chance ? `<b>${chance}</b> · ` : ""}${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} ${form((s.last10 ?? []).slice(-5))}</span>
       <span class="sub style">${scoutLine(n, f)}</span>`;
   }
+
+  // A win streak of 3 or more (docs/ENGAGEMENT.md §1): a flame by the name, with its length.
+  function flame(f, n) {
+    const k = f.story?.flames?.[n];
+    return k ? `<span class="flame" title="${k} wins in a row">🔥${k}</span>` : "";
+  }
+
+  // The crowd reveal (docs/ENGAGEMENT.md §2): where the players' Salt went, once betting has closed.
+  const crowdText = (c) => (c.pct[1] >= c.pct[2] ? `${c.pct[1]}% on Red` : `${c.pct[2]}% on Blue`);
 
   // The scouting card (docs/ENGAGEMENT.md §2): each side's style, and its record against the other's.
   function scoutLine(n, f) {
@@ -134,7 +144,9 @@
     const h = f.headToHead;
     const sc = f.scouting, r = sc && sc.styleRecord;
     const styles = !sc ? "" : r ? (r.fights ? `<span>${esc(sc.styles[1])}s <b>${r.wins[1]}–${r.wins[2]}</b> ${esc(sc.styles[2])}s</span>` : "") : `<span><b>Mirror match</b></span>`;
-    $("matchup").innerHTML = `<span>Head to head <b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b></span>${styles}<span>${esc(f.stage.displayName)}</span>`;
+    const c = f.odds?.crowd;
+    const crowd = c ? `<span>The crowd <b>${crowdText(c)}</b></span>` : "";
+    $("matchup").innerHTML = `<span>Head to head <b>${h.fights ? `${h.wins[1]}–${h.wins[2]}` : "first meeting"}</b></span>${styles}${crowd}<span>${esc(f.stage.displayName)}</span>`;
   }
 
   // ---- Bets: who's betting how much, and on which side once betting closes ----
@@ -207,7 +219,7 @@
     $("bet1").classList.toggle("mine", b?.side === 1);
     $("bet2").classList.toggle("mine", b?.side === 2);
     $("my-bet").innerHTML = b
-      ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}`
+      ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${f.odds?.crowd?.against === b.side ? ", against the crowd" : ""}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}`
       : open
         ? "Pick a stake, then click a side. You can change it until betting closes."
         : "";
@@ -297,7 +309,11 @@
       },
       odds_live: () => refreshFight().catch(() => {}),
       bet: onBet,
-      odds_locked: () => refreshFight().catch(() => {}),
+      odds_locked: async () => {
+        await refreshFight().catch(() => {});
+        const c = fight?.odds?.crowd;
+        if (c) feed(`Fight #${fight.number}: bets locked, <b>the crowd is ${crowdText(c)}</b>`);
+      },
       fight_result: async (d) => {
         // Fetched fresh: the headline needs the result.
         const f = await api("GET", `/api/fights/${d.fightId}`).catch(() => null);

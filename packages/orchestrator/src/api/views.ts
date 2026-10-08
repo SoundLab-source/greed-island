@@ -7,6 +7,7 @@
 import { characterCosmetics, getBalance, openStakes, toSalt, tournamentBalance, tournamentBalances, type Db, type Prisma } from "@greed-island/db";
 import {
   automaticName,
+  crowdSplit,
   describeCosmetics,
   describeUnlocked,
   formatMultiplier,
@@ -252,6 +253,9 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
       bettors: betRows.length,
       modelChancePct: { 1: o.modelChanceBp1 / 100, 2: o.modelChanceBp2 / 100 },
       crowdChancePct: o.crowdChanceBp1 === null ? null : { 1: o.crowdChanceBp1 / 100, 2: o.crowdChanceBp2! / 100 },
+      // The crowd reveal (docs/ENGAGEMENT.md §2): how the players' Salt split (bot players left out, as in the odds and
+      // the Contrarian title) and which side went against it.
+      crowd: crowdSplit({ 1: toSalt(o.pool1), 2: toSalt(o.pool2) }),
     };
   } else if (f.loadouts.length === 2) {
     // Live estimate while betting is open: model only, no crowd split (DESIGN §6).

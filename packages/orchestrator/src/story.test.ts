@@ -47,6 +47,14 @@ describe("the announcer", () => {
     expect(won({})).toBeNull();
   });
 
+  it("lights a flame by a name on a win streak of 3 or more, grown or put out by the result", () => {
+    const hot = { 1: { streak: { kind: "W" as const, n: 4 } }, 2: { streak: { kind: "W" as const, n: 2 } } };
+    expect(fightStory(facts({}, hot)).flames).toEqual({ 1: 4, 2: 0 });
+    expect(fightStory(facts({ result: { winnerSide: 1 } }, hot)).flames).toEqual({ 1: 5, 2: 0 });
+    expect(fightStory(facts({ result: { winnerSide: 2 } }, hot)).flames).toEqual({ 1: 0, 2: 3 });
+    expect(fightStory(facts({}, { 1: { streak: { kind: "L", n: 6 } } })).flames).toEqual({ 1: 0, 2: 0 });
+  });
+
   it("counts streaks and finds a style's edge only when the data is big and clear enough", () => {
     expect(streakOf(["W", "W", "W", "L", "W"])).toEqual({ kind: "W", n: 3 });
     expect(streakOf(["L"])).toEqual({ kind: "L", n: 1 });

@@ -65,6 +65,18 @@ export function againstCrowd(pool: { own: Salt; other: Salt }): boolean {
   return pool.own < pool.other;
 }
 
+/**
+ * The crowd reveal (docs/ENGAGEMENT.md §2), once betting has closed: each side's share of the players' Salt, in whole
+ * percent (adding up to 100), and the side against the crowd, if either was. Null when no player bet.
+ */
+export function crowdSplit(pool: { 1: Salt; 2: Salt }): { pct: { 1: number; 2: number }; against: 1 | 2 | null } | null {
+  const total = pool[1] + pool[2];
+  if (total <= 0n) return null;
+  const pct1 = Number((pool[1] * 200n + total) / (total * 2n));
+  const against = againstCrowd({ own: pool[1], other: pool[2] }) ? 1 : againstCrowd({ own: pool[2], other: pool[1] }) ? 2 : null;
+  return { pct: { 1: pct1, 2: 100 - pct1 }, against };
+}
+
 export interface CallFacts {
   won: boolean;
   /** The side's locked win chance, in basis points. */

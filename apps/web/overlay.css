@@ -99,6 +99,13 @@ body[data-scene="betting"] #hud { opacity: 0; }
 .plate > span { display: block; transform: skewX(8deg); }
 .plate .name { font-size: calc(54 * var(--u)); font-weight: 900; line-height: 1.05; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plate .title { font-size: calc(22 * var(--u)); font-weight: 700; letter-spacing: calc(3 * var(--u)); text-transform: uppercase; opacity: 0.9; }
+/* A win streak's flame and the crowd reveal (docs/ENGAGEMENT.md §1-2). */
+.named { display: flex; align-items: center; gap: calc(14 * var(--u)); min-width: 0; }
+.blue .named { justify-content: flex-end; }
+.named .plate { min-width: 0; }
+.flame { flex: none; color: #ff9a3c; font-size: calc(44 * var(--u)); font-weight: 900; white-space: nowrap; text-shadow: 0 0 calc(12 * var(--u)) rgba(255, 120, 40, 0.6); }
+.hud-side .flame { font-size: calc(30 * var(--u)); }
+.against { display: inline-block; vertical-align: middle; margin: 0 calc(10 * var(--u)); padding: calc(2 * var(--u)) calc(10 * var(--u)); border-radius: calc(6 * var(--u)); background: var(--gold); color: #241a00; font-size: calc(16 * var(--u)); letter-spacing: calc(2 * var(--u)); }
 .badges { display: flex; gap: calc(10 * var(--u)); min-height: calc(40 * var(--u)); }
 .blue .badges { justify-content: flex-end; }
 .badge {
