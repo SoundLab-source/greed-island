@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { characterProfile } from "./api/views.ts";
+import { characterProfile, fightView } from "./api/views.ts";
 import { placeFightBet } from "./betting.ts";
 import { FightBus, type BusEvent } from "./bus.ts";
 import { DEFAULT_ORCHESTRATOR, type OrchestratorConfig } from "./config.ts";
@@ -154,6 +154,32 @@ describe("seasonal release", () => {
     // It became its NFT collection's community fighter.
     expect((await db.nftCollection.findUniqueOrThrow({ where: { id: collection.id } })).fighterId).toBe("community-iron-heron");
     expect((await characterProfile(db, releases[0]!.characterId)).community).toEqual({ community: "Pixel Monks", submissionNumber: 1, releasedInSeason: 2, standIn: "Fighter gi-oak" });
+
+    // On the stream (docs/ENGAGEMENT.md §4): who voted it in, and its debut until a copy of it has fought. The fight
+    // that started the season may already have been one's debut (matchmaking can pick them as soon as they're in).
+    const communityOf = (characterId: string) => (characterId === releases[0]!.characterId ? "Pixel Monks" : "Lark Club");
+    const opener = await db.fight.findFirstOrThrow({ where: { state: "SETTLED" }, orderBy: { number: "desc" } });
+    const openerView = (await fightView(db, config, opener.id))!;
+    for (const n of [1, 2] as const) {
+      const released = releases.some((r) => r.characterId === openerView.sides[n].id);
+      expect(openerView.sides[n].community).toEqual(released ? { name: communityOf(openerView.sides[n].id), season: 2, debut: true } : null);
+    }
+    const heronId = releases[0]!.characterId;
+    const kfm = (await db.character.findFirstOrThrow({ where: { fighterId: "kfm" } })).id;
+    const versus = async () => {
+      const f = await db.fight.create({
+        data: { engineMode: "fake", cycle: 99, segment: "MATCHMAKING", segmentIndex: 0, pairKind: "CLOSE", stageId: "s1", side1CharacterId: heronId, side2CharacterId: kfm },
+      });
+      return { id: f.id, sides: (await fightView(db, config, f.id))!.sides };
+    };
+    const next = await versus();
+    const heronFought = [opener.side1CharacterId, opener.side2CharacterId].includes(heronId);
+    expect(next.sides[1].community).toEqual({ name: "Pixel Monks", season: 2, debut: !heronFought });
+    expect(next.sides[2].community).toBeNull();
+    for (const t of ["OPEN_BETTING", "LOCK", "ENGINE_STARTED"] as const) await applyTransition(d, next.id, { type: t });
+    await applyTransition(d, next.id, { type: "MATCH_END", winnerSide: 2 });
+    await applyTransition(d, next.id, { type: "SETTLED_OK" });
+    expect((await versus()).sides[1].community).toEqual({ name: "Pixel Monks", season: 2, debut: false });
 
     // Always in the shop this season (2 slots here), with First Editions.
     const shop = await currentShop(db, config, clock);

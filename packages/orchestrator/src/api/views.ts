@@ -104,6 +104,20 @@ async function communityOrigin(db: Db, fighterId: string) {
   return r ? { community: r.submission.community, submissionNumber: r.submission.number, releasedInSeason: r.season.number, standIn: r.standIn.displayName } : null;
 }
 
+/**
+ * A community fighter in a fight (docs/ENGAGEMENT.md §4: each debut gets a big intro on the stream): the community
+ * that voted it in, its season, and whether this is the fighter's first fight on stream (no copy of it has fought
+ * before). Null for house and MUGEN fighters.
+ */
+async function communityInFight(db: Db, fighterId: string, fightNumber: number) {
+  const r = await db.release.findUnique({ where: { fighterId }, select: { submission: { select: { community: true } }, season: { select: { number: true } } } });
+  if (!r) return null;
+  const before = await db.fight.count({
+    where: { state: "SETTLED", number: { lt: fightNumber }, OR: [{ side1Character: { fighterId } }, { side2Character: { fighterId } }] },
+  });
+  return { name: r.submission.community, season: r.season.number, debut: before === 0 };
+}
+
 /** Titles with provenance: who owned the character when it earned each one. */
 export async function characterTitles(db: Db, characterId: string) {
   const titles = await db.characterTitle.findMany({
@@ -221,7 +235,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
           cosmetics: describeCosmetics(parseCosmetics(l.cosmetics)),
         }
       : {};
-    return { ...card, ...frozen, frozen: Boolean(l) };
+    return { ...card, ...frozen, frozen: Boolean(l), community: await communityInFight(db, card.fighter.id, f.number) };
   };
 
   const [s1, s2] = [await side(1), await side(2)];
