@@ -289,6 +289,104 @@ window.GI = (() => {
     true,
   );
 
+  /**
+   * Sound effects, made in code with Web Audio (docs/ENGAGEMENT.md §5): a ding when betting opens, a crowd cheer on a
+   * result (a gasp and a bigger roar for an upset), and a "ka-ching" when your own bet wins. On by default but silent
+   * until the player first clicks on the page (browsers require it); `GI.sfx.toggle()` turns it off and the choice is
+   * remembered in this browser.
+   */
+  GI.sfx = (() => {
+    const KEY = "gi_sound";
+    let on = true;
+    try {
+      on = localStorage.getItem(KEY) !== "off";
+    } catch {
+      /* private mode: on */
+    }
+    let ctx = null, master = null;
+    const audio = () => {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 0.22;
+        master.connect(ctx.destination);
+      }
+      return ctx;
+    };
+    // Browsers start audio only after a click: wake it on the first one.
+    document.addEventListener("pointerdown", () => on && audio()?.resume?.(), { once: true, capture: true });
+    const ready = () => on && ctx && ctx.state === "running";
+    const tone = (freq, start, len, type = "sine", gain = 0.5, slide = 0) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + start;
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + len);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(g).connect(master);
+      o.start(t);
+      o.stop(t + len + 0.05);
+    };
+    const noise = (start, len, { freq = 1000, q = 0.7, gain = 0.5, attack = 0.3, type = "bandpass" } = {}) => {
+      const n = Math.ceil(ctx.sampleRate * len), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime + start;
+      src.buffer = buf;
+      f.type = type;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + attack * len);
+      g.gain.linearRampToValueAtTime(0.0001, t + len);
+      src.connect(f).connect(g).connect(master);
+      src.start(t);
+    };
+    const play = {
+      ding: () => {
+        tone(880, 0, 0.35, "sine", 0.35);
+        tone(1320, 0.12, 0.5, "sine", 0.3);
+      },
+      cheer: (big = false) => {
+        noise(0, big ? 2.8 : 1.6, { freq: 900, q: 0.5, gain: big ? 0.8 : 0.45, attack: 0.25 });
+        noise(0.1, big ? 2.4 : 1.2, { freq: 2400, q: 0.8, gain: big ? 0.35 : 0.2, attack: 0.3 });
+        for (let i = 0; i < (big ? 6 : 3); i++) tone(500 + Math.random() * 500, 0.2 + Math.random() * 0.8, 0.5, "triangle", 0.05, 1.5);
+      },
+      gasp: () => noise(0, 0.6, { freq: 3000, q: 0.4, gain: 0.5, attack: 0.8, type: "highpass" }),
+      kaChing: () => {
+        noise(0, 0.08, { freq: 6000, q: 1, gain: 0.5, attack: 0.05, type: "highpass" });
+        tone(1318, 0.06, 0.25, "square", 0.12);
+        tone(1976, 0.12, 0.7, "square", 0.12);
+        tone(2637, 0.12, 0.7, "sine", 0.15);
+      },
+    };
+    return {
+      get on() {
+        return on;
+      },
+      toggle() {
+        on = !on;
+        try {
+          localStorage.setItem(KEY, on ? "on" : "off");
+        } catch {
+          /* private mode: this page only */
+        }
+        if (on) audio()?.resume?.();
+        return on;
+      },
+      play(name, ...args) {
+        if (!ready()) return;
+        try {
+          play[name]?.(...args);
+        } catch {
+          /* a sound never breaks the page */
+        }
+      },
+    };
+  })();
+
   // Cards tilt toward the pointer and their shine follows it (not for people who ask for less motion).
   const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 

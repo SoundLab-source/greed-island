@@ -290,7 +290,10 @@
       hello: () => refreshFight().catch(() => {}),
       fight_state: (d) => {
         refreshFight().catch(() => {});
-        if (d.state === "BETTING_OPEN") feed(`Fight #${d.number}: <b>betting is open</b>`);
+        if (d.state === "BETTING_OPEN") {
+          feed(`Fight #${d.number}: <b>betting is open</b>`);
+          GI.sfx.play("ding");
+        }
       },
       odds_live: () => refreshFight().catch(() => {}),
       bet: onBet,
@@ -302,6 +305,15 @@
         const headline = f.story && f.story.headline ? ` <span class="headline ${f.story.headline.kind}">${esc(f.story.headline.text)}</span>` : "";
         const why = f.breakdown && f.breakdown.length ? ` <span class="muted">${esc(f.breakdown[0])}</span>` : "";
         feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}${why}` : `Fight #${d.number}: no contest, bets refunded`);
+        if (d.result !== "SETTLED") return;
+        // The crowd: a cheer, or a gasp and a roar for an upset; and a ka-ching when your own bet came in.
+        const upset = f.story?.headline?.kind === "upset";
+        if (upset) GI.sfx.play("gasp");
+        setTimeout(() => GI.sfx.play("cheer", upset), upset ? 450 : 0);
+        if (f.myBet?.status === "WON") {
+          setTimeout(() => GI.sfx.play("kaChing"), 700);
+          GI.toast(`You called it! ${fmt(f.myBet.returned)} ${f.currency} back${upset ? ", on an upset" : ""}.`, "ok");
+        }
       },
       title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),
       bettor_title: (d) => {
@@ -367,6 +379,13 @@
     }, 5 * 60_000);
   }
   $("recap-close").onclick = () => ($("recap").hidden = true);
+  const soundLabel = () => ($("sound").textContent = GI.sfx.on ? "Sound on" : "Sound off");
+  $("sound").onclick = () => {
+    GI.sfx.toggle();
+    soundLabel();
+    GI.sfx.play("ding");
+  };
+  soundLabel();
 
   (async () => {
     wireControls();
