@@ -83,14 +83,40 @@ window.GI = (() => {
   GI.badges = (cos) =>
     `<span class="badges">${(cos?.badges ?? []).map((b) => `<span class="badge" style="background:${GI.esc(b.color)}" title="${GI.esc(b.label)}">${GI.esc(b.glyph)}</span>`).join("")}</span>`;
   // A fighter card (the server draws it: GET /api/cards/fighters/:id or /api/cards/characters/:id), shining and
-  // tilting under the pointer; `href` makes it a link, `flip` turns it over to its back when clicked.
-  GI.card = (src, alt, { rare = false, href = null, size = "", lazy = false, flip = false } = {}) => {
+  // tilting under the pointer; `href` makes it a link, `flip` turns it over to its back when clicked, `reveal` deals
+  // it face down for GI.revealCards to turn face up.
+  GI.card = (src, alt, { rare = false, href = null, size = "", lazy = false, flip = false, reveal = false } = {}) => {
     const img = `<img src="${GI.esc(src)}" alt="${GI.esc(alt)}"${lazy ? ' loading="lazy"' : ""} data-fallback="fcard-missing">`;
     const cls = `fcard${rare ? " rare" : ""}${size ? ` ${size}` : ""}`;
+    const sides = `<div class="fcard-turn">${img.replace("<img ", '<img class="face" ')}<img class="back" src="/card-back.svg" alt=""></div>`;
     if (flip) {
-      return `<div class="${cls} flip" role="button" tabindex="0" aria-pressed="false" title="Click to turn it over"><div class="fcard-turn">${img.replace("<img ", '<img class="face" ')}<img class="back" src="/card-back.svg" alt="The back of the card"></div></div>`;
+      return `<div class="${cls} flip" role="button" tabindex="0" aria-pressed="false" title="Click to turn it over">${sides.replace('alt=""', 'alt="The back of the card"')}</div>`;
     }
-    return href ? `<a class="${cls}" href="${GI.esc(href)}">${img}</a>` : `<div class="${cls}">${img}</div>`;
+    const inner = reveal ? sides : img;
+    const c = reveal ? `${cls} dealt turned` : cls;
+    return href ? `<a class="${c}" href="${GI.esc(href)}">${inner}</a>` : `<div class="${c}">${inner}</div>`;
+  };
+  // Turn GI.card `reveal` cards face up, one after another, as each comes into view.
+  GI.revealCards = (root = document) => {
+    const cards = [...root.querySelectorAll(".fcard.dealt.turned")];
+    if (!cards.length) return;
+    let next = 0;
+    const show = (card) => {
+      const at = Math.max(next, performance.now() + 250);
+      next = at + 220;
+      setTimeout(() => card.classList.remove("turned"), at - performance.now());
+    };
+    if (!("IntersectionObserver" in window)) return cards.forEach(show);
+    const seen = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          seen.unobserve(e.target);
+          show(e.target);
+        }),
+      { threshold: 0.5 },
+    );
+    cards.forEach((c) => seen.observe(c));
   };
   // Turning a card over (GI.card's `flip`): a click, or Enter or Space on it.
   const turnOver = (card) => card.setAttribute("aria-pressed", String(card.classList.toggle("turned")));

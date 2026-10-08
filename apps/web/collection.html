@@ -21,11 +21,10 @@
     .slot .label { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; }
     .slot .label b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .slot .label span { color: var(--dim); white-space: nowrap; }
-    .slot.locked .fcard img { filter: grayscale(1) brightness(0.35) contrast(0.9); }
+    .slot.locked .fcard img { filter: saturate(0.55) brightness(0.6); }
     .slot.locked .fcard::after { display: none; }
     .slot.locked .label b { color: var(--dim); }
-    .lock { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 6px; pointer-events: none; color: #c8cbe0; text-align: center; font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
-    .lock i { font-style: normal; font-size: 40px; line-height: 1; opacity: 0.8; }
+    .lock { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); pointer-events: none; padding: 4px 12px; border-radius: 999px; background: rgba(10, 10, 18, 0.8); color: #c8cbe0; font-weight: 800; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
     .stamp { position: absolute; top: 8px; right: -6px; z-index: 2; padding: 3px 10px; border-radius: 6px; background: var(--gold); color: #2a1f00; font-size: 11px; font-weight: 900; letter-spacing: 1px; transform: rotate(6deg); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45); pointer-events: none; }
     .new-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 4px; vertical-align: middle; }
     .how { margin-top: 18px; }

@@ -1,4 +1,4 @@
-// Greed Island card collection: every fighter's card, greyed out until the player has seen it fight, stamped once
+// Greed Island card collection: every fighter's card, face down until the player has seen it fight, stamped once
 // they've won a bet on it (orchestrator collection.ts). Uses site.js (GI).
 (() => {
   const { $, esc, api } = GI;
@@ -9,6 +9,7 @@
   let style = "ALL";
   // Cards collected since the last visit get a dot (this browser only).
   let lastVisit = 0;
+  const revealed = new Set();
   try {
     lastVisit = Number(localStorage.getItem(VISIT_KEY)) || 0;
   } catch {
@@ -38,11 +39,14 @@
     const fresh = f.seen && lastVisit && new Date(f.seen.at).getTime() > lastVisit;
     const label = `<div class="label"><b>${fresh ? '<span class="new-dot" title="New since your last visit"></span>' : ""}${esc(f.name)}</b><span>No. ${f.number}</span></div>`;
     if (!f.seen) {
-      return `<div class="slot locked">${GI.card(src, `${f.name}'s card, not collected yet`, { lazy: true })}<div class="lock"><i>?</i>Not seen yet</div>${label}</div>`;
+      return `<div class="slot locked">${GI.card("/card-back.svg", `${f.name}'s card, face down: not collected yet`, { lazy: true })}<div class="lock">Not seen yet</div>${label}</div>`;
     }
     const stamp = f.backed ? `<span class="stamp" title="You've won ${f.backed.wins} bet${f.backed.wins === 1 ? "" : "s"} on ${esc(f.name)}">BACKED${f.backed.wins > 1 ? ` ×${f.backed.wins}` : ""}</span>` : "";
     const href = f.profileId ? `/fighter.html?id=${encodeURIComponent(f.profileId)}` : null;
-    return `<div class="slot">${stamp}${GI.card(src, `${f.name}'s card`, { rare: f.rarity !== "COMMON", lazy: true, href })}${label}</div>`;
+    // A card collected since the last visit is dealt face down and turns over once (GI.revealCards).
+    const reveal = fresh && !revealed.has(f.id);
+    if (reveal) revealed.add(f.id);
+    return `<div class="slot">${stamp}${GI.card(src, `${f.name}'s card`, { rare: f.rarity !== "COMMON", lazy: true, href, reveal })}${label}</div>`;
   }
 
   function render() {
@@ -54,6 +58,7 @@
         (show === "ALL" || (show === "SEEN" && f.seen) || (show === "MISSING" && !f.seen) || (show === "BACKED" && f.backed)),
     );
     $("binder").innerHTML = shown.map(slot).join("") || `<p class="empty">${show === "BACKED" ? "No backed cards here yet: win a bet on a fighter to back it." : show === "SEEN" ? 'Nothing collected here yet: <a href="/">watch a fight</a>.' : "Nothing to show."}</p>`;
+    GI.revealCards($("binder"));
   }
 
   $("filters").addEventListener("click", (e) => {
