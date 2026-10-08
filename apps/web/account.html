@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Account · Greed Island</title>
   <link rel="stylesheet" href="site.css">
+  <style>
+    .fact small { display: block; color: var(--dim); font-size: 12px; margin-top: 2px; }
+    .progress-list { display: grid; gap: 12px; }
+    .goal { display: grid; gap: 4px; }
+    .goal .spread b { font-size: 15px; }
+    .goal.done b { color: var(--gold); }
+    .goal .muted { font-size: 13px; }
+  </style>
 </head>
 <body>
   <main class="page">
@@ -28,6 +36,21 @@
         <div class="facts" id="salt"></div>
         <p class="muted" id="season"></p>
         <div id="titles"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Your calls</h2>
+      <p class="muted" id="calls-note"></p>
+      <div class="facts" id="calls"></div>
+      <div class="cols" style="margin-top: 16px">
+        <div>
+          <h2>By style</h2>
+          <div class="scroll"><table class="table" id="by-style"></table></div>
+        </div>
+        <div>
+          <h2>Bettor titles</h2>
+          <div id="title-progress" class="progress-list"></div>
+        </div>
       </div>
     </div>
     <div class="panel">

@@ -2,7 +2,7 @@
  * In-process event bus. The orchestrator publishes after each committed
  * change; the API's SSE stream (build step 6) subscribes.
  */
-import type { EngineEvent, LiveOdds, LockedOdds, Salt, Side, Tier, TitleCode } from "@greed-island/shared";
+import type { BettorTitleCode, EngineEvent, LiveOdds, LockedOdds, Salt, Side, Tier, TitleCode } from "@greed-island/shared";
 import { EventEmitter } from "node:events";
 import type { FightState, VoidReason } from "./state-machine.ts";
 
@@ -17,6 +17,8 @@ export type BusEvent =
   | { type: "fight_result"; fightId: string; number: number; result: "VOIDED"; voidReason: VoidReason }
   /** fightId/number are null for a tournament won by walkover. */
   | { type: "title_earned"; fightId: string | null; number: number | null; characterId: string; name: string; code: TitleCode; label: string }
+  /** A player earned a bettor title (Called It, Iron Read, Loyal, Contrarian) with their bet on this fight. */
+  | { type: "bettor_title"; fightId: string; number: number; name: string; code: BettorTitleCode; label: string }
   | { type: "tournament"; tournamentId: string; number: number; tier: Tier; status: "STARTED"; size: number }
   | { type: "tournament"; tournamentId: string; number: number; tier: Tier; status: "CANCELLED"; detail: string }
   | {

@@ -1,6 +1,6 @@
 # Engagement: what keeps people watching and betting
 
-*A proposal for the owner to review (written 2026-10-07, after "make it something people can't stop watching and betting on"). Built so far: the announcer lines and the after-fight headlines (§1) and the scouting card's style records (§2), in `orchestrator/src/story.ts`, and the roster collection (§3, the card collection: `collection.html`); nothing else is decided yet. Items marked **DESIGN** would change or add a decision in [DESIGN.md](DESIGN.md), so they wait for your yes; the rest fit what's already decided and can just be built.*
+*A proposal for the owner to review (written 2026-10-07, after "make it something people can't stop watching and betting on"). Built so far: the announcer lines and the after-fight headlines (§1) and the scouting card's style records (§2), in `orchestrator/src/story.ts`, the roster collection (§3, the card collection: `collection.html`), and bettor stats, the best-calls boards and bettor titles (§2: shared `bettors.ts`, orchestrator `bettor-stats.ts`, db `bettor-titles.ts`); nothing else is decided yet. Items marked **DESIGN** would change or add a decision in [DESIGN.md](DESIGN.md), so they wait for your yes; the rest fit what's already decided and can just be built.*
 
 ## The aim, and the line we don't cross
 

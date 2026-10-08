@@ -7,6 +7,7 @@
  */
 import {
   applyFightRating,
+  awardBettorTitles,
   awardFightTitles,
   characterCosmetics,
   lockFight,
@@ -20,7 +21,7 @@ import {
   type Prisma,
   type Tx,
 } from "@greed-island/db";
-import { liveOdds, lockOdds, TITLES, type Config, type RoundEndEvent, type Side, type Stake, type Tier } from "@greed-island/shared";
+import { liveOdds, lockOdds, PLAYER_TITLES, TITLES, type Config, type RoundEndEvent, type Side, type Stake, type Tier } from "@greed-island/shared";
 import type { BusEvent, FightBus } from "./bus.ts";
 import { bookingModeFor, nextPosition, type CyclePosition } from "./cycle.ts";
 import type { OrchestratorConfig } from "./config.ts";
@@ -300,6 +301,7 @@ async function runEffect(
         });
       }
       const titles = await awardFightTitles(tx, { fightId: fight.id, winnerSide, loadoutTiers: { 1: l[1].tier, 2: l[2].tier }, changes, earnedAt: now });
+      const bettorTitles = await awardBettorTitles(tx, { fightId: fight.id, cfg: deps.config.bettors, earnedAt: now });
       data.closedAt = now;
       notices.push({
         type: "fight_result",
@@ -314,6 +316,7 @@ async function runEffect(
         const name = l[1].characterId === t.characterId ? l[1].name : l[2].name;
         notices.push({ type: "title_earned", fightId: fight.id, number: fight.number, characterId: t.characterId, name, code: t.code, label: TITLES[t.code].label });
       }
+      for (const t of bettorTitles) notices.push({ type: "bettor_title", fightId: fight.id, number: fight.number, name: t.name, code: t.code, label: PLAYER_TITLES[t.code].label });
       // A tournament fight moves its winner on in the bracket (and may finish the tournament).
       if (fight.tournamentMatchId) {
         const match = await tx.tournamentMatch.findUniqueOrThrow({ where: { id: fight.tournamentMatchId } });

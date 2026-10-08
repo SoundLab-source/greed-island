@@ -102,7 +102,8 @@ describe("a tournament", () => {
     expect(await tournamentBalance(db, carol, t.id)).toBe(950n);
     expect(await tournamentBalance(db, alice, t.id)).toBeNull();
     expect(await Promise.all([alice, bob, carol].map((u) => getBalance(db, u)))).toEqual(mainBefore);
-    expect(await db.playerTitle.findMany({ select: { userId: true, code: true } })).toEqual([{ userId: bob, code: "BETTOR_1ST" }]);
+    // The podium (bettor titles such as Called It can come from the same bets).
+    expect(await db.playerTitle.findMany({ where: { tournamentId: t.id }, select: { userId: true, code: true } })).toEqual([{ userId: bob, code: "BETTOR_1ST" }]);
     // No owner rewards in tournaments.
     expect(await db.ledgerTxn.count({ where: { kind: "OWNER_REWARD" } })).toBe(0);
 
@@ -122,7 +123,7 @@ describe("a tournament", () => {
     expect(view.rounds.map((r) => [r.name, r.matches.length])).toEqual([["quarter-final", 4], ["semi-final", 2], ["final", 1]]);
     expect(view.standings[0]).toMatchObject({ rank: 1, name: "Bob" });
     expect(view.podium).toEqual([{ code: "BETTOR_1ST", label: "Top Bettor", name: "Bob", balance: view.myBalance }]);
-    expect((await meView(db, config, bob)).titles).toMatchObject([{ code: "BETTOR_1ST", tournamentNumber: t.number }]);
+    expect((await meView(db, config, bob)).titles.filter((x) => x.tournamentNumber)).toMatchObject([{ code: "BETTOR_1ST", tournamentNumber: t.number }]);
   });
 
   it("replays a voided fight, refunding T-Salt, and gives a walkover when a character is disabled", async () => {

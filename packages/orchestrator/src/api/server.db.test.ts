@@ -797,6 +797,25 @@ describe("cards: sharing and the collection", () => {
   });
 });
 
+describe("bettor numbers and boards", () => {
+  it("serves a player's own numbers and the public best-calls boards", async () => {
+    expect((await app.inject({ method: "GET", url: "/api/me/stats" })).statusCode).toBe(401);
+    const s = await session("Caller");
+    const f = await openFight();
+    await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 1, stake: "20", idempotencyKey: "stats-bet-1" } });
+    for (const type of ["LOCK", "ENGINE_STARTED"] as const) await applyTransition(deps, f.id, { type });
+    await applyTransition(deps, f.id, { type: "MATCH_END", winnerSide: 1 });
+    await applyTransition(deps, f.id, { type: "SETTLED_OK" });
+    const stats = (await app.inject({ method: "GET", url: "/api/me/stats", headers: s.auth })).json();
+    expect(stats).toMatchObject({ calls: 1, rightCalls: 1, winRate: 100, saltProfit: "18", minCallStake: "10", streak: { current: 1, best: 1 } });
+    const anon = (await app.inject({ method: "GET", url: "/api/boards/calls" })).json();
+    expect(anon).toMatchObject({ minCallStake: "10", upsets: { rows: [], me: null, days: 7, upsetPct: 30 }, winRate: { minCalls: 50, rows: [] }, streak: { rows: [{ rank: 1, name: "Caller", value: 1, detail: 1 }] } });
+    const mine = (await app.inject({ method: "GET", url: "/api/boards/calls", headers: s.auth })).json();
+    expect(mine.winRate.me).toEqual({ rank: 0, name: "", value: 100, detail: 1 });
+    expect(mine.streak.me).toMatchObject({ rank: 1, value: 1 });
+  });
+});
+
 describe("roster gallery", () => {
   it("lists the fighters on the stream with their outfits and special moves", async () => {
     const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));

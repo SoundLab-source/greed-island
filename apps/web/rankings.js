@@ -36,6 +36,55 @@
     renderFighters();
   }
 
+  // ---- Best calls: upsets called this week, win rate and the longest run of right calls this season ----
+  let boards = null;
+  let board = "upsets";
+  const BOARDS = {
+    upsets: {
+      tab: "Upsets this week",
+      line: (b) => `Right calls on an underdog given ${b.upsetPct}% or less, in the last ${b.days} days.`,
+      head: ["Upsets called", "Longest shot"],
+      cells: (r) => [r.value, `${r.detail}%`],
+      me: (m) => `You: ${m.value} upset${m.value === 1 ? "" : "s"} called this week, rank ${m.rank}.`,
+      none: "No upsets called this week yet.",
+    },
+    winRate: {
+      tab: "Win rate this season",
+      line: (b) => `Right calls this season, for players with ${b.minCalls} calls or more.`,
+      head: ["Win rate", "Calls"],
+      cells: (r) => [`${r.value}%`, r.detail],
+      me: (m, b) => (m.rank ? `You: ${m.value}% in ${m.detail} calls, rank ${m.rank}.` : `You: ${m.value}% in ${m.detail} call${m.detail === 1 ? "" : "s"}; ${b.minCalls - m.detail} more to make the board.`),
+      none: "Nobody has made enough calls this season yet.",
+    },
+    streak: {
+      tab: "Hot streaks this season",
+      line: () => "The longest run of right calls in a row this season.",
+      head: ["Longest run", "Right calls"],
+      cells: (r) => [r.value, r.detail],
+      me: (m) => `You: a best run of ${m.value} this season, rank ${m.rank}.`,
+      none: "No right calls this season yet.",
+    },
+  };
+
+  function renderBoard() {
+    if (!boards) return;
+    const def = BOARDS[board];
+    const b = boards[board];
+    $("call-tabs").innerHTML = Object.entries(BOARDS).map(([k, d]) => `<button data-board="${k}" class="${k === board ? "on" : ""}">${d.tab}</button>`).join("");
+    for (const btn of document.querySelectorAll("[data-board]")) btn.onclick = () => ((board = btn.dataset.board), renderBoard());
+    $("call-line").textContent = `${def.line(b)} A call is a settled bet of ${fmt(boards.minCallStake)} Salt or more; bots aren't ranked.`;
+    const myName = GI.me?.name;
+    $("calls").innerHTML = `<tr><th>#</th><th>Player</th>${def.head.map((h) => `<th class="num">${h}</th>`).join("")}</tr>` +
+      (b.rows.map((r) => `<tr class="${r.name === myName ? "me-row" : ""}"><td>${r.rank}</td><td>${esc(r.name)}</td>${def.cells(r).map((c) => `<td class="num">${esc(String(c))}</td>`).join("")}</tr>`).join("") ||
+        `<tr><td colspan="4" class="empty">${def.none}</td></tr>`);
+    $("call-me").textContent = b.me ? def.me(b.me, b) : "";
+  }
+
+  async function loadBoards() {
+    boards = await api("GET", "/api/boards/calls");
+    renderBoard();
+  }
+
   async function loadTournament() {
     const t = await api("GET", "/api/tournaments/current");
     if (!t) {
@@ -61,7 +110,7 @@
     $("tournaments").innerHTML = tournaments.filter((t) => t.status !== "RUNNING").slice(0, 10).map((t) => `<tr><td>#${t.number} · ${esc(t.tier)}</td><td>${t.champion ? GI.fighterLink(t.champion.id, t.champion.name) : `<span class="muted">${esc(t.status.toLowerCase())}</span>`}</td><td class="muted num">${t.finishedAt ? GI.day(t.finishedAt) : ""}</td></tr>`).join("") || `<tr><td class="empty">No finished tournaments yet.</td></tr>`;
   }
 
-  const all = () => Promise.all([loadSeason(), loadFighters(), loadTournament(), loadHistory()]);
+  const all = () => Promise.all([loadSeason(), loadFighters(), loadTournament(), loadHistory(), loadBoards()]);
   GI.ready.then(all).catch((e) => GI.toast(e.message, "error"));
   GI.live({
     fight_state: (d) => (d.state === "SETTLED" || d.state === "VOIDED" ? all().catch(() => {}) : null),

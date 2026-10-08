@@ -92,8 +92,11 @@ export function higherBand(a: BandTier | null, b: BandTier | null): BandTier | n
   return tierRank(a) >= tierRank(b) ? a : b;
 }
 
-/** Player titles: the tournament T-Salt podium (docs/PHASE2.md step 6) and each season's top bettor (docs/PHASE3.md step 2). */
-export const PLAYER_TITLE_CODES = ["BETTOR_1ST", "BETTOR_2ND", "BETTOR_3RD", "SEASON_TOP_BETTOR"] as const;
+/**
+ * Player titles: the tournament T-Salt podium (docs/PHASE2.md step 6), each season's top bettor (docs/PHASE3.md
+ * step 2) and the bettor titles earned by playing (bettors.ts, docs/ENGAGEMENT.md §2), once each.
+ */
+export const PLAYER_TITLE_CODES = ["BETTOR_1ST", "BETTOR_2ND", "BETTOR_3RD", "SEASON_TOP_BETTOR", "CALLED_IT", "IRON_READ", "LOYAL", "CONTRARIAN"] as const;
 export type PlayerTitleCode = (typeof PLAYER_TITLE_CODES)[number];
 /** A tournament's T-Salt podium, first to third. */
 export const PODIUM_TITLE_CODES = ["BETTOR_1ST", "BETTOR_2ND", "BETTOR_3RD"] as const satisfies readonly PlayerTitleCode[];
@@ -103,6 +106,11 @@ export const PLAYER_TITLES: Readonly<Record<PlayerTitleCode, { label: string; de
   BETTOR_2ND: { label: "Runner-up Bettor", description: "Finished a tournament with the second-highest T-Salt balance." },
   BETTOR_3RD: { label: "Third-place Bettor", description: "Finished a tournament with the third-highest T-Salt balance." },
   SEASON_TOP_BETTOR: { label: "Season Top Bettor", description: "Won the most Salt betting in a season." },
+  // The bars are bettors.ts DEFAULT_BETTORS (settings; the descriptions say the defaults).
+  CALLED_IT: { label: "Called It", description: "Won a bet on an underdog given a 20% chance or less." },
+  IRON_READ: { label: "Iron Read", description: "Called 10 fights right in a row." },
+  LOYAL: { label: "Loyal", description: "Bet on the same fighter 50 times." },
+  CONTRARIAN: { label: "Contrarian", description: "Won 20 bets against the crowd: on the side with less of the players' Salt." },
 });
 
 /** Tier order for "tiers higher": P < B < A < S < X. */

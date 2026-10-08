@@ -458,6 +458,7 @@ model Fight {
   tournamentMatchId String?           @map("tournament_match_id") @db.Uuid
   tournamentMatch   TournamentMatch?  @relation(fields: [tournamentMatchId], references: [id])
   fightersSeen      FighterSeen[]
+  playerTitles      PlayerTitle[]
 
   @@index([state])
   @@index([tournamentMatchId])
@@ -719,6 +720,11 @@ enum PlayerTitleCode {
   BETTOR_3RD
   /// Won the most Salt betting in a season (phase 3).
   SEASON_TOP_BETTOR
+  /// Bettor titles earned by playing (docs/ENGAGEMENT.md §2, shared bettors.ts), once each, with the fight that did it.
+  CALLED_IT
+  IRON_READ
+  LOYAL
+  CONTRARIAN
 }
 
 /// One cycle's single-elimination tournament (DESIGN §5). Bets use the tournament's own T-Salt book.
@@ -799,7 +805,10 @@ model PlayerTitle {
   /// Season Top Bettor: the season.
   seasonId     String?         @map("season_id") @db.Uuid
   season       Season?         @relation(fields: [seasonId], references: [id])
-  /// What it was earned with: the final T-Salt balance (tournaments) or the Salt won (seasons).
+  /// Bettor titles: the fight whose result earned it.
+  fightId      String?         @map("fight_id") @db.Uuid
+  fight        Fight?          @relation(fields: [fightId], references: [id])
+  /// What it was earned with: the final T-Salt balance (tournaments), the Salt won (seasons), or what the earning bet paid (bettor titles; 0 for a lost one).
   balance      Decimal         @db.Decimal(20, 0)
   earnedAt     DateTime        @default(now()) @map("earned_at") @db.Timestamptz(3)
 

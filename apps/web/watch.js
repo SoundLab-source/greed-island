@@ -302,6 +302,10 @@
         feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}` : `Fight #${d.number}: no contest, bets refunded`);
       },
       title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),
+      bettor_title: (d) => {
+        feed(`<b>${esc(d.name)}</b> earned the bettor title <b>${esc(d.label)}</b>`);
+        if (d.name === GI.me?.name) GI.toast(`You earned the bettor title ${d.label}! See it on your account page.`, "ok");
+      },
       tournament: (d) => {
         if (d.status === "STARTED") feed(`Tournament #${d.number} (${esc(d.tier)} tier, ${d.size} fighters) starts: bets in T-Salt`);
         if (d.status === "FINISHED") feed(`<b>${esc(d.champion.name)}</b> wins Tournament #${d.number}`);

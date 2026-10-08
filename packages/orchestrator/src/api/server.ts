@@ -95,6 +95,7 @@ import {
 import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.ts";
 import { characterCardData, fighterCardData, renderCard, type CardData } from "../cards.ts";
 import { collectionView, markSeen } from "../collection.ts";
+import { callBoards, myBettorStats } from "../bettor-stats.ts";
 import { shareImage } from "../share-image.ts";
 import { fillSharePage, shareMeta } from "./share-page.ts";
 import { lookCharacterId } from "../look-sprites.ts";
@@ -304,6 +305,9 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
 
   app.get("/api/me", async (req, reply) => send(reply, await meView(db, config, await requireViewer(req))));
   app.get("/api/me/bets", async (req, reply) => send(reply, await betHistory(db, await requireViewer(req))));
+  // A bettor's own numbers (bettor-stats.ts), and the best-calls boards (public; the viewer's own line when signed in).
+  app.get("/api/me/stats", async (req, reply) => send(reply, await myBettorStats(db, config, await requireViewer(req))));
+  app.get("/api/boards/calls", async (req, reply) => send(reply, await callBoards(db, config, await viewer(req))));
   // The card collection (collection.ts): every fighter's card, and which ones this player has seen fight or backed.
   app.get("/api/me/collection", async (req, reply) => send(reply, await collectionView(db, await requireViewer(req))));
   // The watch page reports each fight it showed while it was on: both fighters join the player's collection.

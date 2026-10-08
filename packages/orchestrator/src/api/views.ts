@@ -342,7 +342,7 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
   const titles = await db.playerTitle.findMany({
     where: { userId },
     orderBy: { id: "desc" },
-    include: { tournament: { select: { number: true, tier: true } }, season: { select: { number: true } } },
+    include: { tournament: { select: { number: true, tier: true } }, season: { select: { number: true } }, fight: { select: { number: true } } },
   });
   return {
     id: user.id,
@@ -359,6 +359,9 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
     titles: titles.map((t) => ({
       code: t.code,
       label: PLAYER_TITLES[t.code].label,
+      description: PLAYER_TITLES[t.code].description,
+      /** Bettor titles: the fight that earned it. */
+      fightNumber: t.fight?.number ?? null,
       tournamentNumber: t.tournament?.number ?? null,
       tier: t.tournament?.tier ?? null,
       seasonNumber: t.season?.number ?? null,

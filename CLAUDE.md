@@ -27,7 +27,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm test`: all Vitest suites; needs Postgres running (tests migrate and wipe the test DB, never the dev DB)
 - `pnpm typecheck`: TypeScript check across all packages
 - `pnpm ledger:audit`: verify zero-sum txns, cached balances, no negative user/escrow accounts, escrow = open stakes, owner rewards, and that each tournament's T-Salt book is closed
-- `pnpm titles:backfill`: award titles for fights settled before titles existed (replays frozen loadouts; safe to re-run)
+- `pnpm titles:backfill`: award fighter titles and bettor titles (Called It, Iron Read, Loyal, Contrarian) for fights settled before they existed (replays frozen loadouts and counted bets; safe to re-run)
 - `pnpm roster:scan`: draft entries from `$IKEMEN_DIR/chars` and `stages` into `packages/engine/roster.draft.json` (gitignored) for review
 - `pnpm roster:sync`: load `packages/engine/roster.json` into the DB (creates/updates/disables; never resets ratings or records); with `GI_COMMERCIAL_ONLY=true` it switches off fighters whose `commercialUse` isn't true (the Kung Fu Man copies)
 - `pnpm roster:variants`: build the house characters in `packages/engine/variants.json` (Kung Fu Man with different stats, size and palette) into `$IKEMEN_DIR/chars/gi-*`; only the recipe is committed, and it never overwrites a folder it didn't create

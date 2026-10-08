@@ -1,3 +1,4 @@
+import { DEFAULT_BETTORS, validateBettors, type BettorConfig } from "./bettors.ts";
 import { DEFAULT_EXHIBITIONS, type ExhibitionConfig } from "./exhibitions.ts";
 import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
@@ -49,6 +50,8 @@ export interface Config {
   voting: VotingConfig;
   nft: NftConfig;
   bets: BetsDisplayConfig;
+  /** What counts as a call, the bettor titles' bars and the best-calls boards (bettors.ts). */
+  bettors: BettorConfig;
 }
 
 /** What everyone sees of each other's bets: names and stakes as they come in, and which side once betting closes. */
@@ -265,5 +268,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       renameCooldownMs: numberFromEnv(env, "GI_RENAME_COOLDOWN_DAYS", DEFAULT_STAFF.renameCooldownMs / 86_400_000) * 86_400_000,
     }),
     bets: { sidesLive: booleanFromEnv(env, "GI_BETS_LIVE", false) },
+    bettors: validateBettors({
+      ...DEFAULT_BETTORS,
+      minCallStake: saltFromEnv(env, "GI_MIN_CALL_STAKE", DEFAULT_BETTORS.minCallStake),
+      upsetChanceBp: Math.round(numberFromEnv(env, "GI_UPSET_CHANCE_PCT", DEFAULT_BETTORS.upsetChanceBp / 100) * 100),
+      calledItChanceBp: Math.round(numberFromEnv(env, "GI_CALLED_IT_CHANCE_PCT", DEFAULT_BETTORS.calledItChanceBp / 100) * 100),
+      winRateMinCalls: numberFromEnv(env, "GI_WIN_RATE_MIN_CALLS", DEFAULT_BETTORS.winRateMinCalls),
+    }),
   };
 }
