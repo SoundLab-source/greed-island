@@ -5,6 +5,7 @@
  */
 import { clampChance, DEFAULT_ODDS, modelChanceBp, tierRank, type Rating, type Side, type Tier } from "@greed-island/shared";
 import { randomInt } from "node:crypto";
+import { isRivalry } from "./story.ts";
 
 export interface Candidate {
   characterId: string;
@@ -55,7 +56,7 @@ export const cryptoRng: Rng = {
   chance: () => randomInt(1_000_000) / 1_000_000,
 };
 
-export type PairKind = "CLOSE" | "UPSET" | "NEAREST" | "CROSS_TIER" | "CHALLENGE" | "SHOWCASE" | "TOURNAMENT";
+export type PairKind = "CLOSE" | "UPSET" | "NEAREST" | "CROSS_TIER" | "CHALLENGE" | "SHOWCASE" | "RIVALRY" | "TOURNAMENT";
 
 /** Extra pick weight per owned character in a pair (a pair of two house characters weighs 1). */
 export const OWNED_WEIGHT = 2;
@@ -196,6 +197,39 @@ export function pickShowcase(
   const pairs = fresh.length > 0 ? fresh : cooled;
   if (pairs.length === 0) return null;
   return withCorners(pairs[rng.int(pairs.length)]!, "SHOWCASE", rng);
+}
+
+/** Two characters' settled meetings: how many each has won. */
+export interface Meetings {
+  a: string;
+  b: string;
+  winsA: number;
+  winsB: number;
+}
+
+/**
+ * A rivalry rematch (an exhibition special, DESIGN §5: "this is where rivalries happen"): two active characters who
+ * are rivals (story `isRivalry`: 4+ meetings, records at most one win apart), random among them. No mirror matches,
+ * and never a pair that met within the rematch cooldown (the showcase books instead).
+ */
+export function pickRivalry(
+  candidates: readonly Candidate[],
+  meetings: readonly Meetings[],
+  recent: readonly [string, string][],
+  rng: Rng,
+  cfg: MatchmakingConfig = DEFAULT_MATCHMAKING,
+): Pairing | null {
+  const byId = new Map(candidates.map((c) => [c.characterId, c]));
+  const cooling = new Set(recent.slice(0, cfg.rematchCooldown).map(([a, b]) => pairKey(a, b)));
+  const pairs: Pair[] = [];
+  for (const m of meetings) {
+    const a = byId.get(m.a);
+    const b = byId.get(m.b);
+    if (!a || !b || a.fighterId === b.fighterId || cooling.has(pairKey(m.a, m.b)) || !isRivalry([m.winsA, m.winsB])) continue;
+    pairs.push({ a, b, chanceA: clampChance(modelChanceBp(a.rating, b.rating), DEFAULT_ODDS)[0] });
+  }
+  if (pairs.length === 0) return null;
+  return withCorners(pairs[rng.int(pairs.length)]!, "RIVALRY", rng);
 }
 
 /** Uniformly random stage. */

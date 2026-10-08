@@ -73,7 +73,7 @@ Each step is committed with tests green, like phase 1.
 - A challenge waits 24 hours for an answer, then expires. A player can have 5 challenges open at once (waiting for an answer or to be played). Two characters can have only one open challenge between them.
 - Challenges are free and only between players' characters: not house characters, not your own, not two copies of the same fighter (the matchmaking rule).
 - The queue goes by when a challenge was accepted. A challenge whose character is disabled waits in the queue; the challenger can cancel until it's booked. If the fight is voided (a draw or crash), the challenge is used up.
-- House showcases pair two of the 6 strongest house characters (X tier first, then by rating), across tiers.
+- House showcases pair two of the 6 strongest house characters (X tier first, then by rating), across tiers. Added 2026-10-08 (docs/ENGAGEMENT.md §1): about one in four of those slots (`GI_RIVALRY_RATE`, default 0.25) is a rivalry rematch instead, when two active characters have met 4+ times with records at most one win apart.
 
 ## Not in phase 2
 

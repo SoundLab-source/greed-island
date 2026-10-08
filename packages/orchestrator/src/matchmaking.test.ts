@@ -2,7 +2,7 @@ import { seededRandom } from "@greed-island/engine";
 import type { Tier } from "@greed-island/shared";
 import { describe, expect, it } from "vitest";
 import { bookingModeFor, DEFAULT_CYCLE, nextPosition, type CyclePosition } from "./cycle.ts";
-import { DEFAULT_MATCHMAKING, pairingFor, pickMatch, pickShowcase, pickStage, type Candidate, type Rng } from "./matchmaking.ts";
+import { DEFAULT_MATCHMAKING, pairingFor, pickMatch, pickRivalry, pickShowcase, pickStage, type Candidate, type Rng } from "./matchmaking.ts";
 
 function rng(seed = "mm"): Rng {
   const r = seededRandom(seed);
@@ -163,6 +163,31 @@ describe("pickShowcase", () => {
       corners.add(p.sides[1].characterId);
     }
     expect(corners.size).toBe(2);
+  });
+});
+
+describe("pickRivalry", () => {
+  const pool = [c("a", 1800, "S"), c("b", 1500, "B"), c("d", 1600, "A"), c("e", 1400, "P", "kfm"), c("f", 1410, "P", "kfm")];
+  const met = (a: string, b: string, winsA: number, winsB: number) => ({ a, b, winsA, winsB });
+
+  it("books a rematch of rivals: 4+ meetings, records at most one win apart, across tiers", () => {
+    const meetings = [met("a", "b", 3, 2), met("a", "d", 2, 2), met("b", "d", 4, 1), met("a", "e", 1, 1)];
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const p = pickRivalry(pool, meetings, [], rng(`rv${i}`))!;
+      expect(p.kind).toBe("RIVALRY");
+      seen.add([p.sides[1].characterId, p.sides[2].characterId].sort().join("-"));
+    }
+    // b-d is one-sided (4-1) and a-e have met only twice.
+    expect([...seen].sort()).toEqual(["a-b", "a-d"]);
+  });
+
+  it("skips pairs inside the rematch cooldown, inactive characters and mirror matches", () => {
+    expect(pickRivalry(pool, [met("a", "b", 3, 2)], [["x", "y"], ["b", "a"]], rng())).toBeNull();
+    expect(pickRivalry(pool, [met("a", "b", 3, 2)], [["x", "y"], ["p", "q"], ["r", "s"], ["b", "a"]], rng())).toMatchObject({ kind: "RIVALRY" });
+    expect(pickRivalry(pool, [met("a", "gone", 3, 3)], [], rng())).toBeNull();
+    expect(pickRivalry(pool, [met("e", "f", 3, 3)], [], rng())).toBeNull();
+    expect(pickRivalry(pool, [], [], rng())).toBeNull();
   });
 });
 

@@ -37,6 +37,11 @@ export interface Story {
 /** A win streak this long gets a flame by the name. */
 export const FLAME_AT = 3;
 
+/** Two characters are rivals once they've met this often with records at most one win apart (also what exhibitions
+ * book as rivalry rematches: matchmaking `pickRivalry`). */
+export const RIVALRY_MIN_FIGHTS = 4;
+export const isRivalry = (wins: readonly [number, number]) => wins[0] + wins[1] >= RIVALRY_MIN_FIGHTS && Math.abs(wins[0] - wins[1]) <= 1;
+
 /** Each style's name on the roster (the templates'), plural. */
 export const STYLE_NAMES: Record<Archetype, string> = { ALL_ROUNDER: "Brawlers", RUSHDOWN: "Strikers", HEAVY: "Bruisers", GRAPPLER: "Wrestlers", ZONER: "Sages" };
 
@@ -62,7 +67,7 @@ export function fightStory(f: StoryFacts, max = 3): Story {
   if (h.fights >= 3 && (h.wins[1] === 0 || h.wins[2] === 0)) {
     const loser: Side = h.wins[1] === 0 ? 1 : 2;
     add(75 + h.fights, `${name(loser)} has never beaten ${name(other(loser))} (0-${h.fights})`);
-  } else if (h.fights >= 4 && Math.abs(h.wins[1] - h.wins[2]) <= 1) {
+  } else if (isRivalry([h.wins[1], h.wins[2]])) {
     const lead: Side | null = h.wins[1] === h.wins[2] ? null : h.wins[1] > h.wins[2] ? 1 : 2;
     add(70, lead ? `Rivalry: ${name(lead)} leads ${name(other(lead))} ${h.wins[lead]}-${h.wins[other(lead)]}` : `Rivalry: all square at ${h.wins[1]}-${h.wins[2]}`);
   } else if (h.fights >= 1 && h.lastWinner) {

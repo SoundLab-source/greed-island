@@ -406,6 +406,8 @@ enum PairKind {
   CHALLENGE
   /// Exhibition: house characters from the top of the rankings.
   SHOWCASE
+  /// Exhibition: a rematch of two characters with a close record over several meetings (a rivalry).
+  RIVALRY
   /// A tournament bracket match.
   TOURNAMENT
 }

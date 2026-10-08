@@ -56,11 +56,13 @@ describe("challengeProblem", () => {
 
 describe("config", () => {
   it("reads the owner reward and exhibition settings", () => {
-    const c = loadConfig({ GI_OWNER_REWARD: "0", GI_CHALLENGE_TTL_HOURS: "2", GI_MAX_OPEN_CHALLENGES: "1", GI_SHOWCASE_POOL: "4" });
+    const c = loadConfig({ GI_OWNER_REWARD: "0", GI_CHALLENGE_TTL_HOURS: "2", GI_MAX_OPEN_CHALLENGES: "1", GI_SHOWCASE_POOL: "4", GI_RIVALRY_RATE: "0.5" });
     expect(c.economy.ownerReward).toBe(0n);
-    expect(c.exhibitions).toEqual({ challengeTtlMs: 7_200_000, maxOpenPerUser: 1, showcasePool: 4 });
+    expect(c.exhibitions).toEqual({ challengeTtlMs: 7_200_000, maxOpenPerUser: 1, showcasePool: 4, rivalryRate: 0.5 });
     expect(loadConfig({}).economy.ownerReward).toBe(25n);
+    expect(loadConfig({}).exhibitions.rivalryRate).toBe(0.25);
     expect(() => loadConfig({ GI_OWNER_REWARD: "-1" })).toThrow(ConfigError);
     expect(() => loadConfig({ GI_CHALLENGE_TTL_HOURS: "0" })).toThrow(ConfigError);
+    expect(() => loadConfig({ GI_RIVALRY_RATE: "2" })).toThrow(ConfigError);
   });
 });

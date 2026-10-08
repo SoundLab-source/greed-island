@@ -121,6 +121,7 @@
     if (f.tournament) return `Fight #${f.number} · Tournament #${f.tournament.number} ${f.tournament.tier} tier · ${f.tournament.roundName}`;
     if (f.challenge) return `Fight #${f.number} · Exhibition: ${f.challenge.challenger} vs ${f.challenge.challenged}`;
     if (f.pairKind === "SHOWCASE") return `Fight #${f.number} · House showcase`;
+    if (f.pairKind === "RIVALRY") return `Fight #${f.number} · Rivalry rematch`;
     return `Fight #${f.number} · Matchmaking`;
   }
 

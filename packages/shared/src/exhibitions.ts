@@ -1,7 +1,7 @@
 /**
  * Exhibitions (DESIGN §5, docs/PHASE2.md step 5): owners challenge each
  * other's characters, accepted challenges play in the exhibition segment
- * (oldest first), and house showcases fill the gaps. Pure rules; booking
+ * (oldest first), and house showcases and rivalry rematches fill the gaps. Pure rules; booking
  * lives in the orchestrator. Defaults answer DESIGN §15 open questions.
  */
 
@@ -12,12 +12,16 @@ export interface ExhibitionConfig {
   maxOpenPerUser: number;
   /** Showcases pair house characters from this many of the strongest. */
   showcasePool: number;
+  /** Share of the exhibition fights with no challenge waiting that are rivalry rematches (when two active characters
+   * are rivals), 0-1; the rest are showcases. */
+  rivalryRate: number;
 }
 
 export const DEFAULT_EXHIBITIONS: Readonly<ExhibitionConfig> = Object.freeze({
   challengeTtlMs: 24 * 3_600_000,
   maxOpenPerUser: 5,
   showcasePool: 6,
+  rivalryRate: 0.25,
 });
 
 export const CHALLENGE_STATUSES = ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED", "EXPIRED", "BOOKED"] as const;

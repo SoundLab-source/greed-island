@@ -171,6 +171,31 @@ describe("exhibition booking", () => {
     expect(ex.pairKind).toBe("SHOWCASE");
     expect((await db.challenge.findUniqueOrThrow({ where: { id: challenge.id } })).status).toBe("ACCEPTED");
   });
+
+  it("books rivalry rematches when two characters have a close record", async () => {
+    const always = { ...config, exhibitions: { ...config.exhibitions, rivalryRate: 1 } };
+    const again = { ...exhibitionsOnly, matchmaking: { ...base.matchmaking, rematchCooldown: 0 } };
+    const showcase = (await bookFight(deps(again, always), rng(), "fake"))!;
+    // No rivals yet: a showcase.
+    expect(showcase.pairKind).toBe("SHOWCASE");
+    await applyTransition(deps(), showcase.id, { type: "VOID", reason: "ADMIN" });
+    await applyTransition(deps(), showcase.id, { type: "VOIDED_OK" });
+
+    // h3 and h4 meet four times and win two each (only they are active, so matchmaking pairs them).
+    const rivals = [house["h3"]!, house["h4"]!];
+    await db.character.updateMany({ where: { id: { notIn: rivals } }, data: { enabled: false } });
+    const mm = deps({ ...again, cycle: { matchmakingFights: 10, tournamentSize: 0, exhibitionFights: 0 } });
+    for (const winner of [0, 1, 0, 1]) {
+      const f = (await bookFight(mm, rng(`h${winner}`), "fake"))!;
+      await finish(mm, f.id, f.side1CharacterId === rivals[winner] ? 1 : 2);
+    }
+    await db.character.updateMany({ data: { enabled: true } });
+
+    const ex = (await bookFight(deps(again, always), rng("rv"), "fake"))!;
+    expect(ex).toMatchObject({ segment: "EXHIBITION", pairKind: "RIVALRY" });
+    expect([ex.side1CharacterId, ex.side2CharacterId].sort()).toEqual([...rivals].sort());
+    expect(await db.fightTransition.findFirstOrThrow({ where: { fightId: ex.id, event: "BOOK" } })).toMatchObject({ payload: expect.objectContaining({ pairKind: "RIVALRY" }) });
+  });
 });
 
 describe("owner rewards", () => {

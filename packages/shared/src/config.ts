@@ -136,6 +136,7 @@ export function validateExhibitions(x: ExhibitionConfig): ExhibitionConfig {
   for (const [name, v] of [["maxOpenPerUser", x.maxOpenPerUser], ["showcasePool", x.showcasePool]] as const) {
     if (!Number.isInteger(v) || v < 0) throw new ConfigError(`${name} must be a whole number >= 0`);
   }
+  if (!(x.rivalryRate >= 0 && x.rivalryRate <= 1)) throw new ConfigError("rivalry rate must be 0-1");
   return x;
 }
 
@@ -236,6 +237,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       challengeTtlMs: numberFromEnv(env, "GI_CHALLENGE_TTL_HOURS", DEFAULT_EXHIBITIONS.challengeTtlMs / 3_600_000) * 3_600_000,
       maxOpenPerUser: numberFromEnv(env, "GI_MAX_OPEN_CHALLENGES", DEFAULT_EXHIBITIONS.maxOpenPerUser),
       showcasePool: numberFromEnv(env, "GI_SHOWCASE_POOL", DEFAULT_EXHIBITIONS.showcasePool),
+      rivalryRate: numberFromEnv(env, "GI_RIVALRY_RATE", DEFAULT_EXHIBITIONS.rivalryRate),
     }),
     tournaments: validateTournaments({
       startingBalance: saltFromEnv(env, "GI_TOURNAMENT_BALANCE", DEFAULT_TOURNAMENTS.startingBalance),

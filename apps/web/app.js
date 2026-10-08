@@ -63,7 +63,7 @@ function renderFight(f) {
   text($("fight-state"), ` [${f.state}]`);
   const h = f.headToHead;
   const kind = f.tournament ? `Tournament #${f.tournament.number} (${f.tournament.tier} tier), ${f.tournament.roundName}: bets in T-Salt. `
-    : f.challenge ? `Exhibition challenge: ${f.challenge.challenger} vs ${f.challenge.challenged}. ` : f.pairKind === "SHOWCASE" ? "House showcase. " : "";
+    : f.challenge ? `Exhibition challenge: ${f.challenge.challenger} vs ${f.challenge.challenged}. ` : f.pairKind === "SHOWCASE" ? "House showcase. " : f.pairKind === "RIVALRY" ? "Rivalry rematch. " : "";
   text($("stake-currency"), f.currency ?? "Salt");
   text($("fight-meta"), `${kind}Stage: ${f.stage.displayName}. Head-to-head: ${h.fights} fights, ${h.wins[1]}-${h.wins[2]}.` +
     (f.odds && f.odds.locked ? ` Pools: ${f.odds.pool[1]} / ${f.odds.pool[2]} Salt from ${f.odds.bettors} bettors.` : ""));

@@ -28,7 +28,7 @@ import type { OrchestratorConfig } from "./config.ts";
 import { expireChallenges, nextAcceptedChallenge } from "./challenges.ts";
 import { advanceSeason } from "./seasons.ts";
 import { bookOf, decideMatch, ensureTournament, nextTournamentMatch, type TournamentFinished } from "./tournaments.ts";
-import { pairingFor, pickMatch, pickShowcase, pickStage, type Candidate, type Pairing, type Rng } from "./matchmaking.ts";
+import { pairingFor, pickMatch, pickRivalry, pickShowcase, pickStage, type Candidate, type Meetings, type Pairing, type Rng } from "./matchmaking.ts";
 import { transition, type Effect, type FightEvent, type FightState } from "./state-machine.ts";
 
 export interface FightDeps {
@@ -108,7 +108,8 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
     }
     const mode = bookingModeFor(pos.segment);
 
-    // Exhibitions: the oldest accepted challenge, else a house showcase, else a normal pairing.
+    // Exhibitions: the oldest accepted challenge, else now and then a rivalry rematch, else a house showcase, else a
+    // normal pairing.
     let challengeId: string | null = null;
     if (mode === "EXHIBITION") {
       await expireChallenges(tx, deps.now());
@@ -119,7 +120,8 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
         pairing = pairingFor(a, b, "CHALLENGE", rng);
         challengeId = challenge.id;
       } else {
-        pairing = pickShowcase(candidates, recentPairs, rng, deps.config.exhibitions.showcasePool, orch.matchmaking);
+        if (rng.chance() < deps.config.exhibitions.rivalryRate) pairing = pickRivalry(candidates, await meetings(tx), recentPairs, rng, orch.matchmaking);
+        pairing ??= pickShowcase(candidates, recentPairs, rng, deps.config.exhibitions.showcasePool, orch.matchmaking);
       }
     }
     pairing ??= pickMatch(candidates, recentPairs, rng, orch.matchmaking);
@@ -163,6 +165,25 @@ export async function bookFight(deps: FightDeps, rng: Rng, engineMode: "live" | 
   for (const n of notices) deps.bus.publish(n);
   if (booked) deps.bus.publish({ type: "fight_state", fightId: booked.id, number: booked.number, state: "BOOKED", version: booked.version });
   return booked;
+}
+
+/** Every pair's settled meetings, both corners counted together. */
+async function meetings(tx: Tx): Promise<Meetings[]> {
+  const rows = await tx.fight.groupBy({
+    by: ["side1CharacterId", "side2CharacterId", "winnerSide"],
+    where: { state: "SETTLED", winnerSide: { not: null } },
+    _count: { _all: true },
+  });
+  const pairs = new Map<string, Meetings>();
+  for (const r of rows) {
+    const [a, b] = r.side1CharacterId < r.side2CharacterId ? [r.side1CharacterId, r.side2CharacterId] : [r.side2CharacterId, r.side1CharacterId];
+    const m = pairs.get(`${a}|${b}`) ?? { a, b, winsA: 0, winsB: 0 };
+    const winner = r.winnerSide === 1 ? r.side1CharacterId : r.side2CharacterId;
+    if (winner === a) m.winsA += r._count._all;
+    else m.winsB += r._count._all;
+    pairs.set(`${a}|${b}`, m);
+  }
+  return [...pairs.values()];
 }
 
 function tournamentNotice(t: { id: string; number: number; tier: Tier; size: number; status: string; cancelReason: string | null }): BusEvent {

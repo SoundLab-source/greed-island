@@ -46,6 +46,7 @@
     if (f.tournament) return `${f.tournament.debut ? "Debut Tournament" : "Tournament"} #${f.tournament.number} · ${esc(f.tournament.tier)} tier<small>${esc(f.tournament.roundName)}</small>`;
     if (f.challenge) return `Exhibition challenge<small>${esc(f.challenge.challenger)} vs ${esc(f.challenge.challenged)}</small>`;
     if (f.pairKind === "SHOWCASE") return `Exhibition<small>House showcase</small>`;
+    if (f.pairKind === "RIVALRY") return `Exhibition<small>Rivalry rematch</small>`;
     if (f.pairKind === "UPSET") return `Matchmaking<small>Upset bout</small>`;
     return `Matchmaking<small>${esc(f.sides[1].tier)} tier vs ${esc(f.sides[2].tier)} tier</small>`;
   }
@@ -168,7 +169,7 @@
     $("hud1").innerHTML = hudSide(1, f.sides[1], f);
     $("hud2").innerHTML = hudSide(2, f.sides[2], f);
     const pips = (side) => Array.from({ length: f.roundsToWin }, (_, i) => `<i class="${i < roundWins(f, side) ? "on" : ""}"></i>`).join("");
-    const label = f.tournament ? `Tournament #${f.tournament.number} · ${f.tournament.roundName}` : f.challenge ? "Exhibition challenge" : f.pairKind === "SHOWCASE" ? "House showcase" : "Matchmaking";
+    const label = f.tournament ? `Tournament #${f.tournament.number} · ${f.tournament.roundName}` : f.challenge ? "Exhibition challenge" : f.pairKind === "SHOWCASE" ? "House showcase" : f.pairKind === "RIVALRY" ? "Rivalry rematch" : "Matchmaking";
     const pools = f.odds && f.odds.locked ? `<div class="label">Pools ${f.odds.pool[1]} / ${f.odds.pool[2]} ${salt(f)}</div>` : "";
     $("hud-center").innerHTML = `<div class="label">Fight #${f.number} · ${esc(label)}</div><div class="pips"><span class="r">${pips(1)}</span><span>R${Math.min(f.rounds.length + 1, f.roundsToWin * 2 - 1)}</span><span class="b">${pips(2)}</span></div>${pools}`;
   }
