@@ -102,6 +102,10 @@ label { color: var(--dim); }
 .stat { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
 .bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
 .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), #ffdf7f); }
+.milestones { display: grid; gap: 8px; font-size: 13px; }
+.panel > .milestones { margin-bottom: 14px; }
+.milestone { display: grid; gap: 4px; }
+.milestone .spread { flex-wrap: wrap; gap: 2px 10px; }
 .empty { color: var(--dim); padding: 12px 0; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
 .fact { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }

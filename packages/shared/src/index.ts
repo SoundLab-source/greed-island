@@ -21,3 +21,4 @@ export * from "./nft.ts";
 export * from "./looks.ts";
 export * from "./releases.ts";
 export * from "./bettors.ts";
+export * from "./milestones.ts";

@@ -223,6 +223,8 @@ describe("shop", () => {
       expect(buy.json()).toMatchObject({ balance: "4000", replayed: false, character: { serial: 1, firstEdition: true, tier: "P", owner: { kind: "player" } } });
       const mine = (await rich.inject({ method: "GET", url: "/api/me/characters", headers: auth })).json();
       expect(mine).toHaveLength(1);
+      // What it's climbing toward: its first win, and B tier from its owned start rating of 1350.
+      expect(mine[0].milestones.map((m: { text: string }) => m.text)).toEqual(["Win a fight for First Blood", "Rating 1450 for B tier: 100 to go"]);
       const again = await rich.inject({ method: "POST", url: "/api/shop/buy", headers: auth, payload: { fighterId: shop.offers[0].fighterId, idempotencyKey: "buy-key-0001" } });
       expect(again.statusCode).toBe(200);
       expect(again.json().replayed).toBe(true);

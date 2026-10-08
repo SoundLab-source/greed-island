@@ -42,7 +42,7 @@
       </div>
       <div class="cols">
         <div class="panel"><h2>Recent fights</h2>${fights}</div>
-        <div class="panel"><h2>Titles</h2>${titles}</div>
+        <div class="panel"><h2>Titles</h2>${GI.milestones(c.milestones)}${titles}</div>
         <div class="panel"><h2>Tier history</h2>${tiers}</div>
         <div class="panel"><h2>Upgrades</h2>${ups}</div>
       </div>

@@ -75,6 +75,7 @@
         <details data-key="${c.id}-look"><summary>Look on stream</summary><div>${looks(c)}</div></details>
         <details data-key="${c.id}-name"><summary>Name</summary><div>${naming(c)}</div></details>
         ${nftLook(c)}
+        ${GI.milestones(c.milestones)}
         <div class="row">${titles}</div>
       </div>
     </div>`;

@@ -363,7 +363,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const userId = await requireViewer(req);
     const body = BuyBody.parse(req.body);
     const r = await buyCharacter(db, config, { userId, fighterId: body.fighterId, idempotencyKey: body.idempotencyKey });
-    return send(reply.status(r.replayed ? 200 : 201), { character: await characterProfile(db, r.characterId), balance: r.balance, replayed: r.replayed });
+    return send(reply.status(r.replayed ? 200 : 201), { character: await characterProfile(db, r.characterId, config.tiers), balance: r.balance, replayed: r.replayed });
   });
   app.get("/api/me/characters", async (req, reply) => send(reply, await myCharacters(db, config, await requireViewer(req))));
   app.post<{ Params: { id: string } }>("/api/characters/:id/upgrade", async (req, reply) => {
@@ -371,14 +371,14 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const characterId = uuid.parse(req.params.id);
     const body = UpgradeBody.parse(req.body);
     const r = await upgradeStat(db, config, { userId, characterId, stat: body.stat, idempotencyKey: body.idempotencyKey });
-    return send(reply, { character: await characterProfile(db, characterId), balance: r.balance, replayed: r.replayed });
+    return send(reply, { character: await characterProfile(db, characterId, config.tiers), balance: r.balance, replayed: r.replayed });
   });
   app.post<{ Params: { id: string } }>("/api/characters/:id/sidegrade", async (req, reply) => {
     const userId = await requireViewer(req);
     const characterId = uuid.parse(req.params.id);
     const body = SidegradeBody.parse(req.body);
     const r = await setSidegrade(db, config, { userId, characterId, sidegrade: body.sidegrade, idempotencyKey: body.idempotencyKey });
-    return send(reply, { character: await characterProfile(db, characterId), balance: r.balance, replayed: r.replayed });
+    return send(reply, { character: await characterProfile(db, characterId, config.tiers), balance: r.balance, replayed: r.replayed });
   });
 
   // Titles and overlay cosmetics.
@@ -388,7 +388,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const characterId = uuid.parse(req.params.id);
     const body = CosmeticsBody.parse(req.body ?? {});
     const equipped = await setCosmetics(db, { userId, characterId, choice: body });
-    return send(reply, { equipped: describeCosmetics(equipped), character: await characterProfile(db, characterId) });
+    return send(reply, { equipped: describeCosmetics(equipped), character: await characterProfile(db, characterId, config.tiers) });
   });
 
   // Exhibitions: owner-vs-owner challenges.
@@ -579,13 +579,13 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const characterId = uuid.parse(req.params.id);
     const { assetId } = z.object({ assetId: z.string().min(1).max(64) }).parse(req.body);
     const r = await applyLook(db, { source: nftSource, images, looks, ikemenDir: deps.ikemenDir ?? null }, { userId, characterId, assetId });
-    return send(reply.status(r.replayed ? 200 : 201), { replayed: r.replayed, spritesProblem: r.spritesProblem, character: await characterProfile(db, characterId) });
+    return send(reply.status(r.replayed ? 200 : 201), { replayed: r.replayed, spritesProblem: r.spritesProblem, character: await characterProfile(db, characterId, config.tiers) });
   });
   app.delete<{ Params: { id: string } }>("/api/characters/:id/look", async (req, reply) => {
     const userId = await requireViewer(req);
     const characterId = uuid.parse(req.params.id);
     await removeLook(db, { userId, characterId });
-    return send(reply, { character: await characterProfile(db, characterId) });
+    return send(reply, { character: await characterProfile(db, characterId, config.tiers) });
   });
   // A look's picture of the fighter in the NFT's colours (public, like the look itself).
   app.get<{ Params: { id: string } }>("/api/looks/:id/card", async (req, reply) => {
@@ -716,7 +716,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   app.get<{ Params: { id: string } }>("/api/characters/:id", async (req, reply) => {
     const id = uuid.parse(req.params.id);
     if (!(await db.character.findUnique({ where: { id }, select: { id: true } }))) throw new HttpError(404, "NOT_FOUND", "no such character");
-    return send(reply, await characterProfile(db, id));
+    return send(reply, await characterProfile(db, id, config.tiers));
   });
 
   // For uptime monitors: the database answers, and fights are still moving.

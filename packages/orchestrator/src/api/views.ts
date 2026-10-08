@@ -13,6 +13,7 @@ import {
   formatMultiplier,
   liveOdds,
   maxLevel,
+  nextMilestones,
   parseCosmeticChoice,
   parseCosmetics,
   PLAYER_TITLES,
@@ -25,6 +26,8 @@ import {
   upgradeCost,
   type Config,
   type Side,
+  type Tier,
+  type TierConfig,
   type TitleCode,
   type UpgradeConfig,
 } from "@greed-island/shared";
@@ -140,8 +143,9 @@ export function upgradePrices(levels: Record<(typeof UPGRADE_STATS)[number], num
   };
 }
 
-export async function characterProfile(db: Db, characterId: string) {
+export async function characterProfile(db: Db, characterId: string, tiers?: TierConfig) {
   const card = await characterCard(db, characterId);
+  const titles = await characterTitles(db, characterId);
   const tierHistory = await db.tierHistory.findMany({ where: { characterId }, orderBy: { id: "desc" }, take: 50 });
   const changes = await db.characterChange.findMany({ where: { characterId }, orderBy: { id: "desc" }, take: 50, include: { byUser: true } });
   const fights = await db.fight.findMany({
@@ -156,7 +160,9 @@ export async function characterProfile(db: Db, characterId: string) {
     formerNames: await formerNames(db, characterId),
     /** Community fighters: where it came from, and the engine character it plays with until its template exists. */
     community: await communityOrigin(db, card.fighter.id),
-    titles: await characterTitles(db, characterId),
+    titles,
+    /** What it's climbing toward next (docs/ENGAGEMENT.md §3). */
+    milestones: milestonesOf(card, titles, tiers),
     ...(await cosmeticOptions(db, characterId)),
     upgrades: changes.map((ch) => ({
       kind: ch.kind,
@@ -448,18 +454,25 @@ export async function recentResults(db: Db, take = 10) {
 }
 
 /** A player's own characters, strongest first. */
+/** A character's next milestones from its card and titles. */
+function milestonesOf(card: { record: { wins: number }; rating: number; tier: string }, titles: { code: TitleCode }[], tiers?: TierConfig) {
+  return nextMilestones({ wins: card.record.wins, rating: card.rating, tier: card.tier as Tier, titles: titles.map((t) => t.code) }, tiers);
+}
+
 export async function myCharacters(db: Db, config: Config, userId: string) {
   const owned = await db.character.findMany({ where: { ownerUserId: userId }, orderBy: [{ rating: "desc" }, { acquiredAt: "asc" }], select: { id: true } });
   return Promise.all(
     owned.map(async (c) => {
       const card = await characterCard(db, c.id);
+      const titles = await characterTitles(db, c.id);
       return {
         ...card,
         prices: upgradePrices(card.levels, config.upgrades),
         earnings: (await ownerEarnings(db, c.id)).toString(),
         automaticName: card.serial !== null ? automaticName(card.fighter.displayName, card.serial) : null,
         nameRequest: await latestNameRequest(db, c.id),
-        titles: await characterTitles(db, c.id),
+        titles,
+        milestones: milestonesOf(card, titles, config.tiers),
         ...(await cosmeticOptions(db, c.id)),
       };
     }),

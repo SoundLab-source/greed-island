@@ -90,6 +90,13 @@ window.GI = (() => {
     return href ? `<a class="${cls}" href="${GI.esc(href)}">${img}</a>` : `<div class="${cls}">${img}</div>`;
   };
   GI.fighterLink = (id, name) => `<a href="/fighter.html?id=${encodeURIComponent(id)}">${GI.esc(name)}</a>`;
+  // A character's next milestones (docs/ENGAGEMENT.md §3): what it's climbing toward, each with a bar.
+  GI.milestones = (list) =>
+    list && list.length
+      ? `<div class="milestones"><div class="muted">Next up</div>${list
+          .map((m) => `<div class="milestone"><div class="spread"><b>${GI.esc(m.text)}</b>${m.reward ? `<span class="muted">earns ${GI.esc(m.reward)}</span>` : ""}</div><div class="bar"><i style="width:${Math.round(100 * m.progress)}%"></i></div></div>`)
+          .join("")}</div>`
+      : "";
 
   // ---- Session ----
   async function ensureSession() {
