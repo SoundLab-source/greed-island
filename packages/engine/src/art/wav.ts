@@ -110,6 +110,28 @@ export function synth(seconds: number, pitch: (t: number) => number, volume: (t:
   return { rate, data };
 }
 
+/** `synth`, with `pitch`, `volume` and `wave` given the time in seconds (0 to `seconds`) instead of from 0 to 1. */
+export function synthSeconds(seconds: number, pitch: (t: number) => number, volume: (t: number) => number, wave: (phase: number, t: number) => number, rate = 22050): Samples {
+  return synth(seconds, (t) => pitch(t * seconds), (t) => volume(t * seconds), (p, t) => wave(p, t * seconds), rate);
+}
+
+/**
+ * A swoosh: noise through a low-pass filter that opens and closes with one smooth swell, so it sounds like air moved by
+ * a swing, not hiss. `bright` is how far the filter opens (Hz above 250).
+ */
+export function swoosh(seconds: number, bright: number, noise: () => number, rate = 22050): Samples {
+  const n = Math.round(seconds * rate), data = new Float32Array(n);
+  let a1 = 0, a2 = 0;
+  for (let i = 0; i < n; i++) {
+    const swell = Math.sin((i / n) * Math.PI) ** 2;
+    const k = 1 - Math.exp((-2 * Math.PI * (250 + bright * swell)) / rate);
+    a1 += k * (noise() - a1);
+    a2 += k * (a1 - a2);
+    data[i] = a2 * swell;
+  }
+  return { rate, data };
+}
+
 /** Waveforms for `synth`. `noise` uses a fixed seed so a build always makes the same sound. */
 export const WAVES = {
   sine: (p: number) => Math.sin(2 * Math.PI * p),

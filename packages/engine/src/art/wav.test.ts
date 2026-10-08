@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cut, mix, normalize, readWav, resample, seeded, synth, WAVES, writeWav } from "./wav.ts";
+import { cut, mix, normalize, readWav, resample, seeded, swoosh, synth, synthSeconds, WAVES, writeWav } from "./wav.ts";
 
 describe("wav", () => {
   it("writes 16-bit mono and reads it back", () => {
@@ -37,6 +37,24 @@ describe("wav", () => {
     expect(m.data.length).toBe(110);
     expect(m.data[95]).toBeCloseTo(0.75);
     expect(Math.max(...normalize(m, 1).data)).toBeCloseTo(1);
+  });
+
+  it("can give a sound's formulas the time in seconds", () => {
+    const seen: number[] = [];
+    synthSeconds(0.5, () => 0, (t) => (seen.push(t), 1), WAVES.sine, 100);
+    expect(seen[0]).toBe(0);
+    expect(seen.at(-1)).toBeCloseTo(0.49, 5);
+  });
+
+  it("makes a swoosh: one swell, quiet at both ends, and softer than raw noise", () => {
+    const s = swoosh(0.2, 2000, seeded(3), 22050);
+    const n = s.data.length, loud = (from: number, to: number) => Math.max(...s.data.slice(Math.round(from * n), Math.round(to * n)).map(Math.abs));
+    expect(loud(0.4, 0.6)).toBeGreaterThan(5 * loud(0, 0.05));
+    expect(loud(0.4, 0.6)).toBeGreaterThan(5 * loud(0.95, 1));
+    // Low-passed: it crosses zero far less often than white noise (about every other sample).
+    let crossings = 0;
+    for (let i = 1; i < n; i++) if (Math.sign(s.data[i]!) !== Math.sign(s.data[i - 1]!)) crossings++;
+    expect(crossings / n).toBeLessThan(0.15);
   });
 
   it("makes the same sound every time", () => {

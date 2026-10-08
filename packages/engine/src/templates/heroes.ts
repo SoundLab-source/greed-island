@@ -12,7 +12,7 @@ import type { AirAction, Box } from "../art/air.ts";
 import type { SffSprite } from "../art/sff.ts";
 import { bounds, crop, type IndexedImage } from "../art/sheet.ts";
 import type { SndSound } from "../art/snd.ts";
-import { mix, normalize, seeded, synth, WAVES, writeWav, type Samples } from "../art/wav.ts";
+import { mix, normalize, seeded, swoosh, synthSeconds, WAVES, writeWav, type Samples } from "../art/wav.ts";
 import { FX_COLORS as DOG_FX_COLORS, FX as DOG_FX } from "./dogs.ts";
 import { arcs, disc, dust, PackKit, put, shout, shoutWidth, speedLines, star, type Body, type Effect, type PackArt, type PackCanvas, type PackPose, type StripFiles } from "./pack-kit.ts";
 import type { ProjectileArt } from "./projectile.ts";
@@ -613,30 +613,30 @@ export function heroSounds(): SndSound[] {
   const noise = seeded(31);
   const env = (len: number, attack: number) => (t: number) => Math.min(1, t / attack) * Math.max(0, 1 - t / len);
   const bell = (freqs: readonly number[], len: number, decay: number) =>
-    synth(len, () => 0, (t) => Math.exp(-t * decay) * Math.min(1, t * 400), (_p, t) => freqs.reduce((s, f, i) => s + Math.sin(2 * Math.PI * f * t) / (i + 1), 0) / 1.6, rate);
-  const swish = (len: number) =>
-    mix(
-      synth(len, () => 0, (t) => Math.sin((t / len) * Math.PI) ** 2 * 0.8, () => noise(), rate),
-      synth(len, (t) => 900 - 600 * (t / len), (t) => Math.sin((t / len) * Math.PI) * 0.15, WAVES.sine, rate),
-    );
-  const thud = mix(synth(0.3, (t) => 90 - 50 * (t / 0.3), (t) => Math.exp(-t * 14) * 0.9, WAVES.sine, rate), synth(0.15, () => 0, (t) => (1 - t / 0.15) * 0.35, () => noise(), rate));
-  const boom = mix(synth(1.1, () => 0, (t) => Math.exp(-t * 3.5) * Math.min(1, t * 80), () => noise(), rate), synth(0.8, (t) => 70 - 40 * (t / 0.8), (t) => Math.exp(-t * 4) * 0.9, WAVES.sine, rate));
-  const twang = synth(0.5, (t) => 196 * (1 + 0.04 * Math.exp(-t * 20)), (t) => Math.exp(-t * 7) * Math.min(1, t * 300), (p) => 0.6 * WAVES.saw(p) + 0.4 * WAVES.sine(p), rate);
-  const fire = synth(0.8, () => 0, (t) => Math.min(1, t * 6) * Math.max(0, 1 - t / 0.8) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 11 * t)), () => noise() * (noise() > 0.97 ? 1.6 : 0.7), rate);
-  const coin = mix(synth(0.08, () => 1320, env(0.08, 0.002), WAVES.square, rate), synth(0.35, () => 1760, env(0.35, 0.002), WAVES.square, rate), 0.08);
-  const zap = synth(0.3, (t) => 1800 * Math.exp(-t * 9) + 120, env(0.3, 0.004), WAVES.square, rate);
-  const squeak = synth(0.22, (t) => 1500 + 700 * Math.sin((t / 0.22) * Math.PI), env(0.22, 0.01), WAVES.square, rate);
-  const splat = mix(synth(0.25, () => 0, (t) => Math.exp(-t * 18) * 0.9, () => noise(), rate), synth(0.2, (t) => 160 - 120 * (t / 0.2), (t) => Math.exp(-t * 20) * 0.6, WAVES.sine, rate));
-  const chomp = mix(synth(0.06, () => 0, env(0.06, 0.002), () => noise(), rate), synth(0.18, (t) => 140 - 60 * (t / 0.18), (t) => Math.exp(-t * 25), WAVES.square, rate), 0.03);
-  const fart = synth(0.75, (t) => 70 + 25 * Math.sin(2 * Math.PI * 9 * t) - 30 * (t / 0.75), (t) => Math.min(1, t * 15) * (1 - t / 0.75) ** 0.5 * (0.7 + 0.3 * Math.sin(2 * Math.PI * 23 * t)), (p) => 0.6 * WAVES.saw(p) + 0.4 * noise(), rate);
-  const wav = (s: Samples) => writeWav(normalize(s, 0.85));
+    synthSeconds(len, () => 0, (t) => Math.exp(-t * decay) * Math.min(1, t * 400), (_p, t) => freqs.reduce((s, f, i) => s + Math.sin(2 * Math.PI * f * t) / (i + 1), 0) / 1.6, rate);
+  // A swing through the air: one soft swell of filtered noise (sharper and brighter for quick ones).
+  const swish = (len: number, bright: number) => swoosh(len, bright, noise, rate);
+  const thud = mix(synthSeconds(0.3, (t) => 90 - 50 * (t / 0.3), (t) => Math.exp(-t * 14) * 0.9, WAVES.sine, rate), synthSeconds(0.15, () => 0, (t) => (1 - t / 0.15) * 0.35, () => noise(), rate));
+  const boom = mix(synthSeconds(1.1, () => 0, (t) => Math.exp(-t * 3.5) * Math.min(1, t * 80), () => noise(), rate), synthSeconds(0.8, (t) => 70 - 40 * (t / 0.8), (t) => Math.exp(-t * 4) * 0.9, WAVES.sine, rate));
+  const twang = synthSeconds(0.5, (t) => 196 * (1 + 0.04 * Math.exp(-t * 20)), (t) => Math.exp(-t * 7) * Math.min(1, t * 300), (p) => 0.6 * WAVES.saw(p) + 0.4 * WAVES.sine(p), rate);
+  const fire = synthSeconds(0.8, () => 0, (t) => Math.min(1, t * 6) * Math.max(0, 1 - t / 0.8) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 11 * t)), () => noise() * (noise() > 0.97 ? 1.6 : 0.7), rate);
+  const coin = mix(synthSeconds(0.08, () => 1320, env(0.08, 0.002), WAVES.square, rate), synthSeconds(0.35, () => 1760, env(0.35, 0.002), WAVES.square, rate), 0.08);
+  const zap = synthSeconds(0.3, (t) => 1800 * Math.exp(-t * 9) + 120, env(0.3, 0.004), WAVES.square, rate);
+  const squeak = synthSeconds(0.22, (t) => 1500 + 700 * Math.sin((t / 0.22) * Math.PI), env(0.22, 0.01), WAVES.square, rate);
+  const splat = mix(synthSeconds(0.25, () => 0, (t) => Math.exp(-t * 18) * 0.9, () => noise(), rate), synthSeconds(0.2, (t) => 160 - 120 * (t / 0.2), (t) => Math.exp(-t * 20) * 0.6, WAVES.sine, rate));
+  const chomp = mix(synthSeconds(0.06, () => 0, env(0.06, 0.002), () => noise(), rate), synthSeconds(0.18, (t) => 140 - 60 * (t / 0.18), (t) => Math.exp(-t * 25), WAVES.square, rate), 0.03);
+  const fart = synthSeconds(0.75, (t) => 70 + 25 * Math.sin(2 * Math.PI * 9 * t) - 30 * (t / 0.75), (t) => Math.min(1, t * 15) * (1 - t / 0.75) ** 0.5 * (0.7 + 0.3 * Math.sin(2 * Math.PI * 23 * t)), (p) => 0.6 * WAVES.saw(p) + 0.4 * noise(), rate);
+  // Swings are quieter than hits: they play on nearly every attack.
+  const quiet = new Set<Samples>();
+  const soft = (s: Samples) => (quiet.add(s), s);
+  const wav = (s: Samples) => writeWav(normalize(s, quiet.has(s) ? 0.45 : 0.85));
   const all: [readonly [number, number], Samples][] = [
-    [SOUNDS.swish, swish(0.18)],
-    [SOUNDS.swishBig, swish(0.32)],
-    [SOUNDS.shing, mix(bell([2400, 3310, 4720], 0.6, 7), synth(0.05, () => 0, env(0.05, 0.001), () => noise(), rate))],
-    [SOUNDS.clang, mix(bell([820, 1240, 1930, 2610], 0.8, 6), synth(0.04, () => 0, env(0.04, 0.001), () => noise(), rate))],
+    [SOUNDS.swish, soft(swish(0.16, 2600))],
+    [SOUNDS.swishBig, soft(swish(0.26, 1900))],
+    [SOUNDS.shing, mix(bell([2400, 3310, 4720], 0.6, 7), synthSeconds(0.05, () => 0, env(0.05, 0.001), () => noise(), rate))],
+    [SOUNDS.clang, mix(bell([820, 1240, 1930, 2610], 0.8, 6), synthSeconds(0.04, () => 0, env(0.04, 0.001), () => noise(), rate))],
     [SOUNDS.thud, thud],
-    [SOUNDS.whoosh, swish(0.45)],
+    [SOUNDS.whoosh, soft(swish(0.4, 1300))],
     [SOUNDS.boom, boom],
     [SOUNDS.bonk, bell([310, 742, 1133, 1630], 0.9, 4.5)],
     [SOUNDS.twang, twang],

@@ -11,7 +11,7 @@ import type { AirAction, Box } from "../art/air.ts";
 import type { SffSprite } from "../art/sff.ts";
 import type { IndexedImage } from "../art/sheet.ts";
 import type { SndSound } from "../art/snd.ts";
-import { mix, normalize, seeded, synth, WAVES, writeWav, type Samples } from "../art/wav.ts";
+import { mix, normalize, seeded, synthSeconds, WAVES, writeWav, type Samples } from "../art/wav.ts";
 import { ALL_ROUNDER } from "./all-rounder.ts";
 import { GRAPPLER } from "./grappler.ts";
 import { HEAVY } from "./heavy.ts";
@@ -666,17 +666,17 @@ export function dogSounds(pitch: number): SndSound[] {
   const rough = (p: number) => 0.55 * WAVES.saw(p) + 0.3 * WAVES.square(p) + 0.15 * noise();
   const bark = (len: number) =>
     mix(
-      synth(len, (t) => (560 - 320 * (t / len)) * pitch, (t) => Math.min(1, t * 60) * Math.exp((-t * 9) / len / 4) * (1 - t / len) * 0.9, rough, rate),
-      synth(0.05, () => 0, (t) => (1 - t / 0.05) * 0.5, () => noise(), rate),
+      synthSeconds(len, (t) => (560 - 320 * (t / len)) * pitch, (t) => Math.min(1, t * 60) * Math.exp((-t * 9) / len / 4) * (1 - t / len) * 0.9, rough, rate),
+      synthSeconds(0.05, () => 0, (t) => (1 - t / 0.05) * 0.5, () => noise(), rate),
     );
-  const growl = synth(0.7, () => 85 * pitch, (t) => Math.min(1, t * 8) * (1 - t / 0.7) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 26 * t)), rough, rate);
-  const howl = synth(1.4, (t) => (360 + 300 * Math.sin(Math.min(1, t / 0.9) * Math.PI * 0.6) - (t > 1 ? 120 * (t - 1) : 0)) * pitch + 9 * Math.sin(2 * Math.PI * 6 * t), (t) => Math.min(1, t * 4) * Math.min(1, (1.4 - t) * 3) * 0.7, (p) => 0.8 * WAVES.sine(p) + 0.2 * WAVES.saw(p), rate);
-  const slurp = synth(0.35, () => 0, (t) => Math.min(1, t * 20) * (1 - t / 0.35) * (0.5 + 0.5 * Math.sin(2 * Math.PI * 14 * t)) * 0.6, () => noise() * 0.7 + 0.3 * Math.sin(noise() * 3), rate);
-  const whimper = synth(0.5, (t) => (950 - 400 * (t / 0.5)) * pitch, (t) => Math.min(1, t * 10) * (1 - t / 0.5) * 0.5, WAVES.sine, rate);
-  const thud = mix(synth(0.3, (t) => 90 - 50 * (t / 0.3), (t) => Math.exp(-t * 14) * 0.9, WAVES.sine, rate), synth(0.15, () => 0, (t) => (1 - t / 0.15) * 0.35, () => noise(), rate));
-  const squeak = synth(0.22, (t) => 1500 + 700 * Math.sin((t / 0.22) * Math.PI) + 60 * Math.sin(2 * Math.PI * 30 * t), (t) => Math.min(1, t * 50) * (1 - t / 0.22) * 0.6, WAVES.square, rate);
-  const fart = synth(0.75, (t) => 70 + 25 * Math.sin(2 * Math.PI * 9 * t) - 30 * (t / 0.75), (t) => Math.min(1, t * 15) * (1 - t / 0.75) ** 0.5 * (0.7 + 0.3 * Math.sin(2 * Math.PI * 23 * t)), (p) => 0.6 * WAVES.saw(p) + 0.4 * noise(), rate);
-  const splat = mix(synth(0.25, () => 0, (t) => Math.exp(-t * 18) * 0.9, () => noise(), rate), synth(0.2, (t) => 160 - 120 * (t / 0.2), (t) => Math.exp(-t * 20) * 0.6, WAVES.sine, rate));
+  const growl = synthSeconds(0.7, () => 85 * pitch, (t) => Math.min(1, t * 8) * (1 - t / 0.7) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 26 * t)), rough, rate);
+  const howl = synthSeconds(1.4, (t) => (360 + 300 * Math.sin(Math.min(1, t / 0.9) * Math.PI * 0.6) - (t > 1 ? 120 * (t - 1) : 0)) * pitch + 9 * Math.sin(2 * Math.PI * 6 * t), (t) => Math.min(1, t * 4) * Math.min(1, (1.4 - t) * 3) * 0.7, (p) => 0.8 * WAVES.sine(p) + 0.2 * WAVES.saw(p), rate);
+  const slurp = synthSeconds(0.35, () => 0, (t) => Math.min(1, t * 20) * (1 - t / 0.35) * (0.5 + 0.5 * Math.sin(2 * Math.PI * 14 * t)) * 0.6, () => noise() * 0.7 + 0.3 * Math.sin(noise() * 3), rate);
+  const whimper = synthSeconds(0.5, (t) => (950 - 400 * (t / 0.5)) * pitch, (t) => Math.min(1, t * 10) * (1 - t / 0.5) * 0.5, WAVES.sine, rate);
+  const thud = mix(synthSeconds(0.3, (t) => 90 - 50 * (t / 0.3), (t) => Math.exp(-t * 14) * 0.9, WAVES.sine, rate), synthSeconds(0.15, () => 0, (t) => (1 - t / 0.15) * 0.35, () => noise(), rate));
+  const squeak = synthSeconds(0.22, (t) => 1500 + 700 * Math.sin((t / 0.22) * Math.PI) + 60 * Math.sin(2 * Math.PI * 30 * t), (t) => Math.min(1, t * 50) * (1 - t / 0.22) * 0.6, WAVES.square, rate);
+  const fart = synthSeconds(0.75, (t) => 70 + 25 * Math.sin(2 * Math.PI * 9 * t) - 30 * (t / 0.75), (t) => Math.min(1, t * 15) * (1 - t / 0.75) ** 0.5 * (0.7 + 0.3 * Math.sin(2 * Math.PI * 23 * t)), (p) => 0.6 * WAVES.saw(p) + 0.4 * noise(), rate);
+  const splat = mix(synthSeconds(0.25, () => 0, (t) => Math.exp(-t * 18) * 0.9, () => noise(), rate), synthSeconds(0.2, (t) => 160 - 120 * (t / 0.2), (t) => Math.exp(-t * 20) * 0.6, WAVES.sine, rate));
   const wav = (s: Samples) => writeWav(normalize(s, 0.85));
   return [
     { group: SOUNDS.squeak[0], number: SOUNDS.squeak[1], wav: wav(squeak) },
