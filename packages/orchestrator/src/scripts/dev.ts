@@ -55,6 +55,7 @@ if (engine.mode === "fake") {
     aiLevel: engine.aiLevel,
     extraArgs: engine.extraArgs,
     bringToFront: engine.bringToFront,
+    sound: engine.sound,
   });
 } else {
   throw new Error("ENGINE_MODE=sim is only for roster:smoke; use fake or live");

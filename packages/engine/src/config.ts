@@ -17,6 +17,21 @@ export interface EngineConfig {
   extraArgs: string[];
   /** GI_GAME_TO_FRONT=true: bring each fight's window to the front (macOS; for streaming). */
   bringToFront: boolean;
+  /** The game's volume, 0-100: GI_GAME_VOLUME (everything) and GI_GAME_MUSIC (stage music); unset leaves the game's own. */
+  sound: GameSound;
+}
+
+export interface GameSound {
+  master: number | null;
+  music: number | null;
+}
+
+function volume(env: NodeJS.ProcessEnv, name: string): number | null {
+  const raw = env[name];
+  if (raw === undefined || raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0 || n > 100) throw new Error(`${name} must be a whole number from 0 to 100, got "${raw}"`);
+  return n;
 }
 
 function num(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
@@ -40,5 +55,6 @@ export function loadEngineConfig(env: NodeJS.ProcessEnv = process.env): EngineCo
     simSpeed: num(env, "GI_SIM_SPEED", 4),
     extraArgs: (env["GI_IKEMEN_ARGS"] ?? "-windowed").split(/\s+/).filter(Boolean),
     bringToFront: ["1", "true", "yes"].includes((env["GI_GAME_TO_FRONT"] ?? "").trim().toLowerCase()),
+    sound: { master: volume(env, "GI_GAME_VOLUME"), music: volume(env, "GI_GAME_MUSIC") },
   };
 }

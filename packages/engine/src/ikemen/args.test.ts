@@ -61,6 +61,13 @@ describe("statArgs", () => {
 });
 
 describe("runConfigIni", () => {
+  it("sets the game's volume only when asked", () => {
+    expect(runConfigIni("f")).not.toContain("[Sound]");
+    expect(runConfigIni("f", { master: 0 })).toContain("[Sound]\nMasterVolume = 0\n");
+    expect(runConfigIni("f", { music: 30 })).toContain("[Sound]\nBGMVolume = 30\n");
+    expect(runConfigIni("f", { master: 80, music: 0 })).toContain("[Sound]\nMasterVolume = 80\nBGMVolume = 0\n");
+  });
+
   it("loads the mod via a comma-free Common.Lua1 entry", () => {
     const ini = runConfigIni("f");
     expect(ini).toContain("[Common]");

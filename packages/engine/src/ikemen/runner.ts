@@ -40,6 +40,8 @@ export interface IkemenSourceOptions {
   /** Between SIGTERM and SIGKILL. */
   killGraceMs?: number;
   env?: NodeJS.ProcessEnv;
+  /** The game's volume (GI_GAME_VOLUME, GI_GAME_MUSIC): written into each fight's config. */
+  sound?: { master?: number | null; music?: number | null };
   /**
    * Bring the game window to the front shortly after launch (macOS), so a
    * whole-screen stream capture shows the fight. Off by default: it takes
@@ -143,7 +145,7 @@ export function createIkemenSource(options: IkemenSourceOptions): EventSource {
       }
       if (Object.keys(loadoutCopies).length > 0) await pruneDerived(options.ikemenDir, "gi-loadout-", LOADOUT_CACHE_SIZE);
       const built = buildArgs(launched, paths, { mode: options.mode, aiLevel: options.aiLevel ?? 8, simSpeed: options.simSpeed ?? 4, extraArgs: options.extraArgs ?? [] }, baseLife);
-      await writeFile(paths.config, runConfigIni(spec.fightId));
+      await writeFile(paths.config, runConfigIni(spec.fightId, options.sound));
       await writeFile(path.join(dir, "argv.json"), JSON.stringify({ binary, cwd: options.ikemenDir, argv: built.argv, ignoredStats: built.ignoredStats, loadoutCopies }, null, 2) + "\n");
 
       const outFd = openSync(path.join(dir, "stdout.log"), "w");
