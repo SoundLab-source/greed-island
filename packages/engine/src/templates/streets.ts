@@ -16,7 +16,7 @@ import { GRAPPLER } from "./grappler.ts";
 import { HEAVY } from "./heavy.ts";
 import type { IndexedImage } from "../art/sheet.ts";
 import { thrown } from "./hero-fighters.ts";
-import { coin, drawnProjectile, effects, FX, heroFighter, SOUNDS, type Hero, type HeroCtx } from "./heroes.ts";
+import { coin, coinSpray, drawnProjectile, effects, FX, heroFighter, SOUNDS, type Hero, type HeroCtx } from "./heroes.ts";
 import { disc, dust, line, put, star, type PackCanvas } from "./pack-kit.ts";
 import { RUSHDOWN } from "./rushdown.ts";
 import type { AnimSpec, AttackSpec, TemplateSpec } from "./spec.ts";
@@ -55,11 +55,6 @@ const BANDIT_ATTACKS = [{ strip: "run", frames: [4, 5, 6, 7], hits: [1, 2], box:
 
 /** Getting up: the pack's own, pushing up off the floor and leaning on the planted sword. */
 const recoverAnim = (k: HeroCtx): AnimSpec => ({ action: 5120, cells: range(8).map((f) => k.c(`recover ${f}`, { s: "recover", f })), ticks: [6, 5, 5, 4, 4, 4, 4, 5], comment: "getting up: pushes up and leans on the sword" });
-
-/** Coins spraying up and out from (x, y), `t` (0-3) along the way. */
-const coinSpray = (x: number, y: number, t: number): ((c: PackCanvas) => void) => (c) => {
-  for (const [dx, dy, i] of [[-6, -4, 0], [2, -9, 1], [9, -3, 2], [14, -10, 3]] as const) coin(c.img, c.x + x + dx * (1 + t * 0.6), c.y - y + dy * (1 + t * 0.5) + t * t * 1.5, t + i, 3);
-};
 
 // Sticky Fingers: the light bandit, who's after your money.
 export const STICKY_FINGERS = tough({

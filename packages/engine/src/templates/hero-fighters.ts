@@ -8,7 +8,7 @@ import type { Box } from "../art/air.ts";
 import { GRAPPLER } from "./grappler.ts";
 import { HEAVY } from "./heavy.ts";
 import { arcs, disc, line, put, star, type PackCanvas } from "./pack-kit.ts";
-import { coin, drawnProjectile, effects, flames, FX, heroFighter, pan, SOUNDS, waveArt, type Hero, type HeroCtx } from "./heroes.ts";
+import { coin, coinSpray, drawnProjectile, effects, flames, FX, heroFighter, pan, SOUNDS, waveArt, type Hero, type HeroCtx } from "./heroes.ts";
 import { RUSHDOWN } from "./rushdown.ts";
 import type { AttackSpec, TemplateSpec, ThrowSpec } from "./spec.ts";
 import { ZONER } from "./zoner.ts";
@@ -517,6 +517,51 @@ export const NO_SHIRT_KURT = hero({
   },
 });
 
+// ----- Slash Fund: Martial Hero 2, a masked samurai who cuts budgets -----
+
+const MARTIAL_2 = "Martial Hero 2/Sprites";
+export const SLASH_FUND = hero({
+  id: "gi-slash-fund", name: "Slash Fund", base: ZONER, localcoord: 517,
+  pack: { name: "Martial Hero 2", url: "https://luizmelo.itch.io/martial-hero-2" },
+  root: "art/sources/martial-hero",
+  strips: {
+    idle: [`${MARTIAL_2}/Idle.png`, 4], run: [`${MARTIAL_2}/Run.png`, 8], jump: [`${MARTIAL_2}/Jump.png`, 2], fall: [`${MARTIAL_2}/Fall.png`, 2],
+    hurt: [`${MARTIAL_2}/Take hit.png`, 3], death: [`${MARTIAL_2}/Death.png`, 7], attack1: [`${MARTIAL_2}/Attack1.png`, 4], attack2: [`${MARTIAL_2}/Attack2.png`, 4],
+  },
+  body: { front: 16, back: 17, height: 56 },
+  sha256: "3ebabe18dc166be6ce3731a97e73e3512b198a46553952c4ac216994f12e5f7d",
+  room: { l: 27, r: 88, u: 84, d: 1 },
+  slash: { colours: ["#ffffff", "#d2d2d2", "#b7b7b7"] },
+  hurt: [0, 1, 2],
+  down: 5,
+  attacks: [{ strip: "attack1", frames: [1, 2, 3], hits: [1] }, { strip: "attack1", hits: [2] }, { strip: "attack2", hits: [2] }],
+  shot: { strip: "attack2", hits: [2] },
+  names: { 1000: "Pay Cut" },
+  outfits: [
+    { name: "Greenback", colors: {}, shifts: [hue(200, 290, 135, { minSat: 0.2 })] },
+    { name: "In the Red", colors: {}, shifts: [hue(200, 290, 355, { minSat: 0.2 })] },
+    { name: "Off the Books", colors: {}, shifts: [hue(200, 290, null, { minSat: 0.2, light: 0.6 })] },
+  ],
+  words: { cry: "CUT!", intro: "SLASHING PRICES!", win: "ALL SALES FINAL.", taunt: "CUT A DEAL?" },
+  more: (k) => ({ attacks: [budgetCut(k)], cues: [{ action: 1400, frame: 6, sound: SOUNDS.shing, effect: k.say("BUDGET CUT!", 0, 30) }] }),
+});
+
+/** A hand on the hilt, a dash in and one big draw cut through them, coins flying out of their pockets. */
+function budgetCut(k: HeroCtx): AttackSpec {
+  const { front: F, height: H } = k.body;
+  const ready = [0, 1].map((f) => k.c(`budget ready ${f}`, { s: "attack2", f }));
+  const dash = range(4).map((i) => k.c(`budget dash ${i}`, { s: "run", f: (i * 2) % 8, fx: [effects.speed, effects.dustBehind(12)] }));
+  const cut = k.c("budget cut", { s: "attack2", f: 2, fx: [coinSpray(F + 18, H * 0.55, 0)] });
+  const spill = [1, 2].map((t) => k.c(`budget spill ${t}`, { s: "attack2", f: 3, fx: [coinSpray(F + 18, H * 0.55, t)] }));
+  return {
+    state: 1400, name: "Budget Cut", from: "stand", command: "QCB_x", special: true,
+    anim: { action: 1400, cells: [...ready, ...dash, cut, ...spill, k.cells.STAND[0]!], ticks: [4, 4, 2, 2, 2, 2, 5, 5, 6, 6] },
+    hits: [{ frames: [6], damage: 85, chip: 9, height: "mid", weight: "heavy", hitStun: 24, blockStun: 14, push: 5, knockdown: true, hitSound: SOUNDS.coin, box: k.bx(10, -70, 70, -6) }],
+    moves: [{ frame: 2, x: 8 }, { frame: 6, x: 0 }],
+    ai: { range: 170, weight: 0.6 },
+  };
+}
+
 // ----- King Me: the Medieval King, who knights you before he throws you -----
 
 const KING = "Medieval King Pack/Medieval King Pack";
@@ -1023,6 +1068,6 @@ export const BATTY = hero({
 });
 
 export const HEROES: readonly TemplateSpec[] = [
-  SIR_BONKALOT, HOT_TAKES, STABBY, NIGHT_SHIFT, CAPE_CRUSADER, JAVELINA, ROBIN_HOODIE, HAT_TRICK, NO_SHIRT_KURT, KING_ME, ARMS_DEALER, BLUE_STEEL,
+  SIR_BONKALOT, HOT_TAKES, STABBY, NIGHT_SHIFT, CAPE_CRUSADER, JAVELINA, ROBIN_HOODIE, HAT_TRICK, NO_SHIRT_KURT, SLASH_FUND, KING_ME, ARMS_DEALER, BLUE_STEEL,
   ROYAL_PAIN, FUN_GUY, CALCIUM_CARL, EYE_SPY, SPICY_NOODLE, BIG_CHEESE, SNOT_ROCKET, FREE_LOOT, BATTY,
 ];

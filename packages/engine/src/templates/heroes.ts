@@ -671,6 +671,11 @@ export function coin(img: IndexedImage, x: number, y: number, t: number, r = 3) 
   if (t % 4 === 0) put(img, x - 1, y - 1, FX.white);
 }
 
+/** Coins spraying up and out from (x, y) in front of the feet, `t` (0-3) along the way. */
+export const coinSpray = (x: number, y: number, t: number): ((c: PackCanvas) => void) => (c) => {
+  for (const [dx, dy, i] of [[-6, -4, 0], [2, -9, 1], [9, -3, 2], [14, -10, 3]] as const) coin(c.img, c.x + x + dx * (1 + t * 0.6), c.y - y + dy * (1 + t * 0.5) + t * t * 1.5, t + i, 3);
+};
+
 /** Flames licking up from (x, y), `h` tall. */
 export function flames(img: IndexedImage, x: number, y: number, h: number, t: number) {
   for (let i = -2; i <= 2; i++) {
