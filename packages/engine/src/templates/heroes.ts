@@ -14,7 +14,7 @@ import { bounds, crop, type IndexedImage } from "../art/sheet.ts";
 import type { SndSound } from "../art/snd.ts";
 import { mix, normalize, seeded, synth, WAVES, writeWav, type Samples } from "../art/wav.ts";
 import { FX_COLORS as DOG_FX_COLORS, FX as DOG_FX } from "./dogs.ts";
-import { arcs, disc, dust, PackKit, put, shout, shoutWidth, speedLines, star, type Body, type Effect, type PackArt, type PackCanvas, type PackPose } from "./pack-kit.ts";
+import { arcs, disc, dust, PackKit, put, shout, shoutWidth, speedLines, star, type Body, type Effect, type PackArt, type PackCanvas, type PackPose, type StripFiles } from "./pack-kit.ts";
 import type { ProjectileArt } from "./projectile.ts";
 import { cellList, type AnimSpec, type AttackSpec, type Cue, type HitSpec, type PaletteSpec, type TemplateSpec, type ThrowSpec } from "./spec.ts";
 import { redrawMove } from "./universal-prototype-2.ts";
@@ -60,8 +60,14 @@ export interface Hero {
   base: TemplateSpec;
   localcoord: number;
   pack: { name: string; url: string };
-  /** Strip name → [file under art/sources/luizmelo, frame count]. */
-  strips: Readonly<Record<string, readonly [string, number]>>;
+  /** Strip name → [file under `root` (or a file per frame), frame count]. */
+  strips: Readonly<Record<string, readonly [StripFiles, number]>>;
+  /** The folder the strip files are under (default art/sources/luizmelo). */
+  root?: string;
+  /** The art credit, when the pack isn't LuizMelo's. */
+  credit?: string;
+  /** The pack's art faces left (it's mirrored to face right, like every other). */
+  mirror?: boolean;
   widths?: Readonly<Record<string, number>>;
   /** The first idle frame's body (checked) and the strips' digest (`packHash`). */
   body: Body;
@@ -69,7 +75,10 @@ export interface Hero {
   /** Room the strips' frames take around the feet, in art pixels (left, right, up, down). */
   room: { l: number; r: number; u: number; d: number };
   slash?: PackArt["slash"];
-  /** Frames of the `hurt` strip to use (the white flash left out), and the `death` frame where it's down. */
+  /**
+   * Frames of the `hurt` strip to use (the white flash left out), and the `death` frame where it's down. A pack with no
+   * death strip falls back onto the floor on its last hurt frame instead (`down` is then 2: falling, falling, lying).
+   */
   hurt: readonly number[];
   down: number;
   /** The pack's attacks, from the quickest to the biggest. */
@@ -86,6 +95,8 @@ export interface Hero {
   deathLift?: number;
   /** Signature moves, animations and cues of its own, replacing the generic ones with the same numbers. */
   more?: (k: HeroCtx) => HeroMore;
+  /** Other names for the generic moves, by state (a fist fighter's "Quick Slash" is a jab). */
+  names?: Readonly<Record<number, string>>;
 }
 
 export interface HeroMore {
@@ -215,7 +226,8 @@ export function heroFighter(h: Hero): TemplateSpec {
   const cell = { width: h.room.l + h.room.r + pad.l + pad.r, height: up + h.room.d + pad.u + pad.d, feet: { x: h.room.l + pad.l, y: up + pad.u } };
   const kit = new PackKit({
     id: h.id.replace(/^gi-/, ""),
-    strips: Object.fromEntries(Object.entries(h.strips).map(([k, [file]]) => [k, `${LUIZMELO}/${file}`])),
+    strips: Object.fromEntries(Object.entries(h.strips).map(([k, [file]]) => [k, typeof file === "string" ? `${h.root ?? LUIZMELO}/${file}` : file.map((f) => `${h.root ?? LUIZMELO}/${f}`)])),
+    ...(h.mirror ? { mirror: true } : {}),
     counts: Object.fromEntries(Object.entries(h.strips).map(([k, [, n]]) => [k, n])),
     ...(h.widths ? { widths: h.widths } : {}),
     ...(h.slash ? { slash: h.slash } : {}),
@@ -226,7 +238,7 @@ export function heroFighter(h: Hero): TemplateSpec {
     scale: SCALE,
     localcoord: h.localcoord,
     fx: FX_COLORS,
-    credit: `Sprites: ${h.pack.name} by LuizMelo (CC0), ${h.pack.url}; moves, effects and sounds by Greed Island`,
+    credit: h.credit ?? `Sprites: ${h.pack.name} by LuizMelo (CC0), ${h.pack.url}; moves, effects and sounds by Greed Island`,
   });
   const lift = h.hover ?? 0;
   const c = (name: string, pose: PackPose, grounded = false) => kit.cell(name, lift && !grounded ? { ...pose, dy: (pose.dy ?? 0) - lift } : pose);
@@ -264,10 +276,16 @@ export function heroFighter(h: Hero): TemplateSpec {
   const HIT_LOW = [0.92, 0.86, 0.8].map((sy, i) => c(`hit low ${i}`, { s: "hurt", f: hurt(i), sy, sx: 1.04, rot: 6 + 3 * i, mid: true }));
   const CROUCH_HIT = [c("crouch hit 0", { s: "hurt", f: hurt(0), sy: 0.72, sx: 1.06, rot: -6, mid: true }), c("crouch hit 1", { s: "hurt", f: hurt(1), sy: 0.7, sx: 1.06, rot: -10, dx: -2, mid: true })];
   const TUMBLE = [-45, -90, -135, -180, -225, -270].map((r) => c(`tumble ${r}`, { s: "hurt", f: hurt(0), rot: r, mid: true }));
-  const DEATH = range(h.down + 1).map((f) => c(`death ${f}`, { s: "death", f, dy: -(h.deathLift ?? 0) }, true));
-  const LYING = DEATH[h.down]!;
-  const LYING_HIT = c("lying hit", { s: "death", f: h.down, dy: -1 - (h.deathLift ?? 0), fx: [hitStar(0, 4, 4)] }, true);
-  const GET_UP = [...new Set([h.down, h.down - 1, Math.round(h.down * 0.6), Math.round(h.down * 0.3), 0].map((f) => Math.max(0, f)))].map((f) => DEATH[f]!);
+  // Its death strip, or (a pack without one) its last hurt frame falling back onto the floor.
+  const down = has("death") ? h.down : 2;
+  const deathPose = (f: number): PackPose =>
+    has("death")
+      ? { s: "death", f, dy: -(h.deathLift ?? 0) }
+      : { s: "hurt", f: hurt(h.hurt.length - 1), rot: [-30, -60, -90][Math.min(f, 2)]!, mid: true, dy: f >= 2 ? Math.round(H / 2 - B) : 0 };
+  const DEATH = range(down + 1).map((f) => c(`death ${f}`, deathPose(f), true));
+  const LYING = DEATH[down]!;
+  const LYING_HIT = c("lying hit", { ...deathPose(down), dy: (deathPose(down).dy ?? 0) - 1, fx: [hitStar(0, 4, 4)] }, true);
+  const GET_UP = [...new Set([down, down - 1, Math.round(down * 0.6), Math.round(down * 0.3), 0].map((f) => Math.max(0, f)))].map((f) => DEATH[f]!);
   const TRIPPED = [30, 60, 90].map((r) => c(`tripped ${r}`, { s: "hurt", f: hurt(1), rot: r, mid: true }));
   const UPRIGHT = c("launched upright", { s: "hurt", f: hurt(0), rot: -90, mid: true });
   const HEAD_DOWN = c("launched head down", { s: "hurt", f: hurt(0), rot: 90, mid: true });
@@ -421,7 +439,7 @@ export function heroFighter(h: Hero): TemplateSpec {
           ...base.throws!.find((t) => t.state === 1300)!,
           name: "Running Grab",
           box: bx(F - 2, -H, F + 12, 0),
-          reach: { action: 1300, cells: [...RUN.slice(0, 6), grab[grab.length - 1]!], ticks: [2, 2, 3, 3, 3, 4, 8] },
+          reach: { action: 1300, cells: [...range(6).map((i) => RUN[i % RUN.length]!), grab[grab.length - 1]!], ticks: [2, 2, 3, 3, 3, 4, 8] },
           catchFrames: [6],
           hold: [...shake.map((cell) => ({ cell, ticks: 4, victim: [front, 0] as const })), { cell: slam, ticks: 8, victim: [front + 10, 0] as const }],
           release: { frame: 6, x: 4, y: 3 },
@@ -463,7 +481,7 @@ export function heroFighter(h: Hero): TemplateSpec {
   };
   const more = h.more?.(ctx) ?? {};
   const replaced = new Set([...(more.attacks ?? []).map((x) => x.state), ...(more.anims ?? []).map((x) => x.action)]);
-  const attacks = [...generic.filter((x) => !replaced.has(x.state)), ...(more.attacks ?? [])];
+  const attacks = [...generic.filter((x) => !replaced.has(x.state)).map((x) => (h.names?.[x.state] ? { ...x, name: h.names[x.state]! } : x)), ...(more.attacks ?? [])];
 
   const BIG = strike(last, "win");
   const W = h.words;

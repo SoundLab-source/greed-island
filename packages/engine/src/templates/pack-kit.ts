@@ -50,8 +50,13 @@ export interface Body {
 
 export interface PackArt {
   id: string;
-  /** Strip name → file (relative to the repo root): square frames side by side, unless `widths` says otherwise. */
-  strips: Readonly<Record<string, string>>;
+  /**
+   * Strip name → file (relative to the repo root): square frames side by side, unless `widths` says otherwise; or a
+   * list of files, one frame each (packs published a file per frame).
+   */
+  strips: Readonly<Record<string, StripFiles>>;
+  /** The art faces left: every frame is mirrored as it's read, so the fighter faces right like every other. */
+  mirror?: boolean;
   /** Frame width of strips whose frames aren't square (strip name → pixels). */
   widths?: Readonly<Record<string, number>>;
   /** How many frames each strip has, as the moves were written for (checked when the sheet is made). */
@@ -77,10 +82,23 @@ export interface PackArt {
   credit: string;
 }
 
-/** The strips' digest, as `PackArt.sha256` records it. */
-export async function packHash(repoRoot: string, strips: Readonly<Record<string, string>>): Promise<string> {
+/** A strip: one file of frames side by side, or a file per frame. */
+export type StripFiles = string | readonly string[];
+
+/** A strip's first file (for messages and the art source). */
+export const firstFile = (s: StripFiles): string => (typeof s === "string" ? s : s[0]!);
+
+/**
+ * The strips' digest, as `PackArt.sha256` records it: sha256 over each strip's own digest, in name order. A strip
+ * given as a file per frame is digested as the sha256 of its files' digests, in order.
+ */
+export async function packHash(repoRoot: string, strips: Readonly<Record<string, StripFiles>>): Promise<string> {
+  const sha = async (file: string) => createHash("sha256").update(await readFile(path.join(repoRoot, file))).digest("hex");
   const h = createHash("sha256");
-  for (const name of Object.keys(strips).sort()) h.update(createHash("sha256").update(await readFile(path.join(repoRoot, strips[name]!))).digest("hex"));
+  for (const name of Object.keys(strips).sort()) {
+    const s = strips[name]!;
+    h.update(typeof s === "string" ? await sha(s) : createHash("sha256").update((await Promise.all(s.map(sha))).join("")).digest("hex"));
+  }
   return h.digest("hex");
 }
 
@@ -184,7 +202,7 @@ export class PackKit {
     const { art } = this;
     return {
       id: art.id,
-      file: art.strips[art.idle]!,
+      file: firstFile(art.strips[art.idle]!),
       sha256: art.sha256,
       cellWidth: art.cell.width * art.scale,
       cellHeight: art.cell.height * art.scale,
@@ -210,26 +228,31 @@ export class PackKit {
     // First every strip as RGB (0 = clear), and where each colour is found.
     const rgbFrames: Record<string, { width: number; height: number; px: Int32Array }[]> = {};
     const foundIn = new Map<number, Set<string>>();
-    for (const [name, file] of Object.entries(art.strips)) {
-      const png = readPng(await readFile(path.join(repoRoot, file)));
-      const rgba = toRgba(png);
-      const h = png.height, w = art.widths?.[name] ?? h, n = Math.floor(png.width / w);
-      if (art.counts?.[name] !== undefined && art.counts[name] !== n) throw new Error(`${art.id}: strip ${name} has ${n} frames, not ${art.counts[name]}`);
-      rgbFrames[name] = Array.from({ length: n }, (_, k) => {
-        const px = new Int32Array(w * h).fill(-1);
-        for (let y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++) {
-            const o = (y * png.width + k * w + x) * 4;
-            if (rgba[o + 3]! < 128) continue;
-            const rgb = (rgba[o]! << 16) | (rgba[o + 1]! << 8) | rgba[o + 2]!;
-            px[y * w + x] = rgb;
-            let set = foundIn.get(rgb);
-            if (!set) foundIn.set(rgb, (set = new Set()));
-            set.add(name);
+    for (const [name, files] of Object.entries(art.strips)) {
+      // A strip file's frames side by side (a file per frame is a strip of one frame of its own width).
+      const pngs = await Promise.all((typeof files === "string" ? [files] : files).map(async (f) => readPng(await readFile(path.join(repoRoot, f)))));
+      const list: { width: number; height: number; px: Int32Array }[] = [];
+      for (const png of pngs) {
+        const rgba = toRgba(png);
+        const h = png.height, w = typeof files === "string" ? (art.widths?.[name] ?? h) : png.width, n = Math.floor(png.width / w);
+        for (let k = 0; k < n; k++) {
+          const px = new Int32Array(w * h).fill(-1);
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const o = (y * png.width + k * w + x) * 4;
+              if (rgba[o + 3]! < 128) continue;
+              const rgb = (rgba[o]! << 16) | (rgba[o + 1]! << 8) | rgba[o + 2]!;
+              px[y * w + (art.mirror ? w - 1 - x : x)] = rgb;
+              let set = foundIn.get(rgb);
+              if (!set) foundIn.set(rgb, (set = new Set()));
+              set.add(name);
+            }
           }
+          list.push({ width: w, height: h, px });
         }
-        return { width: w, height: h, px };
-      });
+      }
+      if (art.counts?.[name] !== undefined && art.counts[name] !== list.length) throw new Error(`${art.id}: strip ${name} has ${list.length} frames, not ${art.counts[name]}`);
+      rgbFrames[name] = list;
     }
     // Slash colours get their own slots; the rest number from 1 in the order they're first found.
     const slash = new Set((art.slash?.colours ?? []).map((c) => parseInt(c.slice(1), 16)));

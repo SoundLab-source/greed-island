@@ -32,7 +32,26 @@ const strips = { idle: "idle.png", run: "run.png" };
 const kit = async (body = { front: 3, back: 3, height: 5 }) =>
   new PackKit({ id: "test", strips, idle: "idle", body, sha256: await packHash(dir, strips), cell: { width: 20, height: 12, feet: { x: 8, y: 11 } }, scale: 2, localcoord: 320, fx: { 200: "#ffffff" }, credit: "test" });
 
+await writeFile(path.join(dir, "frame-0.png"), strip(1));
+await writeFile(path.join(dir, "frame-1.png"), strip(1));
+
 describe("pixel pack kit", () => {
+  it("reads a pack published as a file per frame, and mirrors art that faces left", async () => {
+    const perFrame = { idle: ["frame-0.png", "frame-1.png"], run: "run.png" };
+    const sha256 = await packHash(dir, perFrame);
+    expect(sha256).not.toBe(await packHash(dir, { idle: "idle.png", run: "run.png" }));
+    const k = new PackKit({ id: "frames", strips: perFrame, counts: { idle: 2, run: 3 }, mirror: true, idle: "idle", sha256, cell: { width: 20, height: 12, feet: { x: 8, y: 11 } }, scale: 2, localcoord: 320, fx: { 200: "#ffffff" }, credit: "test" });
+    const loaded = await k.load(dir);
+    expect(loaded.frames.idle).toHaveLength(2);
+    const f = loaded.frames.idle![1]!;
+    const at = (x: number, y: number) => loaded.palette.subarray(f.pixels[y * f.width + x]! * 3, f.pixels[y * f.width + x]! * 3 + 3);
+    // The blue "head" was on the right (x 7): mirrored, it's on the left (x 2), and the body still stands on the bottom row.
+    expect([...at(2, 5)]).toEqual([0, 0, 200]);
+    expect([...at(7, 5)]).toEqual([200, 0, 0]);
+    expect(loaded.body).toEqual({ front: 3, back: 3, height: 5 });
+    expect(k.source({}).file).toBe("frame-0.png");
+  });
+
   it("gathers the strips' colours into one palette and measures the body from the idle frame", async () => {
     const k = await kit();
     const loaded = await k.load(dir);

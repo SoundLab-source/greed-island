@@ -51,7 +51,13 @@ async function sheetOf(art: ArtSource): Promise<Sheet> {
 for (const [n, spec] of todo.entries()) {
   for (const art of artOf(spec)) await sheetOf(art);
   const cells = lookCells(spec, sheets.get(spec.art.id)!, (art) => sheets.get(art.id)!);
-  const out = templateFiles(spec, cells);
+  let out: ReturnType<typeof templateFiles>;
+  try {
+    out = templateFiles(spec, cells);
+  } catch (e) {
+    const message = (e as Error).message;
+    throw new Error(message.startsWith(`${spec.id}:`) ? message : `${spec.id}: ${message}`, { cause: e });
+  }
   const r = await writeTemplate(ikemenDir, spec, out);
   const listed = roster.fighters.some((f) => f.id === spec.id && f.def === r.defPath);
   console.log(`  ${r.status.padEnd(9)} ${spec.name.padEnd(10)} ${spec.archetype.padEnd(12)} ${r.defPath}  (${out.art.slots.size} sprites, ${out.art.actions.length} animations)${listed ? "" : "  (not in roster.json yet)"}`);

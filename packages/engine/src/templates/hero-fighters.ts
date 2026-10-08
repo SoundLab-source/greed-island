@@ -256,11 +256,11 @@ const burst = (k: number) => (img: IndexedImage) => {
   else for (let i = 0; i < 6; i++) put(img, cx + Math.cos(i) * 9, cy + Math.sin(i) * 7, FX.white);
 };
 /** A projectile drawn in code, spinning through `n` frames, with a burst when it hits. */
-const spinner = (draw: (img: IndexedImage, x: number, y: number, t: number) => void, n: number, size: { w: number; h: number; box: Box }) => (state: number) =>
+export const spinner = (draw: (img: IndexedImage, x: number, y: number, t: number) => void, n: number, size: { w: number; h: number; box: Box }) => (state: number) =>
   drawnProjectile(state, range(n).map((t) => (img: IndexedImage) => draw(img, size.w / 2, size.h / 2, t)), [0, 1, 2].map(burst), size);
 
 /** A move that throws something: these cells, the projectile leaving on frame `frame`. */
-function thrown(k: HeroCtx, o: { state: number; name: string; command: AttackSpec["command"]; cells: number[]; ticks: number[]; frame: number; art: (state: number) => import("./projectile.ts").ProjectileArt; speed: number; height: number; damage: number; low?: boolean; hitSound?: readonly [number, number]; range?: number }): AttackSpec {
+export function thrown(k: HeroCtx, o: { state: number; name: string; command: AttackSpec["command"]; cells: number[]; ticks: number[]; frame: number; art: (state: number) => import("./projectile.ts").ProjectileArt; speed: number; height: number; damage: number; low?: boolean; hitSound?: readonly [number, number]; range?: number }): AttackSpec {
   return {
     state: o.state, name: o.name, from: "stand", command: o.command, special: true,
     anim: { action: o.state, cells: o.cells, ticks: o.ticks },
