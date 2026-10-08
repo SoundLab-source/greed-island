@@ -51,6 +51,12 @@ const GLYPHS: Record<string, string[]> = {
 };
 
 export const GLYPH_WIDTH = 5;
+
+/** Whether the font can draw this character (upper or lower case). */
+export function hasGlyph(ch: string): boolean {
+  return GLYPHS[ch.toUpperCase()] !== undefined;
+}
+
 export const GLYPH_HEIGHT = 7;
 
 /** How wide `text` is at `scale` (a pixel of space between letters). */

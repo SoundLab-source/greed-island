@@ -13,9 +13,13 @@
     for (const b of document.querySelectorAll("[data-buy]")) {
       b.onclick = async () => {
         if (!confirm(`Buy ${b.dataset.name}?`)) return;
-        const r = await GI.act(() => api("POST", "/api/shop/buy", { fighterId: b.dataset.buy, idempotencyKey: crypto.randomUUID() }),
-          (r) => `${r.character.name} is yours${r.character.firstEdition ? " (First Edition)" : ""}. It joins the stream in tier P.`);
-        if (r) await Promise.all([load(), GI.refreshMe()]);
+        b.disabled = true;
+        const r = await GI.act(() => api("POST", "/api/shop/buy", { fighterId: b.dataset.buy, idempotencyKey: crypto.randomUUID() }));
+        b.disabled = false;
+        if (!r) return;
+        const c = r.character;
+        await Promise.all([load(), GI.refreshMe()]).catch(() => {});
+        await GI.reveal({ id: c.id, name: c.name, rarity: c.fighter.rarity, firstEdition: c.firstEdition, serial: c.serial });
       };
     }
     clearInterval(timer);

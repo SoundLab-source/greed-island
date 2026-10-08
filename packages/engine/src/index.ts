@@ -23,6 +23,7 @@ export { buildVariant, loadVariants, variantDefPath, VariantRecipe, VARIANTS_PAT
 export { deriveCharacter, pruneDerived, readConstants, type BaseConstants, type DeriveSpec } from "./ikemen/derive.ts";
 export { pruneRuns, runsKeepMs } from "./ikemen/prune-runs.ts";
 export { readPng, toRgba, writePng, type PngImage } from "./art/png.ts";
+export { drawText, GLYPH_HEIGHT, hasGlyph, textWidth } from "./fx/font.ts";
 export { mainColors, recolorPalette } from "./art/recolor.ts";
 export { readSff, writeSff, type SffPalette, type SffSprite } from "./art/sff.ts";
 export { BUILT_FIGHTERS, HOUSE_FIGHTERS, TEMPLATES, templateDefPath } from "./templates/index.ts";

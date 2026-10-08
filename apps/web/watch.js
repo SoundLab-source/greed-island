@@ -235,6 +235,16 @@
   async function refreshFight() {
     fight = await api("GET", "/api/fights/current");
     renderFight();
+    reportSeen();
+  }
+
+  // A fight shown here while it's on puts both fighters' cards in the player's collection (collection.html).
+  const reported = new Set();
+  function reportSeen() {
+    if (!fight || fight.state !== "IN_PROGRESS" || reported.has(fight.id)) return;
+    const id = fight.id;
+    reported.add(id);
+    api("POST", "/api/me/seen", { fightId: id }).catch(() => reported.delete(id));
   }
 
   // ---- Betting ----

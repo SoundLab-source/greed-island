@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Card collection · Greed Island</title>
+  <link rel="stylesheet" href="site.css">
+  <style>
+    .progress { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .meter { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 8px; }
+    .meter .spread b { font-size: 22px; }
+    .meter .bar { height: 10px; }
+    .meter.backed .bar > i { background: linear-gradient(90deg, var(--green), #8ff0b9); }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 18px; }
+    .filters button { background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; }
+    .filters button:hover { color: var(--ink); }
+    .filters button.on { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+    .filters .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+    .binder { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+    .slot { position: relative; display: grid; gap: 6px; text-decoration: none; color: var(--ink); }
+    .slot .label { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; }
+    .slot .label b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slot .label span { color: var(--dim); white-space: nowrap; }
+    .slot.locked .fcard img { filter: grayscale(1) brightness(0.35) contrast(0.9); }
+    .slot.locked .fcard::after { display: none; }
+    .slot.locked .label b { color: var(--dim); }
+    .lock { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 6px; pointer-events: none; color: #c8cbe0; text-align: center; font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+    .lock i { font-style: normal; font-size: 40px; line-height: 1; opacity: 0.8; }
+    .stamp { position: absolute; top: 8px; right: -6px; z-index: 2; padding: 3px 10px; border-radius: 6px; background: var(--gold); color: #2a1f00; font-size: 11px; font-weight: 900; letter-spacing: 1px; transform: rotate(6deg); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45); pointer-events: none; }
+    .new-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 4px; vertical-align: middle; }
+    .how { margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>Card collection</h1>
+    <p class="lead">Every fighter has a card. Watch a fighter fight to add its card to your collection, and win a bet on it to mark it <b class="gold">Backed</b>.</p>
+    <div class="progress" id="progress"></div>
+    <div class="filters" id="filters"></div>
+    <div class="binder" id="binder"><p class="muted">Opening the binder…</p></div>
+    <div class="panel how">
+      <h2>How cards are collected</h2>
+      <ul class="muted">
+        <li>A fighter's card is yours once you've watched it fight on the <a href="/">watch page</a>, or bet on a fight it was in.</li>
+        <li>Win a bet on a fighter and its card is <b class="gold">Backed</b>, with how many times you've called it right.</li>
+        <li>The collection is just for you: nothing is bought, and nothing is lost by missing a day.</li>
+      </ul>
+    </div>
+  </main>
+  <script src="site.js"></script>
+  <script src="collection.js"></script>
+</body>
+</html>

@@ -66,7 +66,7 @@
     return `<div class="panel mine">
       ${picture(c)}
       <div style="display: grid; gap: 10px; min-width: 0">
-        <div class="spread"><span>${GI.plate(c.name, c.cosmetics)} ${GI.badges(c.cosmetics)}</span><a class="ghost small" href="/fighter.html?id=${encodeURIComponent(c.id)}">Profile</a></div>
+        <div class="spread"><span>${GI.plate(c.name, c.cosmetics)} ${GI.badges(c.cosmetics)}</span><span class="row"><a class="btn small" href="/card/${encodeURIComponent(c.id)}">Share card</a><a class="ghost small" href="/fighter.html?id=${encodeURIComponent(c.id)}">Profile</a></span></div>
         <div class="row">${GI.tier(c.tier)} <span>Rating <b>${c.rating}</b> <span class="muted">±${c.deviation}</span></span> <span>${c.record.wins}–${c.record.losses}</span>
           <span class="muted">${esc(c.fighter.displayName)} · ${esc(GI.archetype(c.fighter.archetype))}${c.firstEdition ? ' · <span class="gold">First Edition</span>' : ""}</span>
           <span class="muted">Earned ${fmt(c.earnings)} Salt from wins</span></div>

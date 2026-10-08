@@ -12,6 +12,8 @@ window.GI = (() => {
   GI.esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   GI.fmt = (n) => Number(n ?? 0).toLocaleString();
   GI.archetype = (a) => ({ RUSHDOWN: "Rushdown", ZONER: "Zoner", GRAPPLER: "Grappler", ALL_ROUNDER: "All-rounder", HEAVY: "Heavy" })[a] ?? a;
+  /** A style by its name on the cards and the stream (orchestrator story.ts STYLE_NAME). */
+  GI.style = (a) => ({ ALL_ROUNDER: "Brawler", RUSHDOWN: "Striker", HEAVY: "Bruiser", GRAPPLER: "Wrestler", ZONER: "Sage" })[a] ?? a;
   GI.day = (t) => new Date(t).toLocaleDateString();
   GI.when = (t) => new Date(t).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   GI.tier = (t) => `<span class="tier ${GI.esc(t)}" title="Tier ${GI.esc(t)}">${GI.esc(t)}</span>`;
@@ -134,6 +136,7 @@ window.GI = (() => {
     ["/shop.html", "Shop"],
     ["/roster.html", "Roster"],
     ["/fighters.html", "My fighters"],
+    ["/collection.html", "Cards"],
     ["/rankings.html", "Rankings"],
     ["/vote.html", "Vote"],
     ["/how-to-play.html", "How to play"],
@@ -288,6 +291,66 @@ window.GI = (() => {
 
   // Cards tilt toward the pointer and their shine follows it (not for people who ask for less motion).
   const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+  /**
+   * The card reveal after buying a fighter: its card spins in face down and flips over; rare fighters get gold light,
+   * rays and a burst of sparks. Without motion for people who ask for less. Resolves when it's closed.
+   */
+  GI.reveal = ({ id, name, rarity = "COMMON", firstEdition = false, serial = null }) =>
+    new Promise((resolve) => {
+      const rare = rarity !== "COMMON";
+      const box = document.createElement("div");
+      box.className = `reveal${rare ? " rare" : ""}${calm ? " calm" : ""}`;
+      box.setAttribute("role", "dialog");
+      box.setAttribute("aria-modal", "true");
+      box.setAttribute("aria-label", `${name}'s card`);
+      const sparks = rare
+        ? Array.from({ length: 28 }, (_, i) => `<span class="spark" style="--a:${Math.round((360 / 28) * i + Math.random() * 10)}deg;--d:${Math.round(170 + Math.random() * 190)}px;--t:${(Math.random() * 0.25).toFixed(2)}s;--s:${(0.6 + Math.random() * 0.9).toFixed(2)}"></span>`).join("")
+        : "";
+      const kicker = rarity === "LEGENDARY" ? "Legendary!" : rare ? "Rare!" : "New fighter!";
+      box.innerHTML = `
+        <div class="reveal-rays"></div>
+        <div class="reveal-stage">
+          <div class="reveal-sparks">${sparks}</div>
+          <div class="reveal-card">
+            <img class="back" src="/card-back.svg" alt="">
+            <img class="face" src="/api/cards/characters/${encodeURIComponent(id)}" alt="${GI.esc(name)}'s card">
+            <span class="sweep"></span>
+          </div>
+        </div>
+        <div class="reveal-text">
+          <div class="reveal-kicker">${kicker}</div>
+          <h2>${GI.esc(name)} is yours</h2>
+          <p class="muted">${firstEdition && serial ? `<span class="gold">First Edition #${String(serial).padStart(3, "0")}.</span> ` : ""}It joins the stream in tier P and climbs by winning.</p>
+          <div class="row">
+            <a class="btn" href="/card/${encodeURIComponent(id)}">Share your card</a>
+            <a class="ghost" href="/fighters.html">My fighters</a>
+            <button class="ghost" type="button" data-close>Keep shopping</button>
+          </div>
+        </div>`;
+      const before = document.activeElement;
+      const close = () => {
+        document.removeEventListener("keydown", onKey);
+        box.classList.remove("in");
+        setTimeout(() => box.remove(), calm ? 0 : 250);
+        if (before instanceof HTMLElement) before.focus();
+        resolve();
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") close();
+      };
+      box.addEventListener("click", (e) => {
+        if (e.target === box || e.target.closest("[data-close]")) close();
+      });
+      document.addEventListener("keydown", onKey);
+      document.body.append(box);
+      box.querySelector("[data-close]").focus({ preventScroll: true });
+      requestAnimationFrame(() => requestAnimationFrame(() => box.classList.add("in")));
+      // Flip once the face has loaded (or after a moment, whatever happens).
+      const face = box.querySelector(".face");
+      const ready = Promise.race([face.decode().catch(() => {}), new Promise((r) => setTimeout(r, 2500))]);
+      Promise.all([ready, new Promise((r) => setTimeout(r, calm ? 0 : 650))]).then(() => box.classList.add("open"));
+    });
   if (!calm) {
     document.addEventListener("pointermove", (e) => {
       const card = e.target instanceof Element ? e.target.closest(".fcard") : null;

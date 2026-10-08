@@ -102,6 +102,7 @@ model User {
   walletChallenges WalletChallenge[]
   looksApplied     NftLook[]
   seasonStandings  SeasonStanding[]
+  fightersSeen     FighterSeen[]
 
   @@map("user")
 }
@@ -260,6 +261,7 @@ model Fighter {
   nftCollections NftCollection[]
   release        Release?    @relation("ReleasedFighter")
   standInFor     Release[]   @relation("StandIn")
+  seenBy         FighterSeen[]
 
   @@map("fighter")
 }
@@ -455,6 +457,7 @@ model Fight {
   /// Tournament fights: the bracket match (a voided fight is replayed as a new fight for the same match).
   tournamentMatchId String?           @map("tournament_match_id") @db.Uuid
   tournamentMatch   TournamentMatch?  @relation(fields: [tournamentMatchId], references: [id])
+  fightersSeen      FighterSeen[]
 
   @@index([state])
   @@index([tournamentMatchId])
@@ -1262,4 +1265,19 @@ model Release {
 
   @@index([seasonId])
   @@map("release")
+}
+
+/// The card collection (docs/ENGAGEMENT.md §3): a fighter a player has watched fight, from the first fight they saw
+/// it in (the watch page reports the fights it shows). Betting on a fight counts too, worked out from the bets.
+model FighterSeen {
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id])
+  fighterId String   @map("fighter_id")
+  fighter   Fighter  @relation(fields: [fighterId], references: [id])
+  fightId   String   @map("fight_id") @db.Uuid
+  fight     Fight    @relation(fields: [fightId], references: [id])
+  seenAt    DateTime @default(now()) @map("seen_at") @db.Timestamptz(3)
+
+  @@id([userId, fighterId])
+  @@map("fighter_seen")
 }

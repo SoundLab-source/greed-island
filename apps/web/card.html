@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!--share-meta-->
+  <title>Fighter card · Greed Island</title>
+  <meta name="description" content="A fighter card from Greed Island: AI fighters on a live stream, and free play money to bet on them.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Greed Island">
+  <meta property="og:title" content="A Greed Island fighter card">
+  <!--/share-meta-->
+  <link rel="stylesheet" href="/site.css">
+  <style>
+    .share { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 36px; align-items: center; max-width: 980px; margin: 10px auto 0; }
+    .share .fcard { margin: 0 auto; }
+    .kicker { margin: 0; color: var(--gold); font-weight: 800; letter-spacing: 2px; text-transform: uppercase; font-size: 13px; }
+    .share h1 { font-size: 38px; margin: 4px 0 6px; line-height: 1.1; }
+    .share .lead { margin-bottom: 14px; }
+    .share .facts { margin-bottom: 18px; }
+    .actions { margin-bottom: 10px; }
+    .actions .btn, .actions .ghost { padding: 9px 18px; }
+    .link-box { display: flex; gap: 8px; align-items: center; margin: 4px 0 16px; }
+    .link-box input { flex: 1 1 auto; min-width: 0; color: var(--dim); font-size: 13px; }
+    .more { margin-top: 18px; }
+    @media (max-width: 760px) { .share { grid-template-columns: 1fr; gap: 20px; } .share h1 { font-size: 30px; } .share .fcard { max-width: 300px; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="share" id="share" hidden>
+      <div id="card-slot"></div>
+      <div>
+        <p class="kicker" id="kicker">Fighter card</p>
+        <h1 id="name"></h1>
+        <p class="lead" id="line"></p>
+        <div class="facts" id="facts"></div>
+        <div class="row actions">
+          <button class="btn" id="share-btn" type="button">Share</button>
+          <button class="ghost" id="copy-btn" type="button">Copy link</button>
+          <button class="ghost" id="download-btn" type="button">Download card</button>
+        </div>
+        <div class="link-box"><input id="link" readonly aria-label="Link to this card"></div>
+        <p class="msg" id="msg" role="status"></p>
+        <div class="row more">
+          <a class="ghost" id="profile">Profile and fights</a>
+          <a class="ghost" href="/">Watch the stream</a>
+          <a class="ghost" href="/collection.html">Card collection</a>
+        </div>
+      </div>
+    </div>
+    <div class="panel" id="missing" hidden><p class="empty">There's no such card. <a href="/roster.html">See the roster</a>.</p></div>
+  </main>
+  <script src="/site.js"></script>
+  <script src="/card.js"></script>
+</body>
+</html>

@@ -757,6 +757,46 @@ describe("fighter pictures", () => {
   });
 });
 
+describe("cards: sharing and the collection", () => {
+  it("serves a share page with a link preview and a share picture", async () => {
+    const c = await db.character.findFirstOrThrow({ where: { rosterKey: "f1" } });
+    const page = await app.inject({ method: "GET", url: `/card/${c.id}` });
+    expect(page.statusCode).toBe(200);
+    expect(page.headers["content-type"]).toMatch(/^text\/html/);
+    expect(page.body).toContain(`<title>Char f1: a B-tier Brawler · Greed Island</title>`);
+    expect(page.body).toContain(`<meta property="og:image" content="https://gi.test/api/cards/characters/${c.id}/share.png">`);
+    expect(page.body).toContain('<script src="/card.js"></script>');
+    const pic = await app.inject({ method: "GET", url: `/api/cards/characters/${c.id}/share.png` });
+    expect(pic.statusCode).toBe(200);
+    expect(pic.headers["content-type"]).toBe("image/png");
+    expect(pic.rawPayload.subarray(1, 4).toString()).toBe("PNG");
+    for (const url of ["/card/nope", `/card/${randomUUID()}`, `/api/cards/characters/${randomUUID()}/share.png`]) expect((await app.inject({ method: "GET", url })).statusCode).toBe(404);
+    // The plain page (no preview filled in) and the card back are served as files.
+    expect((await app.inject({ method: "GET", url: "/card.html" })).statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/card-back.svg" })).statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/collection.html" })).statusCode).toBe(200);
+  });
+
+  it("collects the fighters a player watched, and the ones they backed", async () => {
+    const s = await session("Collector");
+    expect((await app.inject({ method: "GET", url: "/api/me/collection" })).statusCode).toBe(401);
+    const empty = (await app.inject({ method: "GET", url: "/api/me/collection", headers: s.auth })).json();
+    expect(empty).toMatchObject({ total: 2, seen: 0, backed: 0 });
+    const f = await openFight();
+    const early = await app.inject({ method: "POST", url: "/api/me/seen", headers: s.auth, payload: { fightId: f.id } });
+    expect(early.json()).toEqual({ recorded: 0, refused: "not-started" });
+    await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 2, stake: "10", idempotencyKey: "collect-bet-1" } });
+    for (const type of ["LOCK", "ENGINE_STARTED"] as const) await applyTransition(deps, f.id, { type });
+    expect((await app.inject({ method: "POST", url: "/api/me/seen", headers: s.auth, payload: { fightId: f.id } })).json()).toEqual({ recorded: 2 });
+    await applyTransition(deps, f.id, { type: "MATCH_END", winnerSide: 2 });
+    await applyTransition(deps, f.id, { type: "SETTLED_OK" });
+    const after = (await app.inject({ method: "GET", url: "/api/me/collection", headers: s.auth })).json();
+    expect(after).toMatchObject({ total: 2, seen: 2, backed: 1 });
+    expect((await app.inject({ method: "POST", url: "/api/me/seen", headers: s.auth, payload: { fightId: randomUUID() } })).statusCode).toBe(404);
+    expect((await app.inject({ method: "POST", url: "/api/me/seen", headers: s.auth, payload: { fightId: "nope" } })).statusCode).toBe(400);
+  });
+});
+
 describe("roster gallery", () => {
   it("lists the fighters on the stream with their outfits and special moves", async () => {
     const ikemen = await mkdtemp(nodePath.join(tmpdir(), "gi-ikemen-"));

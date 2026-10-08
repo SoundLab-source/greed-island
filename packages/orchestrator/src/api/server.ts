@@ -94,6 +94,9 @@ import {
 } from "../holders.ts";
 import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.ts";
 import { characterCardData, fighterCardData, renderCard, type CardData } from "../cards.ts";
+import { collectionView, markSeen } from "../collection.ts";
+import { shareImage } from "../share-image.ts";
+import { fillSharePage, shareMeta } from "./share-page.ts";
 import { lookCharacterId } from "../look-sprites.ts";
 import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
 import { loadNftSource, NftSourceError, type NftSource } from "../nft-source.ts";
@@ -301,6 +304,16 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
 
   app.get("/api/me", async (req, reply) => send(reply, await meView(db, config, await requireViewer(req))));
   app.get("/api/me/bets", async (req, reply) => send(reply, await betHistory(db, await requireViewer(req))));
+  // The card collection (collection.ts): every fighter's card, and which ones this player has seen fight or backed.
+  app.get("/api/me/collection", async (req, reply) => send(reply, await collectionView(db, await requireViewer(req))));
+  // The watch page reports each fight it showed while it was on: both fighters join the player's collection.
+  app.post("/api/me/seen", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const { fightId } = z.object({ fightId: z.string().uuid() }).parse(req.body);
+    const r = await markSeen(db, userId, fightId);
+    if (!r) throw new HttpError(404, "NOT_FOUND", "no such fight");
+    return send(reply, r);
+  });
   app.post("/api/me/daily-grant", async (req, reply) => {
     const userId = await requireViewer(req);
     const r = await claimDailyGrant(db, userId, config.economy);
@@ -660,6 +673,21 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     sendCard(reply, await fighterCardData(db, deps.ikemenDir, z.string().min(1).max(100).parse(req.params.id))),
   );
   app.get<{ Params: { id: string } }>("/api/cards/characters/:id", async (req, reply) => sendCard(reply, await characterCardData(db, deps.ikemenDir, uuid.parse(req.params.id))));
+  // A shared card's preview picture (share-image.ts): a PNG, since link previews don't show SVG.
+  app.get<{ Params: { id: string } }>("/api/cards/characters/:id/share.png", async (req, reply) => {
+    const card = await characterCardData(db, deps.ikemenDir, uuid.parse(req.params.id));
+    if (!card) throw new HttpError(404, "NOT_FOUND", "no such fighter");
+    return reply.type("image/png").header("cache-control", "public, max-age=300").send(shareImage(card));
+  });
+  // The share page for a character's card (apps/web/card.html), with the link-preview tags filled in for it.
+  const webRoot = deps.webRoot ?? path.join(REPO_ROOT, "apps", "web");
+  app.get<{ Params: { id: string } }>("/card/:id", async (req, reply) => {
+    const id = uuid.safeParse(req.params.id);
+    const card = id.success ? await characterCardData(db, deps.ikemenDir, id.data) : null;
+    if (!id.success || !card) throw new HttpError(404, "NOT_FOUND", "no such card");
+    const html = fillSharePage(await readFile(path.join(webRoot, "card.html"), "utf8"), shareMeta(card, id.data, publicUrl));
+    return reply.type("text/html; charset=utf-8").header("cache-control", "no-cache").send(html);
+  });
   // The guide sheet artists draw a fighter of this archetype on (written by pnpm templates:build next to the template).
   // An archetype's guide sheet, or with ?sheet=pose its pose guide (for intros and win poses).
   app.get<{ Params: { archetype: string }; Querystring: { sheet?: string } }>("/api/guides/:archetype", async (req, reply) => {
@@ -718,6 +746,6 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     });
   });
 
-  await app.register(fastifyStatic, { root: deps.webRoot ?? path.join(REPO_ROOT, "apps", "web"), index: ["index.html"] });
+  await app.register(fastifyStatic, { root: webRoot, index: ["index.html"] });
   return app;
 }

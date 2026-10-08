@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 840" width="600" height="840" role="img" aria-label="The back of a Greed Island fighter card">
+  <!-- The back of every Greed Island fighter card (the front is drawn by orchestrator/src/cards.ts). Our own design. -->
+  <defs>
+    <linearGradient id="foil" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff4c2"/><stop offset="0.25" stop-color="#f6c945"/><stop offset="0.5" stop-color="#fff0b0"/><stop offset="0.75" stop-color="#c9971c"/><stop offset="1" stop-color="#f6d77a"/>
+    </linearGradient>
+    <radialGradient id="night" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0" stop-color="#2b2350"/><stop offset="0.55" stop-color="#15172b"/><stop offset="1" stop-color="#0b0c14"/>
+    </radialGradient>
+    <radialGradient id="seal" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#3a2f6e"/><stop offset="1" stop-color="#0f1020"/>
+    </radialGradient>
+    <pattern id="lattice" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45 300 420)">
+      <rect width="40" height="40" fill="none" stroke="#f6c945" stroke-opacity="0.09" stroke-width="2"/>
+      <circle cx="20" cy="20" r="2.2" fill="#f6c945" fill-opacity="0.16"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="840" rx="30" fill="url(#foil)"/>
+  <rect x="16" y="16" width="568" height="808" rx="20" fill="url(#night)"/>
+  <rect x="16" y="16" width="568" height="808" rx="20" fill="url(#lattice)"/>
+  <rect x="34" y="34" width="532" height="772" rx="14" fill="none" stroke="#f6c945" stroke-opacity="0.55" stroke-width="2"/>
+  <!-- Corner stars -->
+  <g fill="#f6c945" fill-opacity="0.8">
+    <polygon points="62,48 66,58 76,62 66,66 62,76 58,66 48,62 58,58"/>
+    <polygon points="538,48 542,58 552,62 542,66 538,76 534,66 524,62 534,58"/>
+    <polygon points="62,764 66,774 76,778 66,782 62,792 58,782 48,778 58,774"/>
+    <polygon points="538,764 542,774 552,778 542,782 538,792 534,782 524,778 534,774"/>
+  </g>
+  <!-- The seal -->
+  <g transform="translate(300 400)">
+    <circle r="190" fill="none" stroke="#f6c945" stroke-opacity="0.18" stroke-width="2" stroke-dasharray="4 10"/>
+    <circle r="158" fill="url(#seal)" stroke="url(#foil)" stroke-width="8"/>
+    <circle r="138" fill="none" stroke="#f6c945" stroke-opacity="0.35" stroke-width="2"/>
+    <polygon points="0,-112 22,-30 104,-22 38,22 58,104 0,58 -58,104 -38,22 -104,-22 -22,-30" fill="url(#foil)"/>
+    <polygon points="0,-72 13,-18 64,-14 23,13 36,64 0,36 -36,64 -23,13 -64,-14 -13,-18" fill="#15172b" fill-opacity="0.55"/>
+  </g>
+  <text x="300" y="196" text-anchor="middle" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="58" letter-spacing="10" fill="url(#foil)">GREED</text>
+  <text x="300" y="660" text-anchor="middle" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="58" letter-spacing="10" fill="url(#foil)">ISLAND</text>
+  <text x="300" y="744" text-anchor="middle" font-family="'Trebuchet MS', 'Segoe UI', Helvetica, Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="4" fill="#c8cbe0" fill-opacity="0.7">FIGHTER CARD</text>
+</svg>
