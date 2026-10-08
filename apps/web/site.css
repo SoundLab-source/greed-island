@@ -46,8 +46,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   background: rgba(7, 9, 15, 0.92);
   backdrop-filter: blur(8px);
 }
-.brand { color: var(--ink); text-decoration: none; font-weight: 900; font-style: italic; letter-spacing: 3px; font-size: 20px; white-space: nowrap; }
-.brand span { color: var(--gold); }
+/* The wordmark, lettered like the card back (card-back.svg): heavy capitals, widely spaced, in gold foil. */
+.brand { text-decoration: none; font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif; font-weight: 900; letter-spacing: 0.17em; font-size: 19px; white-space: nowrap;
+  background: linear-gradient(135deg, #fff4c2 0%, #f6c945 25%, #fff0b0 50%, #c9971c 75%, #f6d77a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand span { color: transparent; }
 .nav { display: flex; flex-wrap: wrap; gap: 4px; }
 .nav a { color: var(--dim); text-decoration: none; font-weight: 700; padding: 6px 10px; border-radius: 8px; }
 .nav a:hover { color: var(--ink); background: var(--panel-2); }
@@ -181,6 +183,15 @@ label { color: var(--dim); }
 .fcard.tilted { box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55); }
 .fcard.small { max-width: 220px; }
 .fcard.big { max-width: 340px; }
+/* A card that turns over when clicked (GI.card's `flip`): its face, and the Greed Island back. */
+.fcard.flip { overflow: visible; cursor: pointer; perspective: 1400px; }
+.fcard.flip::after { border-radius: inherit; }
+.fcard.flip:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.fcard-turn { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.3, 0.1, 0.2, 1); }
+.fcard.turned .fcard-turn { transform: rotateY(180deg); }
+.fcard-turn img, .fcard-turn .fcard-missing { position: absolute; inset: 0; border-radius: 5% / 3.6%; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.fcard-turn .back { transform: rotateY(180deg); }
+@media (prefers-reduced-motion: reduce) { .fcard-turn { transition: none; } }
 .fcard-missing { aspect-ratio: 600 / 840; display: grid; place-items: center; font-size: 64px; color: var(--line); background: var(--panel-2); border-radius: 18px; }
 
 /* The card reveal after buying a fighter (site.js GI.reveal): face down, spun in, flipped over; gold light for rare ones. */

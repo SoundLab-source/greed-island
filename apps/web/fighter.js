@@ -8,7 +8,7 @@
     const c = await api("GET", `/api/characters/${encodeURIComponent(id)}`);
     document.title = `${c.name} · Greed Island`;
     const owner = c.owner.kind === "house" ? "House fighter" : `Owned by <b>${esc(c.owner.name)}</b>`;
-    const pic = `<div class="card-slot">${GI.card(`/api/cards/characters/${encodeURIComponent(c.id)}`, `${c.name}'s card`, { rare: c.fighter.rarity !== "COMMON", size: "big" })}</div>`;
+    const pic = `<div class="card-slot">${GI.card(`/api/cards/characters/${encodeURIComponent(c.id)}`, `${c.name}'s card`, { rare: c.fighter.rarity !== "COMMON", size: "big", flip: true })}</div>`;
     const titles = c.titles.length
       ? `<table class="table">${c.titles.map((t) => `<tr><td><span class="tag gold">${esc(t.label)}</span></td><td class="muted">${esc(t.description)}</td><td class="muted">${t.fightNumber ? `fight #${t.fightNumber}, ` : ""}${t.earnedBy.kind === "house" ? "as a house fighter" : `owned by ${esc(t.earnedBy.name)}`}</td></tr>`).join("")}</table>`
       : '<p class="empty">No titles yet.</p>';

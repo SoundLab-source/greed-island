@@ -83,12 +83,27 @@ window.GI = (() => {
   GI.badges = (cos) =>
     `<span class="badges">${(cos?.badges ?? []).map((b) => `<span class="badge" style="background:${GI.esc(b.color)}" title="${GI.esc(b.label)}">${GI.esc(b.glyph)}</span>`).join("")}</span>`;
   // A fighter card (the server draws it: GET /api/cards/fighters/:id or /api/cards/characters/:id), shining and
-  // tilting under the pointer; `href` makes it a link.
-  GI.card = (src, alt, { rare = false, href = null, size = "", lazy = false } = {}) => {
+  // tilting under the pointer; `href` makes it a link, `flip` turns it over to its back when clicked.
+  GI.card = (src, alt, { rare = false, href = null, size = "", lazy = false, flip = false } = {}) => {
     const img = `<img src="${GI.esc(src)}" alt="${GI.esc(alt)}"${lazy ? ' loading="lazy"' : ""} data-fallback="fcard-missing">`;
     const cls = `fcard${rare ? " rare" : ""}${size ? ` ${size}` : ""}`;
+    if (flip) {
+      return `<div class="${cls} flip" role="button" tabindex="0" aria-pressed="false" title="Click to turn it over"><div class="fcard-turn">${img.replace("<img ", '<img class="face" ')}<img class="back" src="/card-back.svg" alt="The back of the card"></div></div>`;
+    }
     return href ? `<a class="${cls}" href="${GI.esc(href)}">${img}</a>` : `<div class="${cls}">${img}</div>`;
   };
+  // Turning a card over (GI.card's `flip`): a click, or Enter or Space on it.
+  const turnOver = (card) => card.setAttribute("aria-pressed", String(card.classList.toggle("turned")));
+  document.addEventListener("click", (e) => {
+    const card = e.target instanceof Element ? e.target.closest(".fcard.flip") : null;
+    if (card) turnOver(card);
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target instanceof Element && e.target.matches(".fcard.flip")) {
+      e.preventDefault();
+      turnOver(e.target);
+    }
+  });
   GI.fighterLink = (id, name) => `<a href="/fighter.html?id=${encodeURIComponent(id)}">${GI.esc(name)}</a>`;
   // A character's next milestones (docs/ENGAGEMENT.md §3): what it's climbing toward, each with a bar.
   GI.milestones = (list) =>

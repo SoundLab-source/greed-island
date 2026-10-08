@@ -46,8 +46,10 @@ body[data-scene="betting"] #hud { opacity: 0; }
   padding: 0 calc(64 * var(--u));
   border-bottom: calc(2 * var(--u)) solid var(--faint);
 }
-.wordmark { font-size: calc(40 * var(--u)); font-weight: 900; letter-spacing: calc(6 * var(--u)); font-style: italic; }
-.wordmark span { color: var(--gold); }
+/* Lettered like the card back (card-back.svg): heavy capitals, widely spaced, in gold foil. */
+.wordmark { font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif; font-size: calc(38 * var(--u)); font-weight: 900; letter-spacing: 0.17em;
+  background: linear-gradient(135deg, #fff4c2 0%, #f6c945 25%, #fff0b0 50%, #c9971c 75%, #f6d77a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.wordmark span { color: transparent; }
 .segment { font-size: calc(30 * var(--u)); font-weight: 800; letter-spacing: calc(4 * var(--u)); text-transform: uppercase; text-align: center; }
 .segment small { display: block; font-size: calc(20 * var(--u)); color: var(--dim); letter-spacing: calc(2 * var(--u)); font-weight: 600; }
 .currency { justify-self: end; }
