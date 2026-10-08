@@ -231,6 +231,41 @@ body[data-scene="betting"] #hud { opacity: 0; }
 @keyframes stamp { from { transform: rotate(-10deg) scale(2.2); opacity: 0; } to { transform: rotate(-10deg) scale(1); opacity: 1; } }
 .banner .headline { font-size: calc(44 * var(--u)); font-weight: 900; color: var(--gold); letter-spacing: calc(2 * var(--u)); margin-bottom: calc(12 * var(--u)); }
 .banner .headline.upset { color: #fff; text-shadow: 0 0 calc(18 * var(--u)) var(--red), 0 0 calc(4 * var(--u)) var(--red); }
+/* A community fighter's first fight (docs/ENGAGEMENT.md §4): its card spins in and its name lands, full screen. */
+.entrance {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(72 * var(--u));
+  padding: 0 calc(120 * var(--u));
+  background: radial-gradient(ellipse at 35% 50%, rgba(246, 201, 69, 0.18), transparent 45%), rgba(5, 7, 13, 0.96);
+  animation: entrance-in 0.4s ease-out both;
+}
+.entrance .card { height: calc(640 * var(--u)); border-radius: calc(26 * var(--u)); box-shadow: 0 0 calc(90 * var(--u)) rgba(246, 201, 69, 0.5); animation: entrance-card 1.2s cubic-bezier(0.2, 1, 0.3, 1) both; }
+.entrance .words { max-width: calc(900 * var(--u)); animation: entrance-words 0.7s 0.5s ease-out both; }
+.entrance .kicker { font-size: calc(30 * var(--u)); letter-spacing: calc(8 * var(--u)); font-weight: 900; }
+.entrance.red .kicker { color: var(--red); }
+.entrance.blue .kicker { color: var(--blue); }
+.entrance .who {
+  margin: calc(10 * var(--u)) 0 calc(18 * var(--u));
+  font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif;
+  font-size: calc(112 * var(--u));
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, #fff4c2 0%, #f6c945 25%, #fff0b0 50%, #c9971c 75%, #f6d77a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.entrance .voted { font-size: calc(38 * var(--u)); color: var(--ink); }
+.entrance .voted b { color: var(--gold); }
+@keyframes entrance-in { from { opacity: 0; } }
+@keyframes entrance-card { from { transform: perspective(1400px) rotateY(-540deg) scale(0.35); opacity: 0; } }
+@keyframes entrance-words { from { transform: translateX(calc(90 * var(--u))); opacity: 0; } }
+
 /* The announcer's lines on the betting screen. */
 .story { list-style: none; margin: calc(14 * var(--u)) 0 0; padding: 0; display: grid; gap: calc(6 * var(--u)); }
 .story li { font-size: calc(26 * var(--u)); color: var(--ink); }

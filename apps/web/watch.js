@@ -92,7 +92,10 @@
     const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}` : "–";
     const chance = o ? `${o.chancePct[n].toFixed(1)}% to win` : "";
     const against = f.odds?.crowd?.against === n ? '<span class="against" title="Less of the players\' Salt went on this side">Against the crowd</span>' : "";
-    const fresh = s.record.wins + s.record.losses === 0 ? '<span class="newcomer" title="Its first fight ever">New</span>' : "";
+    const debut = s.community && s.community.debut;
+    const fresh = debut
+      ? `<span class="newcomer" title="Voted in by ${esc(s.community.name)}: its first fight on the stream">Community debut</span>`
+      : s.record.wins + s.record.losses === 0 ? '<span class="newcomer" title="Its first fight ever">New</span>' : "";
     return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"} ${GI.badges(s.cosmetics)}${fresh}${against}</span>
       <span class="who">${n === 2 ? flame(f, n) : ""}${GI.plate(s.name, s.cosmetics)}${n === 1 ? flame(f, n) : ""}</span>
       <span class="odds">${odds}</span>

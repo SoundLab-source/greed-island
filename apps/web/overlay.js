@@ -38,6 +38,10 @@
   }
   // A fighter's first fight ever (docs/ENGAGEMENT.md §4: a debut gets an entrance); its record is as of the booking.
   const newcomer = (s) => s.record.wins + s.record.losses === 0;
+  // A community fighter's first fight on stream: the biggest entrance of all.
+  const communityDebut = (s) => (s.community && s.community.debut ? s.community : null);
+  const cornerTag = (s) =>
+    communityDebut(s) ? ` <span class="newcomer">COMMUNITY DEBUT</span>` : newcomer(s) ? ` <span class="newcomer">NEW CHALLENGER</span>` : "";
   // The crowd reveal (docs/ENGAGEMENT.md §2): where the players' Salt went, once betting has closed.
   const crowd = (f) => (f.odds && f.odds.crowd) || null;
   const crowdText = (c) => (c.pct[1] >= c.pct[2] ? `${c.pct[1]}% on Red` : `${c.pct[2]}% on Blue`);
@@ -64,10 +68,10 @@
     ].filter(Boolean);
     const form = s.last10.slice().reverse().map((r) => `<span class="${r}">${r}</span>`).join("");
     return `
-      <div class="corner">${n === 1 ? "RED" : "BLUE"} CORNER${newcomer(s) ? ` <span class="newcomer">NEW CHALLENGER</span>` : ""}${crowd(f) && crowd(f).against === n ? ` <span class="against">AGAINST THE CROWD</span>` : ""}</div>
+      <div class="corner">${n === 1 ? "RED" : "BLUE"} CORNER${cornerTag(s)}${crowd(f) && crowd(f).against === n ? ` <span class="against">AGAINST THE CROWD</span>` : ""}</div>
       ${named(n, s, f)}
       ${badges(s)}
-      <div class="owner">${owner}${s.firstEdition ? " · First Edition" : ""}</div>
+      <div class="owner">${owner}${s.firstEdition ? " · First Edition" : ""}${s.community ? ` · voted in by <strong>${esc(s.community.name)}</strong>` : ""}</div>
       ${scout(n, f)}
       <div class="stats">
         <span class="tier tier-${esc(s.tier)}">${esc(s.tier)}</span>
@@ -181,6 +185,38 @@
     renderFooter();
   }
 
+  // ---- A community fighter's entrance (docs/ENGAGEMENT.md §4) ----
+  // Its first fight on stream: its card spins in, full screen, while betting opens; once per fight and side, one at a time.
+  const entered = new Set();
+  let entering = Promise.resolve();
+  function entrances(f) {
+    if (!f || !["BOOKED", "BETTING_OPEN"].includes(f.state)) return;
+    for (const n of [1, 2]) {
+      const c = communityDebut(f.sides[n]);
+      const key = `${f.id}:${n}`;
+      if (!c || entered.has(key)) continue;
+      entered.add(key);
+      entering = entering.then(() => entrance(n, f.sides[n], c));
+    }
+  }
+  function entrance(n, s, c) {
+    const el = $("entrance");
+    el.className = `entrance ${n === 1 ? "red" : "blue"}`;
+    el.innerHTML = `<img class="card" src="/api/cards/characters/${encodeURIComponent(s.id)}" alt="">
+      <div class="words">
+        <div class="kicker">COMMUNITY DEBUT · ${n === 1 ? "RED" : "BLUE"} CORNER</div>
+        <div class="who">${esc(s.name)}</div>
+        <div class="voted">Voted in by <b>${esc(c.name)}</b> · Season ${c.season}</div>
+      </div>`;
+    el.hidden = false;
+    return new Promise((done) =>
+      setTimeout(() => {
+        el.hidden = true;
+        done();
+      }, 8_000),
+    );
+  }
+
   // ---- Result banner and toasts ----
   async function showResult(d) {
     const f = await get(`/api/fights/${d.fightId}`);
@@ -222,6 +258,7 @@
   async function refreshFight() {
     fight = await get("/api/fights/current");
     render();
+    entrances(fight);
   }
   async function refreshResults() {
     results = (await get("/api/results")) ?? [];

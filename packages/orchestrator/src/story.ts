@@ -11,7 +11,16 @@ type Side = 1 | 2;
 const other = (s: Side): Side => (s === 1 ? 2 : 1);
 
 export interface StoryFacts {
-  sides: Record<Side, { name: string; archetype: Archetype; debut: boolean; streak: { kind: "W" | "L"; n: number } | null; tier: string; tierAfter: string | null }>;
+  sides: Record<Side, {
+    name: string;
+    archetype: Archetype;
+    debut: boolean;
+    /** A community fighter's first fight on stream: the community that voted it in (docs/ENGAGEMENT.md §4). */
+    communityDebut?: string | null;
+    streak: { kind: "W" | "L"; n: number } | null;
+    tier: string;
+    tierAfter: string | null;
+  }>;
   /** Their meetings before this fight. */
   headToHead: { fights: number; wins: Record<Side, number>; lastWinner: Side | null };
   /** Win chances (locked, or the live estimate) and payouts, when known. */
@@ -60,7 +69,8 @@ export function fightStory(f: StoryFacts, max = 3): Story {
   else if (f.tournamentRound === "semi-final") add(80, "Tournament semi-final: a place in the final on the line");
   for (const s of [1, 2] as const) {
     const x = f.sides[s];
-    if (x.debut) add(90, `First fight ever for ${x.name}`);
+    if (x.communityDebut) add(95, `Community debut: ${x.name}, voted in by ${x.communityDebut}`);
+    else if (x.debut) add(90, `First fight ever for ${x.name}`);
     if (x.streak?.kind === "W" && x.streak.n >= 3) add(60 + 2 * x.streak.n, `${x.name} is on a ${x.streak.n}-fight win streak`);
     if (x.streak?.kind === "L" && x.streak.n >= 4) add(44 + x.streak.n, `${x.name} has lost ${x.streak.n} in a row`);
   }
@@ -222,7 +232,7 @@ export async function storyFacts(
   db: Db,
   fight: { number: number; side1CharacterId: string; side2CharacterId: string; winnerSide: number | null; state: string },
   view: {
-    sides: Record<Side, { name: string; tier: string; tierAfter?: string | null; record?: { wins: number; losses: number }; wins?: number; losses?: number }>;
+    sides: Record<Side, { name: string; tier: string; tierAfter?: string | null; community?: { name: string; debut: boolean } | null }>;
     odds: { chancePct: Record<Side, number>; multiplier: Record<Side, string> } | null;
     tournament: { roundName: string } | null;
   },
@@ -247,7 +257,8 @@ export async function storyFacts(
   const last = meetings[0]?.winnerCharacterId;
   const side = (s: Side) => {
     const v = view.sides[s];
-    return { name: v.name, archetype: archetype(s), debut: forms[s].length === 0, streak: streakOf(forms[s]), tier: v.tier, tierAfter: v.tierAfter ?? null };
+    const communityDebut = v.community?.debut ? v.community.name : null;
+    return { name: v.name, archetype: archetype(s), debut: forms[s].length === 0, communityDebut, streak: streakOf(forms[s]), tier: v.tier, tierAfter: v.tierAfter ?? null };
   };
   return {
     sides: { 1: side(1), 2: side(2) },

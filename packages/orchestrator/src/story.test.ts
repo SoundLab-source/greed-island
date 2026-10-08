@@ -26,6 +26,8 @@ describe("the announcer", () => {
 
   it("calls debuts, tournament finals, rivalries, rematches, even fights and which style tends to win", () => {
     expect(fightStory(facts({ tournamentRound: "final" }, { 1: { debut: true } })).lines.slice(0, 2)).toEqual(["Tournament final: the winner takes the title", "First fight ever for Free Loot"]);
+    // A community fighter's first fight says who voted it in instead.
+    expect(fightStory(facts({}, { 1: { debut: true, communityDebut: "Pixel Monks" } })).lines[0]).toBe("Community debut: Free Loot, voted in by Pixel Monks");
     expect(fightStory(facts({ headToHead: { fights: 5, wins: { 1: 3, 2: 2 }, lastWinner: 2 } })).lines[0]).toBe("Rivalry: Free Loot leads Big Cheese 3-2");
     expect(fightStory(facts({ headToHead: { fights: 4, wins: { 1: 2, 2: 2 }, lastWinner: 1 } })).lines[0]).toBe("Rivalry: all square at 2-2");
     expect(fightStory(facts({ headToHead: { fights: 1, wins: { 1: 0, 2: 1 }, lastWinner: 2 } })).lines[0]).toBe("Rematch: Big Cheese won their last meeting");
