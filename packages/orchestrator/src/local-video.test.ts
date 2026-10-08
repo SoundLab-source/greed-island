@@ -76,6 +76,21 @@ describe("local video preview", () => {
     expect(obs.sent).toEqual([]);
   });
 
+  it("says once, not every fight, when OBS can't be reached, and again after it's worked", async () => {
+    let closed = true;
+    const obs = fakeObs();
+    const logs: string[] = [];
+    const video = new ObsLocalVideo(cfg, { findWindow: async () => retina, connect: () => (closed ? Promise.reject(new Error("connection closed (1006)")) : obs.connect()), log: (m) => logs.push(m), settleMs: 50 });
+    expect(await video.cropToGame()).toBe("failed");
+    expect(await video.cropToGame()).toBe("failed");
+    expect(logs).toEqual(["Local video: couldn't point OBS at the game (connection closed (1006)); trying again each fight"]);
+    closed = false;
+    expect(await video.cropToGame()).toBe("window");
+    closed = true;
+    await video.cropToGame();
+    expect(logs).toHaveLength(2);
+  });
+
   it("keeps trying to switch the camera on while OBS is closed", async () => {
     let tries = 0;
     const logs: string[] = [];

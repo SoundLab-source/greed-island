@@ -43,6 +43,8 @@ export class ObsLocalVideo {
   private cameraOn = false;
   private waitingReported = false;
   private lastCrop = "";
+  /** The last failure to point OBS at the game, so one that repeats every fight (OBS closed) is said once. */
+  private lastFailure: string | null = null;
   private readonly findWindow: typeof gameWindow;
   private readonly connect: NonNullable<LocalVideoDeps["connect"]>;
   private readonly log: (message: string) => void;
@@ -101,7 +103,7 @@ export class ObsLocalVideo {
     const key = JSON.stringify(where.window);
     if (key === this.lastCrop) return "unchanged";
     try {
-      return await this.withObs(async (obs) => {
+      const how = await this.withObs(async (obs) => {
         await this.cameraIn(obs);
         const settled = this.deps.settleMs ?? 2_000;
         if (where.window.id) {
@@ -119,10 +121,14 @@ export class ObsLocalVideo {
         if (!size) throw new Error(`"${CAPTURE_SOURCE}" isn't capturing anything`);
         await this.place(obs, item, gameCrop(where.window, where.screen, size));
         this.lastCrop = key;
-        return "screen";
+        return "screen" as const;
       });
+      this.lastFailure = null;
+      return how;
     } catch (err) {
-      this.log(`Local video: couldn't point OBS at the game (${(err as Error).message})`);
+      const why = (err as Error).message;
+      if (why !== this.lastFailure) this.log(`Local video: couldn't point OBS at the game (${why}); trying again each fight`);
+      this.lastFailure = why;
       return "failed";
     }
   }
