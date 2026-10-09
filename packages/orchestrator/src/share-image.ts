@@ -78,6 +78,27 @@ function clip(text: string, width: number, scale: number): string {
   return t;
 }
 
+/**
+ * How to set a name in `width` pixels: one line as big as fits, or, when one line would be small (under 6) or cut,
+ * two lines split at a space if that's bigger (at most 7, so the block stays clear of the footer). Cut only as a
+ * last resort (one long word).
+ */
+export function nameLayout(text: string, width: number, max = 10, min = 4): { lines: string[]; scale: number } {
+  const one = scaleToFit(text, width, max, min);
+  const fitsOne = textWidth(fontSafe(text), one) <= width;
+  const words = text.trim().split(/\s+/);
+  if (words.length > 1 && (!fitsOne || one < 6)) {
+    let best: { lines: string[]; scale: number } | null = null;
+    for (let i = 1; i < words.length; i++) {
+      const lines = [fontSafe(words.slice(0, i).join(" ")), fontSafe(words.slice(i).join(" "))];
+      const scale = Math.min(...lines.map((l) => scaleToFit(l, width, 7, min)));
+      if (lines.every((l) => textWidth(fontSafe(l), scale) <= width) && (!best || scale > best.scale)) best = { lines, scale };
+    }
+    if (best && (!fitsOne || best.scale > one)) return best;
+  }
+  return { lines: [clip(text, width, one)], scale: one };
+}
+
 export function shareImage(c: CardData): Buffer {
   const W = SHARE_W, H = SHARE_H;
   const col = STYLE_COLORS[c.style];
@@ -140,9 +161,12 @@ export function shareImage(c: CardData): Buffer {
     cv.text(label, W - 56 - textWidth(label, 4), y, 4, GOLD);
   }
   y += 50;
-  const nameScale = scaleToFit(c.name, room, 10, 4);
-  cv.text(clip(c.name, room, nameScale), x0, y, nameScale, WHITE);
-  y += GLYPH_HEIGHT * nameScale + 16;
+  const name = nameLayout(c.name, room);
+  name.lines.forEach((line, i) => {
+    if (i > 0) y += GLYPH_HEIGHT * name.scale + 10;
+    cv.text(line, x0, y, name.scale, WHITE);
+  });
+  y += GLYPH_HEIGHT * name.scale + 16;
   if (c.fighterName) {
     cv.text(clip(c.fighterName, room, 3), x0, y, 3, DIM);
     y += 34;

@@ -1,7 +1,7 @@
 import { readPng, toRgba, writePng } from "@greed-island/engine";
 import { describe, expect, it } from "vitest";
 import type { CardData } from "./cards.ts";
-import { fontSafe, SHARE_H, SHARE_W, shareImage } from "./share-image.ts";
+import { fontSafe, nameLayout, SHARE_H, SHARE_W, shareImage } from "./share-image.ts";
 import { fillSharePage, shareMeta } from "./api/share-page.ts";
 
 const card: CardData = {
@@ -39,6 +39,16 @@ function sprite(): Buffer {
 const pixel = (rgb: Uint8Array, x: number, y: number) => [...rgb.subarray((y * SHARE_W + x) * 4, (y * SHARE_W + x) * 4 + 3)];
 
 describe("the share picture", () => {
+  it("sets a long name on two lines instead of cutting it, and a short one big on one", () => {
+    expect(nameLayout("Pokey", 484)).toEqual({ lines: ["POKEY"], scale: 10 });
+    const long = nameLayout("Possibility of Chizuru", 484);
+    // Two lines, split where both are as big as possible.
+    expect(long.lines).toEqual(["POSSIBILITY", "OF CHIZURU"]);
+    expect(long.scale).toBeGreaterThanOrEqual(5);
+    // One long word can only be cut.
+    expect(nameLayout("Supercalifragilisticexpialidocious", 484).lines).toHaveLength(1);
+  });
+
   it("keeps only what the pixel font can draw", () => {
     expect(fontSafe("Señor Bonk & Co.")).toBe("SENOR BONK CO.");
     expect(fontSafe("Rock–Paper")).toBe("ROCK-PAPER");
