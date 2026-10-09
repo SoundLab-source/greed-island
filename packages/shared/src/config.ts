@@ -1,5 +1,6 @@
 import { DEFAULT_BETTORS, validateBettors, type BettorConfig } from "./bettors.ts";
 import { DEFAULT_EXHIBITIONS, type ExhibitionConfig } from "./exhibitions.ts";
+import { DEFAULT_GOALS, validateGoals, type GoalConfig } from "./goals.ts";
 import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
 import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
@@ -52,6 +53,8 @@ export interface Config {
   bets: BetsDisplayConfig;
   /** What counts as a call, the bettor titles' bars and the best-calls boards (bettors.ts). */
   bettors: BettorConfig;
+  /** Daily goals (goals.ts): what each pays. */
+  goals: GoalConfig;
 }
 
 /** What everyone sees of each other's bets: names and stakes as they come in, and which side once betting closes. */
@@ -281,5 +284,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       calledItChanceBp: Math.round(numberFromEnv(env, "GI_CALLED_IT_CHANCE_PCT", DEFAULT_BETTORS.calledItChanceBp / 100) * 100),
       winRateMinCalls: numberFromEnv(env, "GI_WIN_RATE_MIN_CALLS", DEFAULT_BETTORS.winRateMinCalls),
     }),
+    goals: validateGoals({ reward: saltFromEnv(env, "GI_GOAL_REWARD", DEFAULT_GOALS.reward) }),
   };
 }

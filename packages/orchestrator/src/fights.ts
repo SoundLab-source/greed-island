@@ -8,6 +8,8 @@
 import {
   applyFightRating,
   awardBettorTitles,
+  awardGoals,
+  goalWorld,
   awardFightTitles,
   characterCosmetics,
   lockFight,
@@ -323,6 +325,13 @@ async function runEffect(
       }
       const titles = await awardFightTitles(tx, { fightId: fight.id, winnerSide, loadoutTiers: { 1: l[1].tier, 2: l[2].tier }, changes, earnedAt: now });
       const bettorTitles = await awardBettorTitles(tx, { fightId: fight.id, cfg: deps.config.bettors, earnedAt: now });
+      // Daily goals this result finished; each player sees theirs on their next look at their account.
+      await awardGoals(tx, {
+        fightId: fight.id,
+        now,
+        cfg: { goals: deps.config.goals, minCallStake: deps.config.bettors.minCallStake },
+        world: await goalWorld(tx, deps.config.exhibitions.rivalryRate),
+      });
       data.closedAt = now;
       notices.push({
         type: "fight_result",

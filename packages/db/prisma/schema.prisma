@@ -57,6 +57,8 @@ enum TxnKind {
   OWNER_REWARD
   /// A player's T-Salt for one tournament (phase 2).
   TOURNAMENT_GRANT
+  /// A daily goal done (docs/ENGAGEMENT.md §5).
+  GOAL_REWARD
 }
 
 enum BetStatus {
@@ -103,6 +105,7 @@ model User {
   looksApplied     NftLook[]
   seasonStandings  SeasonStanding[]
   fightersSeen     FighterSeen[]
+  goals            PlayerGoal[]
 
   @@map("user")
 }
@@ -1304,4 +1307,26 @@ model FighterSeen {
 
   @@id([userId, fighterId])
   @@map("fighter_seen")
+}
+
+/// Daily goals (shared goals.ts): a player's three goals for a UTC day, one per pool (slot 0 easy, 1 skill, 2 explore),
+/// made the first time they're needed. Progress is counted from the day's calls; a done goal is paid once (ledger
+/// key goal:<user>:<day>:<slot>) and keeps its row.
+model PlayerGoal {
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id])
+  /// The UTC day, "2026-10-09".
+  day       String
+  slot      Int       @db.SmallInt
+  code      String
+  /// This goal came from the day's one swap.
+  swapped   Boolean   @default(false)
+  reward    Decimal?  @db.Decimal(20, 0)
+  doneAt    DateTime? @map("done_at") @db.Timestamptz(3)
+  /// The fight whose result finished it (null when a swap gave a goal already done).
+  fightId   String?   @map("fight_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([userId, day, slot])
+  @@map("player_goal")
 }

@@ -109,7 +109,9 @@ The stream runs a repeating cycle (all counts configurable):
 
 ## 9. Economy
 
-**Salt comes from:** bet winnings, starting balance, daily grant, bailout floor, character wins on stream, tournament prizes.
+**Salt comes from:** bet winnings, starting balance, daily grant, daily goals, bailout floor, character wins on stream, tournament prizes.
+
+**Daily goals** (agreed 2026-10-09): three small goals a day per player (an easy one, a skill one such as "win 3 bets in a row", and one that points at a part of the game such as tournaments or rivalries), each paying at least 100 Salt the moment it's done (`GI_GOAL_REWARD`; skill goals pay half as much again). They count bets of at least the call stake, never how much was staked; a tournament bet counts for taking part but its win never counts (T-Salt winnings don't become Salt). Missing a day costs nothing, and one unfinished goal a day can be swapped. A weekly goal paying a cosmetic is proposed but not yet decided.
 
 **Salt goes to:** shop purchases, stat upgrades and sidegrades, the odds margin, tournament entry, rerolling or reserving shop slots (optional).
 

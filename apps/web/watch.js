@@ -416,9 +416,17 @@
   };
   soundLabel();
 
+  // Today's goals, kept current with the player's account (a fight that finishes one also pops it: site.js).
+  const showGoals = (me) => {
+    $("goals").hidden = !me?.goals;
+    GI.renderGoals($("goals"), me?.goals);
+  };
+  GI.onMe(showGoals);
+  setInterval(() => showGoals(GI.me), 60_000); // the "new in 6h" countdown
+
   (async () => {
     wireControls();
-    await GI.ready;
+    showGoals(await GI.ready);
     await Promise.all([setupEmbeds(), refreshFight(), seedFeed().catch(() => {})]);
     connect();
     recaps().catch(() => {});

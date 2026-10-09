@@ -4,7 +4,7 @@
  * Stats shown to bettors (DESIGN §7): rating, tier, record, win rate,
  * head-to-head, last-10 form, tier history.
  */
-import { characterCosmetics, getBalance, openStakes, toSalt, tournamentBalance, tournamentBalances, type Db, type Prisma } from "@greed-island/db";
+import { characterCosmetics, getBalance, goalsView, goalWorld, openStakes, toSalt, tournamentBalance, tournamentBalances, type Db, type GoalSettings, type GoalsView, type Prisma } from "@greed-island/db";
 import {
   automaticName,
   crowdSplit,
@@ -422,6 +422,22 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
     })),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,
     bailoutAvailable: stakes === 0n && balance < config.economy.bailoutFloor,
+    goals: user.kind === "BOT" ? null : goalsJson(await goalsView(db, userId, goalSettings(config), await goalWorld(db, config.exhibitions.rivalryRate), now)),
+  };
+}
+
+/** Daily goals' settings from the config (goals.ts). */
+export function goalSettings(config: Config): GoalSettings {
+  return { goals: config.goals, minCallStake: config.bettors.minCallStake };
+}
+
+/** A player's goals for the day, for the site. */
+export function goalsJson(v: GoalsView) {
+  return {
+    day: v.day,
+    resetsAt: v.resetsAt,
+    canSwap: v.canSwap,
+    goals: v.goals.map((g) => ({ slot: g.slot, pool: g.pool, code: g.code, label: g.label, have: g.have, need: g.need, done: g.done, reward: g.reward.toString(), swapped: g.swapped })),
   };
 }
 

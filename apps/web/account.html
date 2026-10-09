@@ -12,6 +12,9 @@
     .goal .spread b { font-size: 15px; }
     .goal.done b { color: var(--gold); }
     .goal .muted { font-size: 13px; }
+    .goals-panel .goals-head h2 { margin: 0; }
+    .goals-panel .goals-list { gap: 12px; margin-top: 12px; }
+    .goals-panel .goals-list .line { font-size: 15px; }
   </style>
 </head>
 <body>
@@ -38,6 +41,7 @@
         <div id="titles"></div>
       </div>
     </div>
+    <div class="panel goals-panel" id="goals" hidden></div>
     <div class="panel">
       <h2>Your calls</h2>
       <p class="muted" id="calls-note"></p>

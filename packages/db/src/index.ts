@@ -48,5 +48,6 @@ export {
 export { loadRepoEnv, REPO_ROOT } from "./env.ts";
 export { awardFightTitles, backfillTitles, characterCosmetics, type AwardedTitle, type CharacterCosmetics, type FightTitlesInput } from "./titles.ts";
 export { awardBettorTitles, backfillBettorTitles, type AwardedBettorTitle } from "./bettor-titles.ts";
+export { awardGoals, goalsView, goalWorld, swapGoal, type GoalSettings, type GoalsView, type GoalView, type PaidGoal } from "./goals.ts";
 export { payOwnerRewardTx, type OwnerReward, type OwnerRewardInput } from "./rewards.ts";
 export { grantTournamentSalt, tournamentBalance, tournamentBalances } from "./tournament-ledger.ts";

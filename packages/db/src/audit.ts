@@ -105,6 +105,15 @@ export async function auditLedger(db: Db): Promise<AuditReport> {
       AND (f."id" IS NULL OR f."state" <> 'SETTLED' OR f."segment" = 'TOURNAMENT' OR c."owner_user_id" IS DISTINCT FROM t."user_id")`;
   for (const r of badRewards) add("owner-reward", `reward txn ${r.id}: ${r.problem}, or not paid to the winner's owner`);
 
+  // Goal rewards: each paid for a goal marked done, the amount it records, once.
+  const badGoals = await db.$queryRaw<{ id: string; problem: string }[]>`
+    SELECT t."id", CASE WHEN g."user_id" IS NULL THEN 'no matching goal' ELSE 'the goal says ' || COALESCE(g."reward"::text, 'not done') END AS problem
+    FROM "ledger_txn" t
+    LEFT JOIN "player_goal" g ON t."idempotency_key" = 'goal:' || g."user_id" || ':' || g."day" || ':' || g."slot" AND g."user_id" = t."user_id"
+    LEFT JOIN (SELECT e."txn_id", SUM(e."amount") AS paid FROM "ledger_entry" e JOIN "account" a ON a."id" = e."account_id" AND a."kind" = 'USER' GROUP BY e."txn_id") p ON p."txn_id" = t."id"
+    WHERE t."kind" = 'GOAL_REWARD' AND (g."user_id" IS NULL OR g."done_at" IS NULL OR g."reward" IS DISTINCT FROM p."paid")`;
+  for (const r of badGoals) add("goal-reward", `goal reward txn ${r.id}: ${r.problem}`);
+
   // Each tournament's T-Salt book is closed: it sums to zero on its own.
   const books = await db.$queryRaw<{ tournament_id: string; total: Dec }[]>`
     SELECT "tournament_id", SUM("balance") AS total FROM "account"

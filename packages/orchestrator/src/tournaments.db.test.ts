@@ -97,11 +97,15 @@ describe("a tournament", () => {
     const champion = await db.characterTitle.findFirstOrThrow({ where: { code: "TOURNAMENT_CHAMPION" } });
     expect(champion).toMatchObject({ characterId: t.championCharacterId, tournamentId: t.id, fightId: final.id });
 
-    // T-Salt: Bob won every bet, Carol lost hers. Main balances never moved.
+    // T-Salt: Bob won every bet, Carol lost hers. Main balances moved only by daily goals for taking part, never one
+    // for winning (goals.ts: T-Salt winnings never become Salt).
     expect(await tournamentBalance(db, bob, t.id)).toBeGreaterThan(1_000n);
     expect(await tournamentBalance(db, carol, t.id)).toBe(950n);
     expect(await tournamentBalance(db, alice, t.id)).toBeNull();
-    expect(await Promise.all([alice, bob, carol].map((u) => getBalance(db, u)))).toEqual(mainBefore);
+    const goals = await db.playerGoal.findMany({ where: { doneAt: { not: null } }, select: { userId: true, code: true, reward: true } });
+    expect(goals.map((g) => g.code).filter((c) => ["WIN_2", "WIN_4", "WIN_STREAK_3", "UNDERDOG", "AGAINST_CROWD"].includes(c))).toEqual([]);
+    const fromGoals = (u: string) => goals.filter((g) => g.userId === u).reduce((n, g) => n + BigInt(g.reward!.toFixed(0)), 0n);
+    expect(await Promise.all([alice, bob, carol].map(async (u) => (await getBalance(db, u)) - fromGoals(u)))).toEqual(mainBefore);
     // The podium (bettor titles such as Called It can come from the same bets).
     expect(await db.playerTitle.findMany({ where: { tournamentId: t.id }, select: { userId: true, code: true } })).toEqual([{ userId: bob, code: "BETTOR_1ST" }]);
     // No owner rewards in tournaments.
@@ -117,7 +121,7 @@ describe("a tournament", () => {
     const audit = await auditLedger(db);
     expect(audit.ok).toBe(true);
     expect(audit.stats.tsalt).toMatchObject({ tournaments: 1, issued: 2_000n, escrow: 0n });
-    expect(audit.stats.issued).toBe(3n * testEconomy.startingBalance);
+    expect(audit.stats.issued).toBe(3n * testEconomy.startingBalance + [alice, bob, carol].reduce((n, u) => n + fromGoals(u), 0n));
 
     const view = (await tournamentView(db, t.id, bob))!;
     expect(view.rounds.map((r) => [r.name, r.matches.length])).toEqual([["quarter-final", 4], ["semi-final", 2], ["final", 1]]);

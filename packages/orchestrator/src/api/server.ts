@@ -9,6 +9,8 @@ import {
   AuthError,
   claimBailout,
   claimDailyGrant,
+  goalWorld,
+  swapGoal,
   createUser,
   DEFAULT_AUTH,
   findSessionUser,
@@ -67,6 +69,8 @@ import {
   currentFightId,
   currentTournamentId,
   fightView,
+  goalSettings,
+  goalsJson,
   meView,
   myChallenges,
   myCharacters,
@@ -330,6 +334,13 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     const userId = await requireViewer(req);
     const r = await claimDailyGrant(db, userId, config.economy);
     return send(reply, { status: r.status, amount: r.amount, balance: r.balance });
+  });
+  // Swap one of today's unfinished daily goals for another (once a day; goals.ts).
+  app.post("/api/me/goals/swap", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const { slot } = z.object({ slot: z.number().int().min(0).max(2) }).parse(req.body);
+    const r = await swapGoal(db, userId, slot, goalSettings(config), await goalWorld(db, config.exhibitions.rivalryRate));
+    return send(reply, { goals: goalsJson(r.view), paid: r.paid.map((p) => ({ label: p.label, amount: p.amount.toString() })) });
   });
   app.post("/api/me/bailout", async (req, reply) => {
     const userId = await requireViewer(req);

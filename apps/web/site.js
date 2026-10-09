@@ -226,7 +226,57 @@ window.GI = (() => {
     GI.$("gi-grant").hidden = !me.dailyGrantAvailable;
     GI.$("gi-bailout").hidden = !me.bailoutAvailable;
     GI.$("gi-account").textContent = me.kind === "EMAIL" ? me.name : "Sign in";
+    noticeGoals(me);
   }
+
+  // ---- Daily goals (shared goals.ts): three a day, paid the moment a fight finishes one ----
+  let goalsSeen = null; // the goals already done when we last looked, so only new ones pop
+  const goalKey = (day, g) => `${day}:${g.slot}:${g.code}`;
+  function noticeGoals(me) {
+    const t = me.goals;
+    if (!t) return;
+    if (goalsSeen) for (const g of t.goals) if (g.done && !goalsSeen.has(goalKey(t.day, g))) GI.goalPop(g);
+    goalsSeen = new Set(t.goals.filter((g) => g.done).map((g) => goalKey(t.day, g)));
+  }
+  /** "Goal done" in the corner (they stack when two finish together), with its own little fanfare. */
+  GI.goalPop = (g) => {
+    let box = document.querySelector(".goal-pops");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "goal-pops";
+      box.setAttribute("role", "status");
+      document.body.append(box);
+    }
+    const el = document.createElement("div");
+    el.className = "goal-pop";
+    el.innerHTML = `<span class="tick">✓</span><span><b>Goal done</b> ${GI.esc(g.label)}</span><span class="amt">+${GI.fmt(g.reward)} Salt</span>`;
+    box.append(el);
+    GI.sfx.play("goal");
+    setTimeout(() => el.classList.add("out"), 6000);
+    setTimeout(() => el.remove(), 6600);
+  };
+  /** How long until the next goals, "6h 12m" (they change at midnight UTC, with the daily grant). */
+  GI.untilGoals = (resetsAt) => {
+    const m = Math.max(1, Math.ceil((new Date(resetsAt).getTime() - Date.now()) / 60_000));
+    return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+  };
+  /** Today's goals into `el` (the watch page's box, the account page's panel); `onSwap` is wired to the swap buttons. */
+  GI.renderGoals = (el, t) => {
+    if (!t) return;
+    const left = t.goals.filter((g) => !g.done).length;
+    const rows = t.goals.map((g) => {
+      const swap = t.canSwap && !g.done ? `<button type="button" class="ghost small swap" data-slot="${g.slot}" title="Swap this goal for another one (once a day)">Swap</button>` : "";
+      const count = g.done ? `<span class="pay">+${GI.fmt(g.reward)}</span>` : `<span class="pay">${g.need > 1 ? `${g.have}/${g.need} · ` : ""}+${GI.fmt(g.reward)}</span>`;
+      return `<li class="${g.done ? "done" : ""}" data-pool="${GI.esc(g.pool)}">
+        <div class="line"><span class="what">${g.done ? "✓ " : ""}${GI.esc(g.label)}</span>${count}${swap}</div>
+        <div class="bar"><i style="width:${Math.round((100 * g.have) / g.need)}%"></i></div></li>`;
+    });
+    el.innerHTML = `<div class="goals-head"><h2>Today's goals</h2><span class="muted">${left ? "" : "all done · "}new in ${GI.untilGoals(t.resetsAt)}</span></div>
+      <ol class="goals-list">${rows.join("")}</ol>`;
+    for (const b of el.querySelectorAll("button.swap")) {
+      b.onclick = () => GI.act(() => GI.api("POST", "/api/me/goals/swap", { slot: Number(b.dataset.slot) }), () => "Goal swapped").then(GI.refreshMe);
+    }
+  };
 
   // ---- Live updates ----
   /** Listen to the server's live events: { fight_state: (data) => …, … } (one connection for the page). */
@@ -404,6 +454,9 @@ window.GI = (() => {
         for (let i = 0; i < (big ? 6 : 3); i++) tone(500 + Math.random() * 500, 0.2 + Math.random() * 0.8, 0.5, "triangle", 0.05, 1.5);
       },
       gasp: () => noise(0, 0.6, { freq: 3000, q: 0.4, gain: 0.5, attack: 0.8, type: "highpass" }),
+      goal: () => {
+        for (const [i, f] of [784, 988, 1175, 1568].entries()) tone(f, i * 0.09, i === 3 ? 0.6 : 0.2, "triangle", 0.22);
+      },
       kaChing: () => {
         noise(0, 0.08, { freq: 6000, q: 1, gain: 0.5, attack: 0.05, type: "highpass" });
         tone(1318, 0.06, 0.25, "square", 0.12);

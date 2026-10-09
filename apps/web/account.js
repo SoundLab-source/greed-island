@@ -3,6 +3,8 @@
   const { $, esc, fmt, api } = GI;
 
   function renderMe(me) {
+    $("goals").hidden = !me.goals;
+    GI.renderGoals($("goals"), me.goals);
     const email = me.kind === "EMAIL";
     $("signed-in").hidden = !email;
     $("signed-out").hidden = email;
