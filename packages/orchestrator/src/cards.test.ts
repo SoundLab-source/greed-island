@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { writePng } from "@greed-island/engine";
-import { describeLicence, inputGlyphs, matchupsFor, pickMoves, pngSize, renderCard, type CardData } from "./cards.ts";
+import { describeLicence, FLAVOUR_LAST_Y, inputGlyphs, matchupsFor, pickMoves, pngSize, renderCard, type CardData } from "./cards.ts";
 
 const base: CardData = {
   kind: "character",
@@ -80,6 +80,21 @@ describe("fighter cards", () => {
     const wins = { ZONER: { HEAVY: 60, GRAPPLER: 10 }, HEAVY: { ZONER: 40 }, GRAPPLER: { ZONER: 30 } };
     expect(matchupsFor("ZONER", wins)).toEqual({ strong: { style: "HEAVY", pct: 60 }, weak: { style: "GRAPPLER", pct: 25 } });
     expect(matchupsFor("ZONER", wins, 1000)).toEqual({ strong: null, weak: null });
+  });
+
+  it("keep the flavour line clear of the matchups, and leave it off when there's no room", () => {
+    const baseline = (svg: string, text: string) => Number(new RegExp(`y="(\\d+)"[^>]*>[^<]*${text}`).exec(svg)?.[1] ?? NaN);
+    const svg = renderCard(base);
+    const mu = baseline(svg, "Strong vs"), flavour = baseline(svg, "A joke dog");
+    if (svg.includes("A joke dog")) {
+      expect(flavour - mu).toBeGreaterThanOrEqual(20);
+      expect(flavour).toBeLessThanOrEqual(FLAVOUR_LAST_Y);
+    }
+    // Three moves with inputs push the matchups down: the flavour gives way rather than overlapping.
+    const crowded = renderCard({ ...base, moves: [...base.moves, { name: "Zoomies", command: "QCF_y", damage: 70 }] });
+    const muCrowded = baseline(crowded, "Strong vs");
+    if (crowded.includes("A joke dog")) expect(baseline(crowded, "A joke dog") - muCrowded).toBeGreaterThanOrEqual(20);
+    else expect(muCrowded + 48).toBeGreaterThan(FLAVOUR_LAST_Y);
   });
 
   it("take the flavour and the art credit from the roster's licence note", () => {

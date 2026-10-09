@@ -76,7 +76,8 @@ window.GI = (() => {
   // ---- Name plates and badges, as the stream shows them ----
   GI.plate = (name, cos) => {
     const p = cos?.nameplate ?? { background: "#161b29", border: "#3a4157", text: "#f2f4fa" };
-    const title = cos?.title ? `<span class="title">${GI.esc(cos.title.label)}</span>` : "";
+    // A title's details ("Tournament Champion (Tournament #12, S tier)") are for its page, not the plate.
+    const title = cos?.title ? `<span class="title">${GI.esc(cos.title.label.replace(/ \(.*\)$/, ""))}</span>` : "";
     const look = cos?.look ? `<img class="look" src="${GI.esc(cos.look.image)}" alt="">` : "";
     return `<span class="plate" style="background:${GI.esc(p.background)};border-color:${GI.esc(p.border)};color:${GI.esc(p.text)}">${look}<span class="name">${GI.esc(name)}</span>${title}</span>`;
   };

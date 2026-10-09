@@ -299,10 +299,11 @@ body[data-scene="betting"] #hud { opacity: 0; }
 .hud-side .plate .name { font-size: calc(34 * var(--u)); }
 .hud-side .plate .title { font-size: calc(16 * var(--u)); }
 .hud-side .badge { min-width: calc(30 * var(--u)); height: calc(30 * var(--u)); font-size: calc(14 * var(--u)); }
-.hud-side .badges { min-height: 0; }
+/* Badges that don't fit wrap onto a hidden second row rather than piling onto the tier and payout. */
+.hud-side .badges { min-height: 0; flex-wrap: wrap; max-height: calc(30 * var(--u)); overflow: hidden; }
 .hud-side .odds b { font-size: calc(40 * var(--u)); }
 .hud-side .tier { width: calc(52 * var(--u)); height: calc(52 * var(--u)); font-size: calc(30 * var(--u)); }
-.hud-grow { flex: 1; min-width: 0; display: grid; gap: calc(4 * var(--u)); }
+.hud-grow { flex: 1; min-width: 0; display: grid; gap: calc(4 * var(--u)); overflow: hidden; }
 .hud-center { flex-direction: column; justify-content: center; gap: calc(6 * var(--u)); text-align: center; }
 .hud-center .label { font-size: calc(18 * var(--u)); letter-spacing: calc(3 * var(--u)); color: var(--dim); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pips { display: flex; gap: calc(28 * var(--u)); align-items: center; font-size: calc(18 * var(--u)); color: var(--dim); }

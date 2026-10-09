@@ -23,7 +23,8 @@
   // ---- Pieces shared by both views ----
   function plate(s) {
     const p = s.cosmetics.nameplate;
-    const title = s.cosmetics.title ? `<span class="title">${esc(s.cosmetics.title.label)}</span>` : "";
+    // A title's details ("Tournament Champion (Tournament #12, S tier)") are for its page, not the plate.
+    const title = s.cosmetics.title ? `<span class="title">${esc(s.cosmetics.title.label.replace(/ \(.*\)$/, ""))}</span>` : "";
     const look = s.cosmetics.look ? `<img class="look" src="${esc(s.cosmetics.look.image)}" alt="">` : "";
     return `<div class="plate" style="background:${esc(p.background)};border-color:${esc(p.border)};color:${esc(p.text)}">${look}<span class="name">${esc(s.name)}</span>${title}</div>`;
   }
@@ -178,11 +179,30 @@
     $("hud-center").innerHTML = `<div class="label">Fight #${f.number} · ${esc(label)}</div><div class="pips"><span class="r">${pips(1)}</span><span>R${Math.min(f.rounds.length + 1, f.roundsToWin * 2 - 1)}</span><span class="b">${pips(2)}</span></div>${pools}`;
   }
 
+  // Long names shrink to fit their plate (down to 55%) instead of being cut short; and in the fight bar, a badge
+  // row too narrow for even one badge is hidden rather than showing a sliver.
+  function fitNames() {
+    for (const el of document.querySelectorAll(".plate .name")) {
+      el.style.fontSize = "";
+      const base = parseFloat(getComputedStyle(el).fontSize);
+      let size = base;
+      while (el.scrollWidth > el.clientWidth + 1 && size > base * 0.55) {
+        size *= 0.94;
+        el.style.fontSize = `${size}px`;
+      }
+    }
+    for (const row of document.querySelectorAll(".hud-grow")) {
+      const badge = row.querySelector(".badge");
+      row.style.visibility = badge && row.clientWidth < badge.offsetWidth ? "hidden" : "";
+    }
+  }
+
   function render() {
     document.body.dataset.scene = scene();
     renderBoard();
     renderHud();
     renderFooter();
+    fitNames();
   }
 
   // ---- A community fighter's entrance (docs/ENGAGEMENT.md §4) ----

@@ -103,6 +103,9 @@ function styleIcon(style: Archetype, x: number, y: number, color: string): strin
 }
 
 /** The card, 600 x 840 (a trading card's shape). */
+/** The lowest the flavour line can sit above the footer (at 806). */
+export const FLAVOUR_LAST_Y = 790;
+
 export function renderCard(c: CardData): string {
   const W = 600, H = 840;
   const col = STYLE_COLORS[c.style];
@@ -213,8 +216,10 @@ export function renderCard(c: CardData): string {
       : `<text x="${x}" y="${y + 26}" font-size="15" ${body} fill="#6b7088">${label} <tspan font-style="italic">no data yet</tspan></text>`;
   out.push(mu("Strong vs", c.matchups.strong, 38, "#7ee08a"));
   out.push(mu("Weak vs", c.matchups.weak, 320, "#ff8a7a"));
-  // Flavour and the footer.
-  if (c.flavour) out.push(fitText(c.flavour, 300, 778, 15, 524, `text-anchor="middle" ${body} font-style="italic" fill="#c8cbe0"`));
+  // Flavour under the matchups (a card with a title and two moves leaves little room), then the footer; left off
+  // when it would run into the footer.
+  const flavourY = Math.max(778, y + 26 + 22);
+  if (c.flavour && flavourY <= FLAVOUR_LAST_Y) out.push(fitText(c.flavour, 300, flavourY, 15, 524, `text-anchor="middle" ${body} font-style="italic" fill="#c8cbe0"`));
   if (c.credit) out.push(fitText(c.credit, 38, 806, 11, 380, `${body} fill="#6b7088"`));
   out.push(`<text x="562" y="806" text-anchor="end" font-size="13" ${font} letter-spacing="2" fill="${rare ? "#f6c945" : col.main}">GREED ISLAND ${rare ? "★" : "●"}</text>`);
   out.push(`</svg>`);
