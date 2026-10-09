@@ -3,6 +3,9 @@ import { economy as testEconomy, testDatabaseUrl, useTestDb } from "@greed-islan
 import { createFakeSource, seededRandom, type EventSource, type FakeScript, type FightSpec } from "@greed-island/engine";
 import { loadConfig, parseCosmetics, type Config } from "@greed-island/shared";
 import { randomUUID } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { placeFightBet } from "./betting.ts";
 import { FightBus, type BusEvent } from "./bus.ts";
@@ -48,6 +51,33 @@ async function openFight() {
   await applyTransition(deps, fight.id, { type: "OPEN_BETTING" });
   return fight;
 }
+
+describe("signature moves", () => {
+  it("keeps how many landed and a signature finish, and names the move in the breakdown", async () => {
+    const o = new Orchestrator({
+      ...deps,
+      source: script({ rounds: [{ winnerSide: 1, reason: "ko", signatures: [3, 1], signatureKo: 0 }, { winnerSide: 1, reason: "ko", signatures: [2, 0], signatureKo: 1 }], ending: "normal" }),
+      rng: rng(),
+    });
+    const summary = (await o.runOneFight())!;
+    const fight = await db.fight.findUniqueOrThrow({ where: { id: summary.fightId }, include: { rounds: { orderBy: { round: "asc" } }, side1Character: true } });
+    expect(fight.rounds.map((r) => [r.sig1, r.sig2, r.signatureKo])).toEqual([[3, 1, 0], [2, 0, 1]]);
+    // The move's name comes from the fighter's numbers.json in the game folder.
+    const ikemenDir = await mkdtemp(path.join(tmpdir(), "gi-sig-"));
+    try {
+      const f = fight.side1Character.fighterId;
+      await mkdir(path.join(ikemenDir, "chars", f), { recursive: true });
+      await writeFile(path.join(ikemenDir, "chars", f, "numbers.json"), JSON.stringify({ moves: [{ state: 1400, name: "Budget Cut", kind: "special", damage: 120 }] }));
+      const view = (await fightView(db, config, fight.id, undefined, ikemenDir))!;
+      expect(view.finish).toEqual({ side: 1, move: "Budget Cut" });
+      expect(view.breakdown).toContain(`Finished ${view.sides[2].name} with Budget Cut`);
+      // Without the game folder there's no name, so no finish to show.
+      expect((await fightView(db, config, fight.id))!.finish).toBeNull();
+    } finally {
+      await rm(ikemenDir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("applyTransition", () => {
   it("books, then freezes both loadouts and the betting window when betting opens", async () => {

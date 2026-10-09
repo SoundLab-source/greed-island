@@ -339,11 +339,11 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
 
   app.get("/api/fights/current", async (req, reply) => {
     const id = await currentFightId(db);
-    return send(reply, id ? await fightView(db, config, id, await viewer(req)) : null);
+    return send(reply, id ? await fightView(db, config, id, await viewer(req), deps.ikemenDir) : null);
   });
   app.get<{ Params: { id: string } }>("/api/fights/:id", async (req, reply) => {
     const id = uuid.parse(req.params.id);
-    const view = await fightView(db, config, id, await viewer(req));
+    const view = await fightView(db, config, id, await viewer(req), deps.ikemenDir);
     if (!view) throw new HttpError(404, "NOT_FOUND", "no such fight");
     return send(reply, view);
   });

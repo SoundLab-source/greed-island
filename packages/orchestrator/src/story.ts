@@ -134,6 +134,9 @@ export interface RoundRecord {
   low: Record<Side, number> | null;
   firstHit: 0 | 1 | 2 | null;
   ticks: number | null;
+  /** Signature moves that landed per side, and the side that won the round with one (event mod v3; optional). */
+  signatures?: Record<Side, number> | null;
+  signatureKo?: 0 | 1 | 2 | null;
 }
 
 /**
@@ -142,7 +145,7 @@ export interface RoundRecord {
  * who hit first, a quick knockout, rounds on the clock. Only facts the rounds hold: older fights (before the event mod
  * reported life) get only the ones that need no life numbers.
  */
-export function fightBreakdown(rounds: readonly RoundRecord[], names: Record<Side, string>, winner: Side, max = 3): string[] {
+export function fightBreakdown(rounds: readonly RoundRecord[], names: Record<Side, string>, winner: Side, max = 3, moves: Record<Side, string | null> = { 1: null, 2: null }): string[] {
   const lines: { score: number; text: string }[] = [];
   const add = (score: number, text: string) => lines.push({ score, text });
   const w = winner, l = other(winner);
@@ -167,6 +170,15 @@ export function fightBreakdown(rounds: readonly RoundRecord[], names: Record<Sid
   if (quick) add(55 + (20 - sec(quick.ticks!)), `Knocked out ${L} in ${sec(quick.ticks!)} seconds in round ${quick.round}`);
   const clock = won.filter((r) => r.reason === "time");
   if (clock.length) add(45, clock.length === 1 ? `Won round ${clock[0]!.round} on the clock` : `Won ${clock.length} rounds on the clock`);
+  // Its signature move (our fighters'): a finish with it, an earlier round won with it, or landing it again and again.
+  const move = moves[w];
+  if (move) {
+    const finishes = won.filter((r) => r.signatureKo === w);
+    if (last && last.winnerSide === w && last.signatureKo === w) add(88, `Finished ${L} with ${move}`);
+    else if (finishes.length) add(72, `Won round ${finishes[0]!.round} with ${move}`);
+    const landed = rounds.reduce((n, r) => n + (r.signatures?.[w] ?? 0), 0);
+    if (landed >= 4) add(58, `Landed ${move} ${landed} times`);
+  }
   return lines.sort((a, b) => b.score - a.score).slice(0, max).map((x) => x.text);
 }
 

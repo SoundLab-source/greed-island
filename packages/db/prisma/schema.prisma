@@ -537,6 +537,11 @@ model FightRound {
   low2       Int?   @map("low2") @db.SmallInt
   firstHit   Int?   @map("first_hit") @db.SmallInt
   ticks      Int?
+  /// The event mod's v3 detail: signature moves (state 1400) that landed per side, and the side that won the round
+  /// with one (0: nobody).
+  sig1        Int?  @map("sig1") @db.SmallInt
+  sig2        Int?  @map("sig2") @db.SmallInt
+  signatureKo Int?  @map("signature_ko") @db.SmallInt
 
   @@id([fightId, round])
   @@map("fight_round")

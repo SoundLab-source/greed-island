@@ -33,6 +33,7 @@ import {
 } from "@greed-island/shared";
 import { mySeason } from "./season-views.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
+import { signatureMoveName } from "../cards.ts";
 import { fightBreakdown, fightStory, scouting, storyFacts, type RoundRecord } from "../story.ts";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -201,8 +202,8 @@ export async function characterProfile(db: Db, characterId: string, tiers?: Tier
   };
 }
 
-/** Full view of one fight, optionally with the viewer's own bet. */
-export async function fightView(db: Db, config: Config, fightId: string, viewerId?: string) {
+/** Full view of one fight, optionally with the viewer's own bet. With the game folder, it knows signature moves' names. */
+export async function fightView(db: Db, config: Config, fightId: string, viewerId?: string, ikemenDir?: string) {
   const f = await db.fight.findUnique({
     where: { id: fightId },
     include: {
@@ -312,8 +313,20 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     low: r.low1 !== null && r.low2 !== null ? { 1: r.low1, 2: r.low2 } : null,
     firstHit: r.firstHit as 0 | 1 | 2 | null,
     ticks: r.ticks,
+    signatures: r.sig1 !== null && r.sig2 !== null ? { 1: r.sig1, 2: r.sig2 } : null,
+    signatureKo: r.signatureKo as 0 | 1 | 2 | null,
   }));
-  const breakdown = f.state === "SETTLED" && (f.winnerSide === 1 || f.winnerSide === 2) ? fightBreakdown(rounds, { 1: s1.name, 2: s2.name }, f.winnerSide) : [];
+  // Each side's signature move (our fighters'), for the breakdown and the finish.
+  const defs = new Map((await db.fighter.findMany({ where: { id: { in: [s1.fighter.id, s2.fighter.id] } }, select: { id: true, defPath: true } })).map((x) => [x.id, x.defPath]));
+  const moves: Record<Side, string | null> = {
+    1: await signatureMoveName(ikemenDir, defs.get(s1.fighter.id) ?? ""),
+    2: await signatureMoveName(ikemenDir, defs.get(s2.fighter.id) ?? ""),
+  };
+  const won = f.state === "SETTLED" && (f.winnerSide === 1 || f.winnerSide === 2) ? (f.winnerSide as Side) : null;
+  const breakdown = won ? fightBreakdown(rounds, { 1: s1.name, 2: s2.name }, won, 3, moves) : [];
+  // A signature finish (the deciding round won with it): a moment to clip.
+  const lastRound = rounds[rounds.length - 1];
+  const finish = won && lastRound?.signatureKo === won && moves[won] ? { side: won, move: moves[won]! } : null;
 
   return {
     id: f.id,
@@ -355,6 +368,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     story,
     /** After a settled fight: why it was won, up to three lines. */
     breakdown,
+    finish,
     scouting: await scouting(db, f),
   };
 }

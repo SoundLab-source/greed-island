@@ -18,6 +18,9 @@ export interface FakeRound {
   low?: [number, number];
   firstHit?: 0 | 1 | 2;
   ticks?: number;
+  /** Signature moves landed per side and a signature finish (event mod v3); left out unless a script sets them. */
+  signatures?: [number, number];
+  signatureKo?: 0 | 1 | 2;
 }
 
 export interface FakeScript {

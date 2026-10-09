@@ -420,6 +420,8 @@ export async function recordRound(db: Db, fightId: string, round: RoundEndEvent)
       ...(round.low ? { low1: round.low[0], low2: round.low[1] } : {}),
       ...(round.firstHit !== undefined ? { firstHit: round.firstHit } : {}),
       ...(round.ticks !== undefined ? { ticks: round.ticks } : {}),
+      ...(round.signatures ? { sig1: round.signatures[0], sig2: round.signatures[1] } : {}),
+      ...(round.signatureKo !== undefined ? { signatureKo: round.signatureKo } : {}),
     },
     update: {},
   });

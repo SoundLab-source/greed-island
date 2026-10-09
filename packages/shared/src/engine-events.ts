@@ -32,6 +32,9 @@ export const RoundEndEvent = z.object({
   firstHit: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   /** Fighting time of the round in game ticks (60 a second at normal speed). */
   ticks: z.number().int().min(0).optional(),
+  /** Signature moves (our fighters' state 1400) that landed, per side, and the side that won the round with one (event mod v3). */
+  signatures: z.tuple([z.number().int().min(0).max(1000), z.number().int().min(0).max(1000)]).optional(),
+  signatureKo: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
 });
 
 export const MatchEndEvent = z.object({

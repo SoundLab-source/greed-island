@@ -96,4 +96,16 @@ describe("the post-fight breakdown", () => {
     expect(fightBreakdown([r(1, 1), r(2, 1)], names, 1)).toEqual([]);
     expect(fightBreakdown([r(1, 1, { life: { 1: 640, 2: 0 } }), r(2, 1, { life: { 1: 520, 2: 0 } })], names, 1)).toEqual(["Finished with 52% life left"]);
   });
+
+  it("tells of a signature move: a finish with it, a round won with it, landing it again and again", () => {
+    const r = (round: number, winnerSide: 1 | 2, signatures: [number, number], signatureKo: 0 | 1 | 2) =>
+      ({ round, winnerSide, reason: "ko", life: { 1: 500, 2: 500 }, low: null, firstHit: null, ticks: null, signatures: { 1: signatures[0], 2: signatures[1] }, signatureKo }) as RoundRecord;
+    const names = { 1: "Slash Fund", 2: "Small Change" } as const;
+    const moves = { 1: "Budget Cut", 2: "Cash Advance" };
+    expect(fightBreakdown([r(1, 1, [4, 0], 0), r(2, 1, [6, 0], 1)], names, 1, 3, moves)).toContain("Finished Small Change with Budget Cut");
+    expect(fightBreakdown([r(1, 1, [4, 0], 0), r(2, 1, [6, 0], 1)], names, 1, 3, moves)).toContain("Landed Budget Cut 10 times");
+    expect(fightBreakdown([r(1, 1, [1, 0], 1), r(2, 2, [0, 1], 0), r(3, 1, [1, 0], 0)], names, 1, 5, moves)).toContain("Won round 1 with Budget Cut");
+    // No name for the move (not one of ours): nothing said.
+    expect(fightBreakdown([r(1, 1, [9, 0], 1)], names, 1, 5).join(" ")).not.toMatch(/Budget Cut|with undefined/);
+  });
 });

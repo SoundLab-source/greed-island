@@ -253,8 +253,8 @@
       el.className = `banner ${side === 1 ? "red" : "blue"}`;
       const headline = f.story && f.story.headline ? `<div class="headline ${esc(f.story.headline.kind)}">${esc(f.story.headline.text)}</div>` : "";
       const why = f.breakdown && f.breakdown.length ? `<div class="why">${f.breakdown.slice(0, 2).map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : "";
-      // The moments worth clipping (docs/ENGAGEMENT.md §4): a stamp so chat knows to clip it.
-      const clip = f.story && f.story.headline && ["upset", "streak-broken"].includes(f.story.headline.kind) ? `<div class="clip">CLIP IT!</div>` : "";
+      // The moments worth clipping (docs/ENGAGEMENT.md §4): an upset, a broken streak, a signature-move finish.
+      const clip = (f.story && f.story.headline && ["upset", "streak-broken"].includes(f.story.headline.kind)) || f.finish ? `<div class="clip">CLIP IT!</div>` : "";
       el.innerHTML = `${clip}${headline}<div class="kicker">${side === 1 ? "RED" : "BLUE"} CORNER WINS</div><div class="who">${esc(w.name)}</div>${why}<div class="lines">${lines.join(" · ")}</div>`;
     } else {
       el.className = "banner void";

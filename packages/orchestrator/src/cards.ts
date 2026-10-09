@@ -262,6 +262,16 @@ async function readNumbers(dir: string | null): Promise<Numbers | null> {
 }
 
 /** The two moves for the card: its signature move first (QCB + x), then its hardest-hitting special or throw. */
+const signatureCache = new Map<string, string | null>();
+
+/** A fighter's signature move (state 1400 in its numbers.json, from pnpm templates:build), or null; read once. */
+export async function signatureMoveName(ikemenDir: string | undefined, defPath: string): Promise<string | null> {
+  const dir = charDir(ikemenDir, defPath);
+  if (!dir) return null;
+  if (!signatureCache.has(dir)) signatureCache.set(dir, (await readNumbers(dir))?.moves?.find((m) => m.state === 1400)?.name ?? null);
+  return signatureCache.get(dir)!;
+}
+
 export function pickMoves(numbers: Numbers | null): CardMove[] {
   const specials = (numbers?.moves ?? []).filter((m) => m.kind !== "normal");
   const signature = specials.find((m) => m.state === 1400);
