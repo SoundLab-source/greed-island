@@ -9,11 +9,15 @@
     document.title = `${c.name} · Greed Island`;
     const owner = c.owner.kind === "house" ? "House fighter" : `Owned by <b>${esc(c.owner.name)}</b>`;
     const pic = `<div class="card-slot">${GI.card(`/api/cards/characters/${encodeURIComponent(c.id)}`, `${c.name}'s card`, { rare: c.fighter.rarity !== "COMMON", size: "big", flip: true })}</div>`;
-    const titles = c.titles.length
-      ? `<table class="table">${c.titles.map((t) => `<tr><td><span class="tag gold">${esc(t.label)}</span></td><td class="muted">${esc(t.description)}</td><td class="muted">${t.fightNumber ? `fight #${t.fightNumber}, ` : ""}${t.earnedBy.kind === "house" ? "as a house fighter" : `owned by ${esc(t.earnedBy.name)}`}</td></tr>`).join("")}</table>`
-      : '<p class="empty">No titles yet.</p>';
+    // A title's badge stays short ("Tournament Champion"); its details ("Tournament #1, S tier") go on the line below.
+    const titleRow = (t) => {
+      const [, badge, detail] = /^(.*?)(?: \((.*)\))?$/.exec(t.label);
+      const where = [detail, t.fightNumber ? `fight #${t.fightNumber}` : null, t.earnedBy.kind === "house" ? "as a house fighter" : `owned by ${t.earnedBy.name}`].filter(Boolean);
+      return `<li class="stacked"><span class="tag gold">${esc(badge)}</span><span>${esc(t.description)}</span><span class="sub">${where.map(esc).join(" · ")}</span></li>`;
+    };
+    const titles = c.titles.length ? `<ul class="rows">${c.titles.map(titleRow).join("")}</ul>` : '<p class="empty">No titles yet.</p>';
     const fights = c.recentFights.length
-      ? `<table class="table">${c.recentFights.map((f) => `<tr><td class="res-${f.result}">${f.result === "VOID" ? "void" : f.result}</td><td>vs ${GI.fighterLink(f.opponent.id, f.opponent.name)}</td><td class="muted">fight #${f.number}</td><td class="muted num">${f.at ? GI.when(f.at) : ""}</td></tr>`).join("")}</table>`
+      ? `<ul class="rows">${c.recentFights.map((f) => `<li><span class="res res-${f.result}">${f.result === "VOID" ? "void" : f.result}</span><span>vs ${GI.fighterLink(f.opponent.id, f.opponent.name)}<span class="sub">fight #${f.number}${f.at ? ` · ${GI.when(f.at)}` : ""}</span></span></li>`).join("")}</ul>`
       : '<p class="empty">No fights yet.</p>';
     const tiers = c.tierHistory.length
       ? `<table class="table">${c.tierHistory.slice(0, 10).map((t) => `<tr><td>${t.from ? `${GI.tier(t.from)} → ` : ""}${GI.tier(t.to)}</td><td class="muted">rating ${t.rating}</td><td class="muted num">${GI.when(t.at)}</td></tr>`).join("")}</table>`

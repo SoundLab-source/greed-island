@@ -128,8 +128,9 @@
   .betbar { grid-template-columns: minmax(0, 1fr) minmax(230px, 270px) minmax(0, 1fr); }
   .side .plate .name { font-size: 14px; }
 }
-/* Side by side, a name and its payout need about 300px a side, so below that each payout goes under its name. */
-@media (min-width: 1100px) and (max-width: 1600px) {
+/* Side by side, a name and its payout need about 300px a side, so on anything narrower (laptops, tablets, phones)
+   each payout goes under its name. */
+@media (max-width: 1600px) {
   .side, .side.blue { grid-template-columns: minmax(0, 1fr); padding: 8px 10px; }
   .side.blue > *, .side .odds, .side.blue .odds { grid-column: 1; grid-row: auto; }
   .side .odds { font-size: 26px; }

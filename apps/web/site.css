@@ -51,7 +51,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   background: linear-gradient(135deg, #fff4c2 0%, #f6c945 25%, #fff0b0 50%, #c9971c 75%, #f6d77a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .brand span { color: transparent; }
 .nav { display: flex; flex-wrap: wrap; gap: 4px; }
-.nav a { color: var(--dim); text-decoration: none; font-weight: 700; padding: 6px 10px; border-radius: 8px; }
+.nav a { color: var(--dim); text-decoration: none; font-weight: 700; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
 .nav a:hover { color: var(--ink); background: var(--panel-2); }
 .nav a.here { color: var(--ink); background: var(--panel-2); }
 .wallet { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -92,12 +92,13 @@ label { color: var(--dim); }
 .lead { color: var(--dim); margin: 0 0 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
 .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
+/* Panels side by side only when each gets 400px (tables need it); otherwise one above the other. */
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); align-items: start; }
 .card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; }
 .card h3 { margin: 0; font-size: 17px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .spread { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
-.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); }
 .tag.gold { color: var(--gold); border-color: rgba(246, 201, 69, 0.4); }
 .tier { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-weight: 900; font-size: 13px; background: var(--panel-2); border: 1px solid var(--line); }
 .tier.X { color: #ff7ad9; } .tier.S { color: var(--gold); } .tier.A { color: var(--green); } .tier.B { color: var(--blue); } .tier.P { color: var(--dim); }
@@ -166,7 +167,8 @@ label { color: var(--dim); }
 
 @media (max-width: 760px) {
   .top { padding: 8px 12px; }
-  .nav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .nav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .nav a { flex: none; }
   .page { padding: 14px 12px; }
   .plate .name { font-size: 16px; }
 }

@@ -11,6 +11,15 @@
     .hero .pic.none { display: grid; place-items: center; font-size: 64px; color: var(--line); }
     .big { font-size: 28px; font-weight: 900; }
     .res-W { color: var(--green); font-weight: 900; } .res-L { color: var(--red); font-weight: 900; } .res-VOID { color: var(--dim); }
+    /* Recent fights and titles: rows that read well in a narrow column (a line, then a small grey line under it). */
+    .rows { list-style: none; margin: 0; padding: 0; }
+    .rows li { display: grid; grid-template-columns: 3em minmax(0, 1fr); align-items: center; gap: 2px 10px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+    .rows li:last-child { border-bottom: 0; }
+    .rows li.stacked { grid-template-columns: minmax(0, 1fr); justify-items: start; padding: 12px 2px; }
+    .rows .res { text-align: center; }
+    .rows .sub { display: block; color: var(--dim); font-size: 13px; }
+    .rows a { color: var(--ink); text-decoration: none; font-weight: 700; }
+    .rows a:hover { color: var(--gold); }
     @media (max-width: 640px) { .hero { grid-template-columns: 1fr; } .hero .pic { width: 100%; } .hero > .card-slot { width: min(260px, 100%); margin: 0 auto; } }
   </style>
 </head>
