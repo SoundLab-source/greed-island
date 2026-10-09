@@ -72,10 +72,17 @@ export function inputGlyphs(command: string | null): string | null {
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /** Text that's squeezed to fit `max` pixels when it would run longer (about 0.58 of the size per character). */
+/**
+ * Text that stays within `max` units: a long line gets a smaller font (down to 70%), and only if that's still too
+ * long is it squeezed to `max`. Widths are estimated generously (bold capitals run wide, and the viewer's own fonts
+ * decide the real width), so text is never stretched and rarely squeezed.
+ */
 function fitText(text: string, x: number, y: number, size: number, max: number, attrs: string): string {
-  const width = text.length * size * 0.58;
-  const fit = width > max ? ` textLength="${max}" lengthAdjust="spacingAndGlyphs"` : "";
-  return `<text x="${x}" y="${y}" font-size="${size}"${fit} ${attrs}>${esc(text)}</text>`;
+  // Arial Black (the names and moves) is very wide; the body font much less so.
+  const PER_CHAR = attrs.includes("Arial Black") ? 0.76 : 0.62;
+  const fitted = Math.max(size * 0.7, Math.min(size, max / (text.length * PER_CHAR)));
+  const squeeze = text.length * fitted * PER_CHAR > max ? ` textLength="${max}" lengthAdjust="spacingAndGlyphs"` : "";
+  return `<text x="${x}" y="${y}" font-size="${Math.round(fitted * 10) / 10}"${squeeze} ${attrs}>${esc(text)}</text>`;
 }
 
 /** A PNG's size, from its header. */
@@ -220,7 +227,8 @@ export function renderCard(c: CardData): string {
   // when it would run into the footer.
   const flavourY = Math.max(778, y + 26 + 22);
   if (c.flavour && flavourY <= FLAVOUR_LAST_Y) out.push(fitText(c.flavour, 300, flavourY, 15, 524, `text-anchor="middle" ${body} font-style="italic" fill="#c8cbe0"`));
-  if (c.credit) out.push(fitText(c.credit, 38, 806, 11, 380, `${body} fill="#6b7088"`));
+  // The credit stops well short of the GREED ISLAND mark at the right.
+  if (c.credit) out.push(fitText(c.credit, 38, 806, 11, 340, `${body} fill="#6b7088"`));
   out.push(`<text x="562" y="806" text-anchor="end" font-size="13" ${font} letter-spacing="2" fill="${rare ? "#f6c945" : col.main}">GREED ISLAND ${rare ? "★" : "●"}</text>`);
   out.push(`</svg>`);
   return out.join("\n");
