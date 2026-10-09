@@ -135,6 +135,22 @@ describe("ikemen runner", () => {
     expect(cns).toContain("defence = 108");
   });
 
+  it("launches a copy showing the character's own name when it isn't the fighter's, and none when it is", async () => {
+    const named = spec("named");
+    named.sides[1] = { ...named.sides[1], defPath: "chars/c/c.def", displayName: "White Hawk" };
+    named.sides[2] = { ...named.sides[2], defPath: "chars/c/c.def", displayName: "C" };
+    expect(await source("ok").run(named)).toMatchObject({ kind: "finished" });
+    const argv = JSON.parse(await readFile(path.join(runsDir, "named", "argv.json"), "utf8"));
+    const copy = argv.loadoutCopies["1"];
+    expect(copy).toMatchObject({ from: "chars/c/c.def", name: "White Hawk" });
+    expect(copy.attack).toBeUndefined();
+    expect(argv.argv[argv.argv.indexOf("-p1") + 1]).toBe(copy.defPath);
+    expect(await readFile(path.join(ikemenDir, copy.defPath), "latin1")).toMatch(/displayname = "White Hawk"/);
+    // Side 2's name is the fighter's own: launched as it is.
+    expect(argv.loadoutCopies["2"]).toBeUndefined();
+    expect(argv.argv[argv.argv.indexOf("-p2") + 1]).toBe("chars/c/c.def");
+  });
+
   it("refuses to launch when a file is missing (IKEMEN would use a dummy)", async () => {
     const outcome = await source("ok").run(spec("missing", "stages/nope.def"));
     expect(outcome).toMatchObject({ kind: "engine_crash", detail: expect.stringMatching(/preflight: missing stages\/nope.def/) });

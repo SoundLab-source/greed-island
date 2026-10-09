@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { iniValue, parseIni } from "../roster/ini.ts";
-import { deriveCharacter, MARKER, pruneDerived, readConstants } from "./derive.ts";
+import { deriveCharacter, MARKER, onScreenName, pruneDerived, readConstants } from "./derive.ts";
 
 let dir: string;
 beforeEach(async () => {
@@ -62,5 +62,13 @@ describe("pruneDerived", () => {
     const left = ["101", "102", "103", "104"].filter((a) => existsSync(path.join(dir, "chars", `gi-loadout-${a}`)));
     expect(left).toEqual(["101", "104"]);
     expect(existsSync(path.join(dir, "chars", "gi-loadout-foreign"))).toBe(true);
+  });
+
+  it("makes a name safe for the health bar: printable latin1, no quotes or semicolons, 32 at most", () => {
+    expect(onScreenName("White Hawk")).toBe("White Hawk");
+    expect(onScreenName('Big "Boss"; Jr')).toBe("Big Boss Jr");
+    expect(onScreenName("Café 🔥 King")).toBe("Café King");
+    expect(onScreenName("x".repeat(40))).toHaveLength(32);
+    expect(onScreenName("🔥🔥")).toBeNull();
   });
 });

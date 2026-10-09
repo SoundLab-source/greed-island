@@ -29,6 +29,8 @@ if (!p1 || !p2 || !stage) {
 }
 const mode = values.sim ? "sim" : "live";
 const spec = specFromRoster(roster, randomUUID(), p1, p2, stage);
+// Each character's own name on the health bar, as on stream.
+for (const [side, key] of [[1, p1], [2, p2]] as const) spec.sides[side].displayName = roster.characters.find((c) => c.key === key)?.name;
 const flag = (name: string) => (values as Record<string, string | boolean | undefined>)[name];
 for (const side of [1, 2] as const) {
   const read = (k: string) => {

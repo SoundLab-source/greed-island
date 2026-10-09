@@ -10,6 +10,8 @@ export interface FighterSpec {
   defPath: string;
   palette: number;
   stats: CharacterStats;
+  /** The character's name on stream; the game's health bar shows it too when it isn't the fighter's own. */
+  displayName?: string;
   /** Pre-fight rating; used only by the fake engine to pick plausible winners. */
   rating?: Rating;
 }

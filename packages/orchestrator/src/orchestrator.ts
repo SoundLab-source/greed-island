@@ -150,6 +150,8 @@ export class Orchestrator {
         palette: look?.defPath ? 1 : l.character.palette,
         stats: { lifePct: l.lifePct, startPower: l.startPower, attackPct: l.attackPct, defensePct: l.defensePct },
         rating: { rating: l.rating, deviation: l.deviation, volatility: l.volatility },
+        // The name bettors saw (frozen with the loadout), on the health bar too.
+        displayName: l.name,
       };
     };
     return { fightId, sides: { 1: side(1), 2: side(2) }, stage: { id: fight.stage.id, defPath: fight.stage.defPath }, roundsToWin: fight.roundsToWin };

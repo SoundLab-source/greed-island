@@ -14,7 +14,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { OutcomeTracker } from "../outcome.ts";
 import type { EventSource, FightSpec, RunOptions } from "../types.ts";
 import { buildArgs, runConfigIni, type RunPaths } from "./args.ts";
-import { deriveCharacter, pruneDerived, readConstants } from "./derive.ts";
+import { deriveCharacter, onScreenName, pruneDerived, readConstants, readDisplayName } from "./derive.ts";
 import { findIkemenBinary, isModInstalled } from "./install.ts";
 import { outcomeFromLog } from "./log.ts";
 import { screenLocked } from "./screen.ts";
@@ -119,29 +119,36 @@ export function createIkemenSource(options: IkemenSourceOptions): EventSource {
         return finish({ kind: "engine_crash", detail: "preflight: event mod missing or outdated (run pnpm ikemen:install-mod)" });
       }
 
-      // Attack/defense upgrades can't be passed as flags: launch a copy of the
-      // character with its own [Data] attack/defence scaled (cached per value).
+      // Attack/defense upgrades can't be passed as flags: launch a copy of the character with its own [Data]
+      // attack/defence scaled; and a character whose name isn't its fighter's (an outfit, a custom name) gets a copy
+      // whose [Info] displayname is its own, so the health bar matches the site. Cached per change.
       const baseLife: Partial<Record<Side, number>> = {};
       const launched = { ...spec, sides: { ...spec.sides } };
-      const loadoutCopies: Partial<Record<Side, { from: string; defPath: string; attack: number; defence: number }>> = {};
+      const loadoutCopies: Partial<Record<Side, { from: string; defPath: string; attack?: number; defence?: number; name?: string }>> = {};
       for (const side of [1, 2] as const) {
         const s = spec.sides[side];
-        if (s.stats.lifePct === 100 && s.stats.attackPct === 100 && s.stats.defensePct === 100) continue;
-        const base = await readConstants(options.ikemenDir, s.defPath);
-        baseLife[side] = base.life;
-        if (s.stats.attackPct === 100 && s.stats.defensePct === 100) continue;
-        const attack = Math.max(1, Math.round((base.attack * s.stats.attackPct) / 100));
-        const defence = Math.max(1, Math.round((base.defence * s.stats.defensePct) / 100));
-        const hash = createHash("sha256").update(`${s.defPath}|${attack}|${defence}`).digest("hex").slice(0, 12);
+        let scaled: { attack: number; defence: number } | null = null;
+        if (s.stats.lifePct !== 100 || s.stats.attackPct !== 100 || s.stats.defensePct !== 100) {
+          const base = await readConstants(options.ikemenDir, s.defPath);
+          baseLife[side] = base.life;
+          if (s.stats.attackPct !== 100 || s.stats.defensePct !== 100) {
+            scaled = { attack: Math.max(1, Math.round((base.attack * s.stats.attackPct) / 100)), defence: Math.max(1, Math.round((base.defence * s.stats.defensePct) / 100)) };
+          }
+        }
+        const wanted = s.displayName ? onScreenName(s.displayName) : null;
+        const name = wanted && wanted !== (await readDisplayName(options.ikemenDir, s.defPath)) ? wanted : null;
+        if (!scaled && !name) continue;
+        const hash = createHash("sha256").update(`${s.defPath}|${scaled?.attack ?? ""}|${scaled?.defence ?? ""}|${name ?? ""}`).digest("hex").slice(0, 12);
         const copy = await deriveCharacter(options.ikemenDir, {
           srcDefPath: s.defPath,
           destId: `gi-loadout-${hash}`,
           hash,
-          constants: { Data: { attack: String(attack), defence: String(defence) } },
-          generatedBy: "Greed Island runner (attack/defense upgrades)",
+          ...(name ? { info: { displayname: `"${name}"` } } : {}),
+          ...(scaled ? { constants: { Data: { attack: String(scaled.attack), defence: String(scaled.defence) } } } : {}),
+          generatedBy: "Greed Island runner (attack/defense upgrades, names on the health bar)",
         });
-        launched.sides[side] = { ...s, defPath: copy.defPath, stats: { ...s.stats, attackPct: 100, defensePct: 100 } };
-        loadoutCopies[side] = { from: s.defPath, defPath: copy.defPath, attack, defence };
+        launched.sides[side] = { ...s, defPath: copy.defPath, stats: scaled ? { ...s.stats, attackPct: 100, defensePct: 100 } : s.stats };
+        loadoutCopies[side] = { from: s.defPath, defPath: copy.defPath, ...(scaled ?? {}), ...(name ? { name } : {}) };
       }
       if (Object.keys(loadoutCopies).length > 0) await pruneDerived(options.ikemenDir, "gi-loadout-", LOADOUT_CACHE_SIZE);
       const built = buildArgs(launched, paths, { mode: options.mode, aiLevel: options.aiLevel ?? 8, simSpeed: options.simSpeed ?? 4, extraArgs: options.extraArgs ?? [] }, baseLife);

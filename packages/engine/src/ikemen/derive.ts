@@ -74,6 +74,26 @@ export async function deriveCharacter(ikemenDir: string, spec: DeriveSpec): Prom
   return { defPath, status: "built" };
 }
 
+/** The name a character's .def shows on the health bar ([Info] displayname, else name), without its quotes. */
+export async function readDisplayName(ikemenDir: string, defPath: string): Promise<string | null> {
+  const info = parseIni(await readFile(path.join(ikemenDir, defPath), "latin1"));
+  const raw = iniValue(info, "Info", "displayname") ?? iniValue(info, "Info", "name");
+  return raw ? raw.replace(/^"|"$/g, "").trim() : null;
+}
+
+/**
+ * A name made safe for a .def's [Info] displayname: written in latin1 inside quotes, where ; starts a comment, so
+ * only printable latin1 characters stay (no quotes or semicolons), at most 32 of them. Null if nothing's left.
+ */
+export function onScreenName(name: string): string | null {
+  const safe = [...name].filter((ch) => {
+    const code = ch.codePointAt(0)!;
+    return ((code >= 0x20 && code <= 0x7e) || (code >= 0xa0 && code <= 0xff)) && ch !== '"' && ch !== ";";
+  });
+  const out = safe.join("").replace(/\s+/g, " ").trim().slice(0, 32).trim();
+  return out || null;
+}
+
 export interface BaseConstants {
   life: number;
   attack: number;
