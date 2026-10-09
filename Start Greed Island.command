@@ -4,7 +4,8 @@
 # To stop: press Control-C in this window, or double-click
 # "Stop Greed Island.command". The fight in progress is refunded.
 
-# Bring each fight's game window to the front (set to 0 to leave it behind other apps).
+# Bring each fight's game window to the front (set to 0 to leave it behind other apps, so you can use the Mac
+# while it streams: OBS films the game's own window either way, and never your screen when this is 0).
 BRING_GAME_TO_FRONT=1
 # 1 for real IKEMEN fights; 0 for quick practice fights with no game window.
 REAL_FIGHTS=1

@@ -40,7 +40,7 @@ The stream starts now and at every login, and restarts 30 seconds after it stops
 - `pnpm service:status`: is it installed, how many times it has started, and the health check.
 - Logs: `~/Library/Logs/GreedIsland/stream.log` (fights, errors) and `backup.log`.
 - **Stop Greed Island.command** stops it until the next login; `pnpm service:uninstall` removes it for good.
-- It runs with real fights and each fight's window brought to the front (`ENGINE_MODE=live`, `GI_GAME_TO_FRONT=true`); other settings come from `.env`.
+- It runs with real fights and each fight's window brought to the front (`ENGINE_MODE=live`, `GI_GAME_TO_FRONT=true`); other settings come from `.env`. OBS films only the game's window either way (docs/SETUP.md "What the capture shows").
 
 **Health check:** `http://127.0.0.1:3000/api/health` (or `https://your-domain/api/health`) answers 200 while the database works and fights keep moving, and 503 otherwise (nothing has happened for 20 minutes). Point a free uptime monitor at it to get an email when the stream stops.
 

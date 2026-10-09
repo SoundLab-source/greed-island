@@ -12,7 +12,7 @@ import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
 import { acquireOrchestratorLock } from "../lock.ts";
 import { loadObsConfig, ObsSceneSwitcher } from "../obs.ts";
-import { loadLocalVideo, ObsLocalVideo } from "../local-video.ts";
+import { loadFollowGame, loadLocalVideo, ObsGameCapture } from "../game-capture.ts";
 import { BotPlayers, loadBotCount } from "../bots.ts";
 import { Orchestrator } from "../orchestrator.ts";
 import { isProduction, productionProblems } from "../production.ts";
@@ -113,7 +113,8 @@ const checks = config.checks.enabled
       },
     )
   : null;
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), localVideo: loadLocalVideo(), ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
+const localVideo = loadLocalVideo();
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), localVideo, ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
@@ -123,10 +124,14 @@ console.log(`Player site: ${publicUrl}/ · stream overlay for OBS: ${publicUrl}/
 const obsConfig = loadObsConfig();
 const obs = obsConfig ? new ObsSceneSwitcher(obsConfig) : null;
 obs?.start(bus);
-// The local preview: OBS's Virtual Camera on the watch page, cropped to each fight's window.
-const localVideo = obsConfig && loadLocalVideo() ? new ObsLocalVideo(obsConfig) : null;
-if (loadLocalVideo() && !obsConfig) console.log("GI_LOCAL_VIDEO needs OBS: set GI_OBS_URL (and GI_OBS_PASSWORD)");
-localVideo?.start(bus);
+// OBS films each fight's window, not the whole screen (GI_OBS_FOLLOW_GAME), and for the local preview its Virtual
+// Camera plays on the watch page (GI_LOCAL_VIDEO). The whole screen is only ever filmed with the game kept in front
+// or for the preview, which stays on this computer.
+const capture = obsConfig && (localVideo || loadFollowGame())
+  ? new ObsGameCapture(obsConfig, { virtualCamera: localVideo, screenFallback: localVideo || engine.bringToFront })
+  : null;
+if (localVideo && !obsConfig) console.log("GI_LOCAL_VIDEO needs OBS: set GI_OBS_URL (and GI_OBS_PASSWORD)");
+capture?.start(bus);
 
 await checks?.start();
 
@@ -154,7 +159,7 @@ async function shutdown(code = 0) {
   await step(running);
   await step(checks?.stop());
   obs?.stop();
-  localVideo?.stop();
+  capture?.stop();
   bots?.stop();
   await step(app.close());
   await step(lock.release());

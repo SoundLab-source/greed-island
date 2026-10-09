@@ -132,7 +132,7 @@ export interface ApiDeps {
   logger?: boolean;
   /** Twitch channel shown on the watch page (player and chat); null shows the live betting board instead. */
   twitchChannel?: string | null;
-  /** GI_LOCAL_VIDEO: the watch page plays OBS's Virtual Camera instead of Twitch (local-video.ts). */
+  /** GI_LOCAL_VIDEO: the watch page plays OBS's Virtual Camera instead of Twitch (game-capture.ts). */
   localVideo?: boolean;
   /** Where submitted fighter images are stored. Defaults to GI_SUBMISSIONS_DIR or `submissions/`. */
   submissionStore?: SubmissionStore;
