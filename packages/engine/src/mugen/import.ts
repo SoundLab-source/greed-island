@@ -55,6 +55,8 @@ export const MugenEntry = z.object({
    * once or the import stops. `file` is inside the character's folder (any capitals); text is compared byte for byte.
    */
   patches: z.array(z.object({ file: z.string().min(1), find: z.string().min(1), replace: z.string(), why: z.string().min(1) })).default([]),
+  /** Roster tags (e.g. "meme", for GI_ROSTER_ONLY). */
+  tags: z.array(z.string().regex(/^[a-z0-9][a-z0-9_-]*$/)).default([]),
   notes: z.string().optional(),
 });
 
@@ -355,6 +357,7 @@ export function rosterEntries(entry: MugenEntry, defPath: string): { fighter: Fi
       license: `MUGEN character by ${entry.author}, from ${entry.source}. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.`,
       commercialUse: false,
       enabled: true,
+      tags: entry.tags,
       notes: "Added by pnpm mugen:import (mugen.json).",
     },
     character: { key: entry.id, fighter: entry.id, name: entry.name, palette: 1, enabled: true },

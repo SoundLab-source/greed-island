@@ -22,6 +22,8 @@ export const FighterEntry = z.object({
   /** The license allows commercial use (false unless known). GI_COMMERCIAL_ONLY=true keeps only these on stream. */
   commercialUse: z.boolean().default(false),
   enabled: z.boolean().default(true),
+  /** Groups it belongs to (e.g. "meme"), for GI_ROSTER_ONLY: a stream of just those, like a private meme demo. */
+  tags: z.array(slug).default([]),
   notes: z.string().optional(),
 });
 
@@ -86,6 +88,16 @@ export function commercialOnly(roster: Roster): Roster {
   const off = <T extends { commercialUse: boolean; enabled: boolean }>(x: T): T => (x.commercialUse || !x.enabled ? x : { ...x, enabled: false, notes: note });
   const clearedStage = roster.stages.some((s) => s.commercialUse && s.enabled);
   return { ...roster, fighters: roster.fighters.map(off), stages: clearedStage ? roster.stages.map(off) : roster.stages };
+}
+
+/**
+ * GI_ROSTER_ONLY (comma-separated tags or fighter ids): every other fighter is switched off for this run, e.g.
+ * GI_ROSTER_ONLY=meme for a demo of the meme characters. The next sync without it switches them back on.
+ */
+export function onlyFighters(roster: Roster, wanted: readonly string[]): Roster {
+  const keep = new Set(wanted);
+  const note = `not in GI_ROSTER_ONLY=${wanted.join(",")}`;
+  return { ...roster, fighters: roster.fighters.map((f) => (!f.enabled || keep.has(f.id) || f.tags.some((t) => keep.has(t)) ? f : { ...f, enabled: false, notes: note })) };
 }
 
 export class RosterError extends Error {

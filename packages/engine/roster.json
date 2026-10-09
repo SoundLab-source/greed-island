@@ -408,7 +408,10 @@
       "license": "MUGEN character by XboxRob11, from https://mugenarchive.com/. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-evil-barney",
@@ -419,7 +422,10 @@
       "license": "MUGEN character by Basher22, from https://mugenarchive.com/. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-pepsiman",
@@ -430,7 +436,10 @@
       "license": "MUGEN character by suteneko, from https://mugenarchive.com/forums/downloads.php?do=file&id=39803. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-big-chungus",
@@ -441,7 +450,10 @@
       "license": "MUGEN character by RoyalKnight787, from https://mugenarchive.com/forums/downloads.php?do=file&id=104429. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-cracker-volley",
@@ -452,7 +464,10 @@
       "license": "MUGEN character by Fino, from https://mugenarchive.com/forums/downloads.php?do=file&id=49383. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-among-drip",
@@ -463,7 +478,10 @@
       "license": "MUGEN character by ghiacio, from https://mugenarchive.com/forums/downloads.php?do=file&id=152613. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-dio-garfield",
@@ -474,7 +492,10 @@
       "license": "MUGEN character by Warusaki, Siguel, from https://mugenarchive.com/forums/downloads.php?do=file&id=116618. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-dancing-banana",
@@ -485,7 +506,10 @@
       "license": "MUGEN character by Iron Commando, from https://mugenarchive.com/forums/downloads.php?do=file&id=34652. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-ugandan-knuckles",
@@ -496,7 +520,10 @@
       "license": "MUGEN character by EX Falchion, from https://mugenarchive.com/forums/downloads.php?do=file&id=77529. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-refrigerator",
@@ -507,7 +534,10 @@
       "license": "MUGEN character by KUROGOMA, from https://mugenarchive.com/forums/downloads.php?do=file&id=26460. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-sunky",
@@ -518,7 +548,10 @@
       "license": "MUGEN character by Pizzasause, from https://mugenarchive.com/forums/downloads.php?do=file&id=30687. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-nyan-cat",
@@ -529,7 +562,10 @@
       "license": "MUGEN character by CyberAkumaTv, from https://mugenarchive.com/forums/downloads.php?do=file&id=50461. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": false,
-      "notes": "Switched off: its -2 state pauses the game, so the round never ends (engine timeout in a test fight, 2026-10-06). To fix, with moves of our own (sparkles, a lazer)."
+      "notes": "Switched off: its -2 state pauses the game, so the round never ends (engine timeout in a test fight, 2026-10-06). To fix, with moves of our own (sparkles, a lazer).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-reisen-deadpool",
@@ -540,7 +576,10 @@
       "license": "MUGEN character by or2=3, from https://mugenarchive.com/forums/downloads.php?do=file&id=6612. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-magic-geese",
@@ -551,7 +590,10 @@
       "license": "MUGEN character by The_None, from https://mugenarchive.com/forums/downloads.php?do=file&id=30928. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-troll-face",
@@ -562,7 +604,10 @@
       "license": "MUGEN character by Yogurty14, from https://mugenarchive.com/forums/downloads.php?do=file&id=30049. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-windows-xp",
@@ -573,7 +618,10 @@
       "license": "MUGEN character by Genesis, from https://mugenarchive.com/forums/downloads.php?do=file&id=71447. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-google-chrome",
@@ -584,7 +632,10 @@
       "license": "MUGEN character by FrancoIIIOliquino, from https://mugenarchive.com/forums/downloads.php?do=file&id=30053. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-ohko-yee",
@@ -595,7 +646,10 @@
       "license": "MUGEN character by unknown (MUGEN Archive), from https://mugenarchive.com/forums/downloads.php?do=file&id=13018. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": false,
-      "notes": "Switched off: made for old Windows MUGEN only; the test fight never ended (engine timeout, 2026-10-06)."
+      "notes": "Switched off: made for old Windows MUGEN only; the test fight never ended (engine timeout, 2026-10-06).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-omega-tiger-woods",
@@ -606,7 +660,10 @@
       "license": "MUGEN character by Most_Mysterious, from https://mugenarchive.com/forums/downloads.php?do=file&id=21445. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-chizuru",
@@ -628,7 +685,10 @@
       "license": "MUGEN character by Black Hazard, from https://mugenarchive.com/forums/downloads.php?do=file&id=89055. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-bonzibuddy",
@@ -639,7 +699,10 @@
       "license": "MUGEN character by Brergrsart, from https://mugenarchive.com/forums/downloads.php?do=file&id=169850. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "mugen-gloria-ex",
@@ -885,7 +948,10 @@
       "license": "MUGEN character by YanOnMugen (from Nimame's character), from https://mugenarchive.com/. Not cleared for commercial use (fan-made, often from commercial games); off stream while GI_COMMERCIAL_ONLY=true.",
       "commercialUse": false,
       "enabled": true,
-      "notes": "Added by pnpm mugen:import (mugen.json)."
+      "notes": "Added by pnpm mugen:import (mugen.json).",
+      "tags": [
+        "meme"
+      ]
     },
     {
       "id": "gi-good-boy",

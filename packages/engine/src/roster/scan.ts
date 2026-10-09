@@ -83,6 +83,7 @@ async function scanCharacter(charsDir: string, folder: string, warnings: string[
       // Never assumed: set it to true by hand once the license is checked.
       commercialUse: false,
       enabled: license !== null,
+      tags: [],
       notes: "Drafted by roster:scan. Archetype is a guess: set it by hand.",
     };
   }
