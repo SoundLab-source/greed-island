@@ -24,6 +24,7 @@
     "dev": "pnpm db:migrate && pnpm roster:sync && pnpm --filter @greed-island/orchestrator run dev",
     "obs:setup": "pnpm --filter @greed-island/orchestrator run obs:setup",
     "staff:role": "pnpm --filter @greed-island/orchestrator run staff:role",
+    "web:check": "pnpm --filter @greed-island/orchestrator run web:check",
     "roster:variants": "pnpm --filter @greed-island/engine run roster:variants",
     "service:install": "pnpm --filter @greed-island/orchestrator run service install",
     "service:uninstall": "pnpm --filter @greed-island/orchestrator run service uninstall",

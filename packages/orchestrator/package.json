@@ -11,7 +11,8 @@
     "dev": "tsx src/scripts/dev.ts",
     "obs:setup": "tsx src/scripts/obs-setup.ts",
     "staff:role": "tsx src/scripts/staff-role.ts",
-    "service": "tsx src/scripts/service.ts"
+    "service": "tsx src/scripts/service.ts",
+    "web:check": "tsx src/scripts/web-check.ts"
   },
   "dependencies": {
     "@fastify/static": "10.1.5",
