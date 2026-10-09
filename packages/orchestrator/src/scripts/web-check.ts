@@ -1,13 +1,14 @@
-// `pnpm web:check [--url http://127.0.0.1:3000] [--widths 375,826,1100,1280,1600,2000] [--pages shop,rankings]`: open every
-// page of the running site (pnpm dev) in a hidden Chrome at each width and report what looks broken (web-check.ts).
+// `pnpm web:check [--url http://127.0.0.1:3000] [--widths 375,826,1100,1280,1600,2000] [--pages shop,rankings] [--cards]`:
+// open every page of the running site (pnpm dev) in a hidden Chrome at each width and report what looks broken
+// (web-check.ts); --cards also measures the text on every character's and fighter's card.
 // Screenshots go to runs/web-check/; exits 1 when anything's found. Chrome: CHROME_BIN, or the usual macOS path.
 import { REPO_ROOT } from "@greed-island/db";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { AUDIT_SCRIPT, HiddenChrome, summarize, type PageCheck } from "../web-check.ts";
+import { AUDIT_SCRIPT, CARD_AUDIT_SCRIPT, HiddenChrome, summarize, type PageCheck } from "../web-check.ts";
 
-const { values } = parseArgs({ options: { url: { type: "string" }, widths: { type: "string" }, pages: { type: "string" } } });
+const { values } = parseArgs({ options: { url: { type: "string" }, widths: { type: "string" }, pages: { type: "string" }, cards: { type: "boolean" } } });
 const base = (values.url ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const widths = (values.widths ?? "375,826,1100,1280,1600,2000").split(",").map(Number);
 const PAGES = ["index", "shop", "roster", "fighters", "fighter", "collection", "rankings", "vote", "account", "how-to-play", "terms", "privacy", "submit"];
@@ -42,6 +43,15 @@ try {
       await chrome.open(url, width, width < 700 ? 900 : Math.round(width * 0.6), 2500);
       results.push({ page, width, problems: await chrome.evaluate<string[]>(AUDIT_SCRIPT) });
       await writeFile(path.join(out, `${page}-${width}.png`), await chrome.screenshot());
+    }
+  }
+  if (values.cards) {
+    for (const kind of ["characters", "fighters"] as const) {
+      const list = (await (await fetch(`${base}/api/${kind === "fighters" ? "roster" : "characters"}`)).json()) as { id: string; name: string }[];
+      for (const c of list) {
+        await chrome.open(`${base}/api/cards/${kind}/${encodeURIComponent(c.id)}?check=${Date.now()}`, 600, 840, 250);
+        results.push({ page: `${kind === "fighters" ? "fighter" : "character"} card "${c.name}"`, width: 600, problems: await chrome.evaluate<string[]>(CARD_AUDIT_SCRIPT) });
+      }
     }
   }
 } finally {

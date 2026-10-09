@@ -52,6 +52,19 @@ export const AUDIT_SCRIPT = `(() => {
   return [...new Set(out)];
 })()`;
 
+/** Runs inside a card's SVG: text that leaves the card or overlaps other text. */
+export const CARD_AUDIT_SCRIPT = `(() => {
+  const t = [...document.querySelectorAll('text')].map((e) => { const b = e.getBBox(); return { s: e.textContent.trim().slice(0, 28), x: b.x, y: b.y, w: b.width, h: b.height }; }).filter((b) => b.w > 0 && b.s);
+  const out = [];
+  for (const b of t) if (b.x < 14 || b.x + b.w > 586) out.push('off the card: "' + b.s + '"');
+  for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) {
+    const a = t[i], b = t[j];
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    if (ox > 3 && oy > Math.min(a.h, b.h) * 0.35) out.push('"' + a.s + '" runs into "' + b.s + '"');
+  }
+  return out;
+})()`;
+
 export interface PageCheck {
   page: string;
   width: number;
