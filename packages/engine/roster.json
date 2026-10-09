@@ -1791,6 +1791,14 @@
       "enabled": true
     },
     {
+      "id": "gi-pawn-alley",
+      "displayName": "Pawn Alley",
+      "def": "stages/gi-pawn-alley.def",
+      "license": "Greed Island's own stage, drawn in code (packages/engine/src/stages); built by pnpm stages:build.",
+      "commercialUse": true,
+      "enabled": true
+    },
+    {
       "id": "mugen-sapphire-diamond",
       "displayName": "Sapphire Diamond",
       "def": "stages/mugen-sapphire-diamond/mugen-sapphire-diamond.def",

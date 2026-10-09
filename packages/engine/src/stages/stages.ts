@@ -11,6 +11,7 @@ import { DRAGONS_HOARD } from "./dragons-hoard.ts";
 import { GOLD_RUSH } from "./gold-rush.ts";
 import { disc, floor, GROUND, HEIGHT, scenery, sky, stars, WIDE, WIDTH, type Layer, type StageDesign } from "./layers.ts";
 import { MINT } from "./mint.ts";
+import { PAWN_ALLEY } from "./pawn-alley.ts";
 import { PENTHOUSE } from "./penthouse.ts";
 import { TRADING_FLOOR } from "./trading-floor.ts";
 import { TREASURE_ISLAND } from "./treasure-island.ts";
@@ -83,6 +84,7 @@ export const STAGES: readonly StageDesign[] = [
   MINT,
   DRAGONS_HOARD,
   PENTHOUSE,
+  PAWN_ALLEY,
 ];
 
 /** The stage's sprite file and .def for IKEMEN. */
