@@ -464,6 +464,7 @@ export async function recentResults(db: Db, take = 10) {
     number: f.number,
     sides: { 1: f.side1Character.name, 2: f.side2Character.name },
     result: f.state === "SETTLED" ? { kind: "settled", winnerSide: f.winnerSide } : { kind: "voided", reason: f.voidReason },
+    at: f.closedAt ?? f.endedAt,
   }));
 }
 

@@ -328,6 +328,8 @@ describe("stats after fights", () => {
     await o.run(3);
     const results = (await app.inject({ method: "GET", url: "/api/results" })).json();
     expect(results).toHaveLength(3);
+    // When each finished, for the watch page's Results list.
+    expect(results.every((r: { at: string | null }) => r.at && !Number.isNaN(Date.parse(r.at)))).toBe(true);
     const chars = (await app.inject({ method: "GET", url: "/api/characters" })).json();
     expect(chars).toHaveLength(2);
     expect(chars[0].rating).toBeGreaterThanOrEqual(chars[1].rating);

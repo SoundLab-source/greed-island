@@ -294,12 +294,20 @@
   }
 
   // ---- Live feed (shown when there's no Twitch chat) ----
-  function feed(text) {
+  function feed(text, at = new Date()) {
     const li = document.createElement("li");
-    li.innerHTML = `<time>${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${text}`;
+    li.innerHTML = `<time>${new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>${text}`;
     $("feed-list").prepend(li);
     $("feed-note").hidden = true;
     while ($("feed-list").children.length > 40) $("feed-list").lastChild.remove();
+  }
+
+  // What's already happened, so the list isn't empty when the page opens (live news goes on top of it).
+  async function seedFeed() {
+    const results = await api("GET", "/api/results");
+    for (const r of results.slice(0, 8).reverse()) {
+      feed(r.result.kind === "settled" ? `Fight #${r.number}: <b>${esc(r.sides[r.result.winnerSide])}</b> wins` : `Fight #${r.number}: no contest, bets refunded`, r.at ?? new Date());
+    }
   }
 
   function connect() {
@@ -411,7 +419,7 @@
   (async () => {
     wireControls();
     await GI.ready;
-    await Promise.all([setupEmbeds(), refreshFight()]);
+    await Promise.all([setupEmbeds(), refreshFight(), seedFeed().catch(() => {})]);
     connect();
     recaps().catch(() => {});
   })().catch((e) => ($("bet-msg").textContent = `Couldn't load: ${e.message}`));
