@@ -45,7 +45,7 @@ Salty Bet's best players feel smart, not lucky. If bettors can read the fights, 
 
 ## 4. Make it social
 
-- **Follow a fighter (DESIGN):** get a gentle heads-up when a fighter you follow is about to fight (on the site, and by email only if you ask). Fans of Free Loot will come back to watch Free Loot.
+- **Follow a fighter (DESIGN):** get a gentle heads-up when a fighter you follow is about to fight (on the site, and by email only if you ask). Fans of Free Loot will come back to watch Free Loot. *Built 2026-11-16 (pending the owner's yes, written into DESIGN §4): follow from a fighter's profile or the roster (up to `GI_FOLLOW_MAX`, 30); when betting opens with a followed fighter, any open page shows a heads-up you can click to watch, the tab title says so in the background, and a browser notification comes only if turned on from the account page, never from 22:00 to 08:00 the player's time. Email waits for Resend.*
 - **Twitch chat and the betting pool, together:** chat commands to check odds or your balance, and the overlay calling out big bets ("someone just put 5,000 Salt on the rat"). Names on public bets are already built.
 - **Clip moments:** the overlay marks upsets, streak breakers and gag moments so chat can clip them. Clips are free advertising.
 - **Community fighters** (phase 3, built): communities campaign for their fighter in the vote and turn up to watch its debut tournament. That's built-in marketing; give each debut a big intro on the stream.

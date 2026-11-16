@@ -25,7 +25,33 @@
       ? `<div class="row">${me.titles.map((x) => `<span class="tag gold" title="${esc(`${x.description} (${where(x)})`)}">${esc(x.label)}</span>`).join(" ")}</div>`
       : "";
     if (stats) renderStats(stats);
+    renderFollows(me);
   }
+
+  // ---- Fighters you follow (follows.ts), and this browser's notifications for them ----
+  function renderFollows(me) {
+    const list = me.follows ?? [];
+    $("follows").innerHTML = list.length
+      ? list.map((f) => `<li><span>${f.profileId ? GI.fighterLink(f.profileId, f.name) : esc(f.name)} <span class="muted">${esc(GI.style(f.archetype))}</span></span>${GI.followButton(f.fighterId, f.name)}</li>`).join("")
+      : '<li class="muted">You don\'t follow any fighters yet.</li>';
+    const n = GI.followNotify;
+    const btn = $("follow-notify");
+    btn.hidden = !n.supported();
+    btn.textContent = n.on() ? "Turn off notifications" : "Also notify me when this tab is in the background";
+    $("follow-notify-note").textContent = !n.supported()
+      ? "This browser can't show notifications; the page and the tab title still tell you."
+      : n.blocked()
+        ? "Notifications are blocked for this site in your browser's settings."
+        : n.on()
+          ? "On in this browser. Never between 10 pm and 8 am."
+          : "";
+  }
+  $("follow-notify").onclick = async () => {
+    const want = !GI.followNotify.on();
+    const r = await GI.followNotify.set(want);
+    if (want && !r) GI.toast("Notifications weren't allowed, so they stay off.", "error");
+    if (GI.me) renderFollows(GI.me);
+  };
 
   // ---- Your calls: win rate, upsets, streaks, profit, by style, and the bettor titles ----
   const STYLE = (a) => `${GI.style(a)}s`;

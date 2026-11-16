@@ -106,6 +106,7 @@ model User {
   seasonStandings  SeasonStanding[]
   fightersSeen     FighterSeen[]
   goals            PlayerGoal[]
+  follows          FighterFollow[]
 
   @@map("user")
 }
@@ -265,6 +266,7 @@ model Fighter {
   release        Release?    @relation("ReleasedFighter")
   standInFor     Release[]   @relation("StandIn")
   seenBy         FighterSeen[]
+  followers      FighterFollow[]
 
   @@map("fighter")
 }
@@ -1329,4 +1331,18 @@ model PlayerGoal {
 
   @@id([userId, day, slot])
   @@map("player_goal")
+}
+
+/// A player following a fighter (the design: every outfit and owned copy of it), for a heads-up when it's about to
+/// fight (docs/ENGAGEMENT.md §4; orchestrator follows.ts). Nothing here touches Salt.
+model FighterFollow {
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id])
+  fighterId  String   @map("fighter_id")
+  fighter    Fighter  @relation(fields: [fighterId], references: [id])
+  followedAt DateTime @default(now()) @map("followed_at") @db.Timestamptz(3)
+
+  @@id([userId, fighterId])
+  @@index([fighterId])
+  @@map("fighter_follow")
 }

@@ -278,6 +278,116 @@ window.GI = (() => {
     }
   };
 
+  // ---- Follow a fighter (orchestrator follows.ts; docs/ENGAGEMENT.md §4) ----
+  // A Follow button anywhere: <button data-follow="fighterId" data-name="Free Loot">. One click handler for the page,
+  // since the content policy allows no inline handlers. When betting opens on a fight with a followed fighter, any open
+  // page shows a heads-up (and the tab's title says so while it's in the background); a browser notification only if
+  // the player turned them on in this browser, and never between 22:00 and 08:00 their time (ENGAGEMENT §6).
+  const NOTIFY_KEY = "gi_follow_notify";
+  const QUIET = { from: 22, to: 8 };
+  GI.follows = () => GI.me?.follows ?? [];
+  GI.isFollowing = (fighterId) => GI.follows().some((f) => f.fighterId === fighterId);
+  GI.followButton = (fighterId, name, cls = "ghost small") => {
+    const on = GI.isFollowing(fighterId);
+    return `<button type="button" class="${cls} follow${on ? " on" : ""}" data-follow="${GI.esc(fighterId)}" data-name="${GI.esc(name)}" aria-pressed="${on}" title="${on ? "Stop following" : `Get a heads-up when ${GI.esc(name)} is about to fight`}">${on ? "♥ Following" : "♡ Follow"}</button>`;
+  };
+  const syncFollowButtons = () => {
+    for (const b of document.querySelectorAll("button[data-follow]")) {
+      const on = GI.isFollowing(b.dataset.follow);
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", String(on));
+      b.textContent = on ? "♥ Following" : "♡ Follow";
+      b.title = on ? "Stop following" : `Get a heads-up when ${b.dataset.name} is about to fight`;
+    }
+  };
+  GI.setFollow = async (fighterId, name, on) => {
+    const path = `/api/me/follows/${encodeURIComponent(fighterId)}`;
+    const r = await GI.act(() => GI.api(on ? "PUT" : "DELETE", path), on ? `Following ${name}: you'll get a heads-up when it's up` : `Stopped following ${name}`);
+    if (r) await GI.refreshMe().catch(() => {});
+    return r;
+  };
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("button[data-follow]");
+    if (!b) return;
+    e.preventDefault();
+    b.disabled = true;
+    GI.setFollow(b.dataset.follow, b.dataset.name, !GI.isFollowing(b.dataset.follow)).finally(() => (b.disabled = false));
+  });
+
+  /** Browser notifications for followed fighters: "on" only when the player asked and the browser allows it. */
+  GI.followNotify = {
+    supported: () => "Notification" in window,
+    on: () => {
+      try {
+        return GI.followNotify.supported() && Notification.permission === "granted" && localStorage.getItem(NOTIFY_KEY) === "on";
+      } catch {
+        return false;
+      }
+    },
+    blocked: () => GI.followNotify.supported() && Notification.permission === "denied",
+    async set(want) {
+      try {
+        if (want && Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") return false;
+        localStorage.setItem(NOTIFY_KEY, want ? "on" : "off");
+        return want;
+      } catch {
+        return false;
+      }
+    },
+    quiet: (d = new Date()) => d.getHours() >= QUIET.from || d.getHours() < QUIET.to,
+  };
+
+  const headsUpDone = new Set(); // fights already announced on this page (polling can report a state twice)
+  let titleBefore = null;
+  function tabTitle(line) {
+    if (!document.hidden) return;
+    if (titleBefore === null) titleBefore = document.title;
+    document.title = `♥ ${line}`;
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && titleBefore !== null) {
+      document.title = titleBefore;
+      titleBefore = null;
+    }
+  });
+  GI.followPop = (f) => {
+    let box = document.querySelector(".goal-pops");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "goal-pops";
+      box.setAttribute("role", "status");
+      document.body.append(box);
+    }
+    const el = document.createElement("a");
+    el.className = "goal-pop follow-pop";
+    el.href = "/";
+    el.innerHTML = `<span class="tick">♥</span><span><b>Fight #${GI.fmt(f.number)}</b> ${GI.esc(f.following.line)}</span><span class="amt">${location.pathname === "/" || location.pathname === "/index.html" ? "" : "Watch →"}</span>`;
+    box.append(el);
+    setTimeout(() => el.classList.add("out"), 12000);
+    setTimeout(() => el.remove(), 12600);
+  };
+  async function followHeadsUp(d) {
+    if (d.state !== "BETTING_OPEN" || !GI.follows().length || headsUpDone.has(d.fightId)) return;
+    headsUpDone.add(d.fightId);
+    const f = await GI.api("GET", `/api/fights/${encodeURIComponent(d.fightId)}`);
+    if (!f?.following) return;
+    GI.followPop(f);
+    tabTitle(f.following.line);
+    if (document.hidden && GI.followNotify.on() && !GI.followNotify.quiet()) {
+      try {
+        // The tag makes several open tabs show one notification, not one each.
+        const n = new Notification("Greed Island", { body: `Fight #${f.number}: ${f.following.line}`, tag: `gi-follow-${f.id}` });
+        n.onclick = () => {
+          window.focus();
+          if (location.pathname !== "/" && location.pathname !== "/index.html") location.href = "/";
+          n.close();
+        };
+      } catch {
+        /* some browsers only notify from a service worker: the page's heads-up still shows */
+      }
+    }
+  }
+
   // ---- Live updates ----
   /** Listen to the server's live events: { fight_state: (data) => …, … } (one connection for the page). */
   let source = null;
@@ -576,6 +686,8 @@ window.GI = (() => {
     renderWallet();
     // Balances move with fights: keep the header current.
     GI.live({ fight_state: (d) => (["SETTLED", "VOIDED", "BETTING_OPEN"].includes(d.state) ? GI.refreshMe().catch(() => {}) : null) });
+    GI.live({ fight_state: (d) => followHeadsUp(d).catch(() => {}) });
+    GI.onMe(syncFollowButtons);
     return GI.me;
   })().catch((e) => {
     GI.toast(`Couldn't reach the server: ${e.message}`, "error");
