@@ -300,6 +300,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     const b = await db.bet.findUnique({ where: { userId_fightId: { userId: viewerId, fightId } } });
     if (b) myBet = { side: b.side, stake: b.stake.toFixed(0), status: b.status, returned: b.returned?.toFixed(0) ?? null };
   }
+  const myRecord = viewerId ? await backingRecord(db, viewerId, f.id, f.side1CharacterId, f.side2CharacterId) : null;
 
   // The announcer's lines before the fight, and its headline after (docs/ENGAGEMENT.md §1).
   const tournament = tm ? { roundName: roundName(tm.round, tm.tournament.size) } : null;
@@ -363,6 +364,8 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
           ? { kind: "voided", reason: f.voidReason, detail: f.voidDetail }
           : null,
     myBet,
+    /** The viewer's record backing each side's character before this fight (settled bets only). */
+    myRecord,
     bets,
     betsRevealed,
     story,
@@ -371,6 +374,24 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     finish,
     scouting: await scouting(db, f),
   };
+}
+
+/** A player's settled bets on each of two characters (on whichever side it fought), leaving out one fight. */
+export async function backingRecord(db: Db, userId: string, exceptFightId: string, c1: string, c2: string): Promise<Record<Side, { wins: number; losses: number }>> {
+  const rows = await db.$queryRaw<{ cid: string; wins: bigint; losses: bigint }[]>`
+    SELECT x.cid, COUNT(*) FILTER (WHERE x.won) AS wins, COUNT(*) FILTER (WHERE NOT x.won) AS losses
+    FROM (
+      SELECT (CASE WHEN b."side" = 1 THEN f."side1_character_id" ELSE f."side2_character_id" END)::text AS cid, (b."status" = 'WON') AS won
+      FROM "bet" b JOIN "fight" f ON f."id" = b."fight_id"
+      WHERE b."user_id" = ${userId}::uuid AND b."status" IN ('WON', 'LOST') AND b."fight_id" <> ${exceptFightId}::uuid
+    ) x
+    WHERE x.cid IN (${c1}, ${c2})
+    GROUP BY x.cid`;
+  const of = (c: string) => {
+    const r = rows.find((x) => x.cid === c);
+    return { wins: Number(r?.wins ?? 0n), losses: Number(r?.losses ?? 0n) };
+  };
+  return { 1: of(c1), 2: of(c2) };
 }
 
 /** The fight to show now: the newest unfinished one, else the newest finished one. */
