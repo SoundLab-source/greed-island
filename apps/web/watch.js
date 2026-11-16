@@ -422,11 +422,36 @@
     GI.renderGoals($("goals"), me?.goals);
   };
   GI.onMe(showGoals);
+
+  // The season race: where you stand on the season leaderboard and the Salt won it takes to climb a place.
+  const left = (t) => {
+    const ms = new Date(t) - Date.now();
+    if (ms <= 0) return "ending now";
+    const d = Math.floor(ms / 86_400_000), h = Math.floor((ms % 86_400_000) / 3_600_000), m = Math.floor((ms % 3_600_000) / 60_000);
+    return `${d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`} left`;
+  };
+  function showRace(me) {
+    const s = me?.season;
+    const el = $("race");
+    el.hidden = !s;
+    if (!s) return;
+    const head = `<span class="head"><span>Season ${s.number}</span><span>${left(s.endsAt)}</span></span>`;
+    const more = s.bets < s.minBets ? ` · ${s.minBets - s.bets} more bet${s.minBets - s.bets === 1 ? "" : "s"} to qualify for Top Bettor` : "";
+    let line;
+    if (s.rank === null) line = "Bet on a fight to join the season leaderboard.";
+    else if (s.rank === 1) line = `<b>You lead the season</b>${s.lead !== null ? ` by ${fmt(s.lead)} Salt` : ""}${more}`;
+    else line = `You're <b>#${s.rank}</b> of ${fmt(s.players)} · ${fmt(s.toPass.salt)} Salt won passes #${s.toPass.rank}${more}`;
+    el.innerHTML = `${head}<span>${line}</span>`;
+  }
+  GI.onMe(showRace);
+  setInterval(() => showRace(GI.me), 60_000);
   setInterval(() => showGoals(GI.me), 60_000); // the "new in 6h" countdown
 
   (async () => {
     wireControls();
-    showGoals(await GI.ready);
+    const me0 = await GI.ready;
+    showGoals(me0);
+    showRace(me0);
     await Promise.all([setupEmbeds(), refreshFight(), seedFeed().catch(() => {})]);
     connect();
     recaps().catch(() => {});

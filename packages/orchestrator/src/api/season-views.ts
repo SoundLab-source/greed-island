@@ -112,6 +112,20 @@ export async function mySeason(db: Db, config: Config, userId: string) {
   const s = await db.season.findFirst({ where: { status: "RUNNING" } });
   if (!s) return null;
   const { players } = await seasonRankings(db, s);
-  const mine = players.find((p) => p.userId === userId);
-  return { number: s.number, endsAt: s.endsAt, rank: mine?.rank ?? null, saltWon: (mine?.saltWon ?? 0n).toString(), bets: mine?.bets ?? 0, minBets: config.seasons.minBets };
+  const i = players.findIndex((p) => p.userId === userId);
+  const mine = i >= 0 ? players[i] : undefined;
+  // The race (the watch page): the Salt won it takes to pass the player just above, or the leader's lead.
+  const above = mine && i > 0 ? players[i - 1]! : null;
+  const below = mine && i === 0 ? players[1] : undefined;
+  return {
+    number: s.number,
+    endsAt: s.endsAt,
+    rank: mine?.rank ?? null,
+    saltWon: (mine?.saltWon ?? 0n).toString(),
+    bets: mine?.bets ?? 0,
+    minBets: config.seasons.minBets,
+    players: players.length,
+    toPass: above && mine ? { rank: above.rank, salt: (above.saltWon - mine.saltWon + 1n).toString() } : null,
+    lead: below && mine ? (mine.saltWon - below.saltWon).toString() : null,
+  };
 }
