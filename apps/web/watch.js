@@ -220,6 +220,7 @@
     const open = f.state === "BETTING_OPEN";
     $("bet1").disabled = $("bet2").disabled = !open;
     $("stake-currency").textContent = currency();
+    if (!f.myBet) restoreStake();
     const b = f.myBet;
     $("bet1").classList.toggle("mine", b?.side === 1);
     $("bet2").classList.toggle("mine", b?.side === 2);
@@ -245,9 +246,32 @@
       return;
     }
     el.classList.remove("urgent");
+    if (f.state === "IN_PROGRESS") return (el.textContent = roundLine(f));
     el.textContent =
       { BOOKED: "Betting opens soon", LOCKED: "Bets locked", IN_PROGRESS: "Fight on", SETTLING: "Deciding", VOIDING: "No contest" }[f.state] ??
       (f.result?.kind === "settled" ? `${f.sides[f.result.winnerSide].name} won` : f.result ? "No contest: bets refunded" : "");
+  }
+
+  // During the fight: the round being fought and the score in rounds, as on the stream's overlay.
+  const roundWins = (f, side) => (f.rounds ?? []).filter((r) => r.winnerSide === side).length;
+  function roundLine(f) {
+    if (!f.rounds || !f.roundsToWin) return "Fight on";
+    const w1 = roundWins(f, 1), w2 = roundWins(f, 2);
+    if (Math.max(w1, w2) >= f.roundsToWin) return `Fight over · ${w1}–${w2}`;
+    return `Round ${Math.min(f.rounds.length + 1, f.roundsToWin * 2 - 1)} · ${w1}–${w2}`;
+  }
+
+  // A round just ended: the score, and in the feed who took it (a ding when it went your way).
+  async function onRoundEnd(d) {
+    if (!fight || d.fightId !== fight.id || d.event.type !== "round_end") return;
+    await refreshFight().catch(() => {});
+    const e = d.event, f = fight;
+    if (!f || f.id !== d.fightId) return;
+    if (e.winnerSide === 0) return feed(`Fight #${f.number}, round ${e.round}: <b>a draw</b>`);
+    const how = e.reason === "ko" ? "by KO" : "on time";
+    const left = e.life ? `, ${Math.round(e.life[e.winnerSide - 1] / 10)}% life left` : "";
+    feed(`Fight #${f.number}, round ${e.round}: <b>${esc(f.sides[e.winnerSide].name)}</b> takes it ${how}${left}`);
+    if (f.myBet?.side === e.winnerSide) GI.sfx.play("ding");
   }
 
   async function refreshFight() {
@@ -272,6 +296,7 @@
     msg.textContent = "";
     try {
       const r = await api("POST", `/api/fights/${fight.id}/bets`, { side, stake: $("stake").value, idempotencyKey: crypto.randomUUID() });
+      saveStake(r.bet.stake);
       msg.className = "msg ok";
       msg.textContent = `Bet placed: ${fmt(r.bet.stake)} ${currency()} on ${side === 1 ? "Red" : "Blue"}.`;
       await Promise.all([refreshFight(), GI.refreshMe()]);
@@ -279,6 +304,28 @@
       msg.className = "msg error";
       msg.textContent = e.message;
     }
+  }
+
+  // The stake you last bet, per currency, offered again when the next fight opens (only while you can cover it).
+  const stakeKey = () => `gi_stake_${currency() === "T-Salt" ? "tsalt" : "salt"}`;
+  function saveStake(stake) {
+    try {
+      localStorage.setItem(stakeKey(), String(stake));
+    } catch {
+      /* private mode: the stake isn't remembered */
+    }
+  }
+  let stakeFor = null;
+  function restoreStake() {
+    if (!fight || fight.state !== "BETTING_OPEN" || stakeFor === fight.id || document.activeElement === $("stake")) return;
+    stakeFor = fight.id;
+    let saved = 0;
+    try {
+      saved = Math.floor(Number(localStorage.getItem(stakeKey())) || 0);
+    } catch {
+      return;
+    }
+    if (saved >= 1 && saved <= available()) $("stake").value = String(saved);
   }
 
   function wireControls() {
@@ -322,6 +369,7 @@
       },
       odds_live: () => refreshFight().catch(() => {}),
       bet: onBet,
+      engine_event: (d) => void onRoundEnd(d),
       odds_locked: async () => {
         await refreshFight().catch(() => {});
         const c = fight?.odds?.crowd;
