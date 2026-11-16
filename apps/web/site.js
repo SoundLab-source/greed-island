@@ -389,8 +389,9 @@ window.GI = (() => {
   );
 
   /**
-   * Sound effects, made in code with Web Audio (docs/ENGAGEMENT.md §5): a ding when betting opens, a crowd cheer on a
-   * result (a gasp and a bigger roar for an upset), and a "ka-ching" when your own bet wins. On by default but silent
+   * Sound effects, made in code with Web Audio (docs/ENGAGEMENT.md §5): a ding when betting opens, ticks over its last
+   * five seconds and a clang when bets lock, a crowd cheer on a result (a gasp and a bigger roar for an upset), and a
+   * "ka-ching" when your own bet wins. On by default but silent
    * until the player first clicks on the page (browsers require it); `GI.sfx.toggle()` turns it off and the choice is
    * remembered in this browser.
    */
@@ -454,6 +455,14 @@ window.GI = (() => {
         for (let i = 0; i < (big ? 6 : 3); i++) tone(500 + Math.random() * 500, 0.2 + Math.random() * 0.8, 0.5, "triangle", 0.05, 1.5);
       },
       gasp: () => noise(0, 0.6, { freq: 3000, q: 0.4, gain: 0.5, attack: 0.8, type: "highpass" }),
+      // The last seconds of betting: a short tick, higher on the final one.
+      tick: (last = false) => tone(last ? 1760 : 1175, 0, 0.07, "square", 0.08),
+      // Bets locked: a low metal clang.
+      lock: () => {
+        noise(0, 0.25, { freq: 1800, q: 6, gain: 0.35, attack: 0.02 });
+        tone(196, 0, 0.45, "triangle", 0.3, 0.8);
+        tone(392, 0.01, 0.3, "square", 0.06, 0.9);
+      },
       goal: () => {
         for (const [i, f] of [784, 988, 1175, 1568].entries()) tone(f, i * 0.09, i === 3 ? 0.6 : 0.2, "triangle", 0.22);
       },
