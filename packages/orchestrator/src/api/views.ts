@@ -31,7 +31,8 @@ import {
   type TitleCode,
   type UpgradeConfig,
 } from "@greed-island/shared";
-import { mySeason } from "./season-views.ts";
+import { mySeason, seasonTopRanks } from "./season-views.ts";
+import { fightMark, keptWhile } from "../view-cache.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
 import { signatureMoveName } from "../cards.ts";
 import { fightBreakdown, fightStory, scouting, storyFacts, type RoundRecord } from "../story.ts";
@@ -203,7 +204,40 @@ export async function characterProfile(db: Db, characterId: string, tiers?: Tier
 }
 
 /** Full view of one fight, optionally with the viewer's own bet. With the game folder, it knows signature moves' names. */
+/**
+ * A fight as the site shows it. Every viewer's page asks for it again at each step of the fight (the stream's events),
+ * so the part that's the same for everyone is worked out once per change of the fight or its bets (fight-cache.ts)
+ * and only the viewer's own bet is added per request.
+ */
 export async function fightView(db: Db, config: Config, fightId: string, viewerId?: string, ikemenDir?: string) {
+  const shared = await keptWhile(db, `fight:${fightId}`, await fightMark(db, fightId, `${config.bets.sidesLive}:${ikemenDir ?? ""}`), () => sharedFightView(db, config, fightId, ikemenDir), {
+    maxAgeMs: FIGHT_VIEW_MAX_AGE_MS,
+  });
+  if (!shared) return null;
+  const { betRows, betsRevealed, topRanks, ...view } = shared;
+  const mine = viewerId ? betRows.find((b) => b.userId === viewerId) : undefined;
+  return {
+    ...view,
+    myBet: mine ? { side: mine.side, stake: mine.stake.toFixed(0), status: mine.status, returned: mine.returned?.toFixed(0) ?? null } : null,
+    bets: betRows.map((b) => ({
+      id: b.id,
+      name: playerName(b.user),
+      bot: b.user.kind === "BOT",
+      /** The bettor's place on the running season's leaderboard, when in its top 10. */
+      seasonRank: topRanks.get(b.userId) ?? null,
+      stake: b.stake.toFixed(0),
+      side: betsRevealed || b.userId === viewerId ? b.side : null,
+      mine: b.userId === viewerId,
+      at: b.updatedAt,
+    })),
+    betsRevealed,
+  };
+}
+
+/** How long the shared part of a fight's view is kept at most, even with nothing new (its fighters' live cards). */
+const FIGHT_VIEW_MAX_AGE_MS = 10_000;
+
+async function sharedFightView(db: Db, config: Config, fightId: string, ikemenDir?: string) {
   const f = await db.fight.findUnique({
     where: { id: fightId },
     include: {
@@ -249,15 +283,6 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     include: { user: { select: { id: true, displayName: true, kind: true } } },
     orderBy: [{ stake: "desc" }, { updatedAt: "asc" }],
   });
-  const bets = betRows.map((b) => ({
-    id: b.id,
-    name: playerName(b.user),
-    bot: b.user.kind === "BOT",
-    stake: b.stake.toFixed(0),
-    side: betsRevealed || b.userId === viewerId ? b.side : null,
-    mine: b.userId === viewerId,
-    at: b.updatedAt,
-  }));
   const pool = { 1: 0n, 2: 0n };
   for (const b of betRows) pool[b.side as Side] += toSalt(b.stake);
 
@@ -294,12 +319,6 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   const challenge = await db.challenge.findUnique({ where: { fightId }, include: { challenger: true, challenged: true } });
   const reward = f.state === "SETTLED" ? await db.ledgerTxn.findUnique({ where: { idempotencyKey: `owner-reward:${fightId}` }, include: { entries: true } }) : null;
   const rewardAmount = reward ? reward.entries.reduce((n, e) => (e.amount.isPositive() ? n + toSalt(e.amount) : n), 0n) : null;
-
-  let myBet: unknown = null;
-  if (viewerId) {
-    const b = await db.bet.findUnique({ where: { userId_fightId: { userId: viewerId, fightId } } });
-    if (b) myBet = { side: b.side, stake: b.stake.toFixed(0), status: b.status, returned: b.returned?.toFixed(0) ?? null };
-  }
 
   // The announcer's lines before the fight, and its headline after (docs/ENGAGEMENT.md §1).
   const tournament = tm ? { roundName: roundName(tm.round, tm.tournament.size) } : null;
@@ -362,9 +381,9 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
         : f.state === "VOIDED"
           ? { kind: "voided", reason: f.voidReason, detail: f.voidDetail }
           : null,
-    myBet,
-    bets,
+    betRows,
     betsRevealed,
+    topRanks: await seasonTopRanks(db),
     story,
     /** After a settled fight: why it was won, up to three lines. */
     breakdown,

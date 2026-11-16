@@ -52,7 +52,8 @@ let mod: string;
 
 async function verified(email: string) {
   const u = (await createUser(db, { kind: "EMAIL", email }, testEconomy)).user;
-  await db.user.update({ where: { id: u.id }, data: { emailVerifiedAt: new Date() } });
+  // Joined well before the test's own clock (T0), not today: an account "created" after the clock would be too young to vote.
+  await db.user.update({ where: { id: u.id }, data: { emailVerifiedAt: new Date("2026-09-01T00:00:00Z"), createdAt: new Date("2026-09-01T00:00:00Z") } });
   return u.id;
 }
 

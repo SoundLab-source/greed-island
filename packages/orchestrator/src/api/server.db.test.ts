@@ -818,6 +818,9 @@ describe("bettor numbers and boards", () => {
     const mine = (await app.inject({ method: "GET", url: "/api/boards/calls", headers: s.auth })).json();
     expect(mine.winRate.me).toEqual({ rank: 0, name: "", value: 100, detail: 1 });
     expect(mine.streak.me).toMatchObject({ rank: 1, value: 1 });
+    // On the bets list, the season's top bettors wear their place.
+    const view = (await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json();
+    expect(view.bets).toEqual([expect.objectContaining({ name: "Caller", seasonRank: 1 })]);
   });
 });
 
