@@ -9,6 +9,7 @@ import {
   AuthError,
   claimBailout,
   claimDailyGrant,
+  economyReportFor,
   goalWorld,
   swapGoal,
   createUser,
@@ -470,6 +471,11 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   app.get("/api/staff/log", async (req, reply) => {
     await requireStaffViewer(req, "view_log");
     return send(reply, await staffLog(db));
+  });
+  // The Salt supply week by week (DESIGN §9: watch it weekly; db economy.ts).
+  app.get("/api/staff/economy", async (req, reply) => {
+    await requireStaffViewer(req, "view_log");
+    return send(reply, await economyReportFor(db, { weeks: 12 }));
   });
   app.get("/api/staff/members", async (req, reply) => {
     const viewer = await requireStaffViewer(req, "view_log");

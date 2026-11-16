@@ -446,6 +446,12 @@ describe("staff and custom names", () => {
     const log = (await app.inject({ method: "GET", url: "/api/staff/log", headers: modAuth })).json();
     expect(log.map((l: { kind: string }) => l.kind)).toEqual(["CHARACTER_NAME_RESET", "DISPLAY_NAME_RESET", "REVIEW_APPROVED", "ROLE_SET", "ROLE_SET"]);
     expect((await app.inject({ method: "GET", url: "/api/staff/log", headers: player.auth })).statusCode).toBe(403);
+    // The Salt supply report: staff only.
+    const economy = (await app.inject({ method: "GET", url: "/api/staff/economy", headers: modAuth })).json();
+    expect(economy.weeks).toHaveLength(12);
+    expect(economy.weeks[11].activePlayers).toBeGreaterThanOrEqual(0);
+    expect(typeof economy.advice).toBe("string");
+    expect((await app.inject({ method: "GET", url: "/api/staff/economy", headers: player.auth })).statusCode).toBe(403);
   });
 });
 

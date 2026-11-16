@@ -23,3 +23,4 @@ export * from "./releases.ts";
 export * from "./bettors.ts";
 export * from "./milestones.ts";
 export * from "./goals.ts";
+export * from "./economy.ts";

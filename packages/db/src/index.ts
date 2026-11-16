@@ -34,6 +34,7 @@ export {
 export { placeBet, listBets, toBetView, type BetView, type PlaceBetInput, type PlaceBetResult } from "./bets.ts";
 export { settleFightLedger, settleFightLedgerTx, voidFightLedger, voidFightLedgerTx, type SettleFightInput } from "./settlement.ts";
 export { auditLedger, type AuditReport, type AuditProblem } from "./audit.ts";
+export { economyReportFor, economyWeeks } from "./economy.ts";
 export {
   applyFightRating,
   createCharacter,
