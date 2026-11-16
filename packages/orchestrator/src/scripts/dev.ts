@@ -12,7 +12,7 @@ import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
 import { acquireOrchestratorLock } from "../lock.ts";
 import { loadObsConfig, ObsSceneSwitcher } from "../obs.ts";
-import { gameAnswers, loadTwitchChatConfig, TwitchChatBot } from "../twitch-chat.ts";
+import { chatAnnouncements, gameAnswers, loadTwitchChatConfig, TwitchChatBot } from "../twitch-chat.ts";
 import { loadFollowGame, loadLocalVideo, ObsGameCapture } from "../game-capture.ts";
 import { BotPlayers, loadBotCount } from "../bots.ts";
 import { Orchestrator } from "../orchestrator.ts";
@@ -141,6 +141,8 @@ await checks?.start();
 const chatConfig = loadTwitchChatConfig(twitchChannel, publicUrl);
 const chat = chatConfig ? new TwitchChatBot(chatConfig, { answer: gameAnswers(db, config, chatConfig.url) }) : null;
 chat?.start();
+// It also calls each fight in chat (bets open, locked, who won) unless GI_TWITCH_ANNOUNCE=false.
+const stopAnnouncing = chat && chatConfig && process.env["GI_TWITCH_ANNOUNCE"]?.trim().toLowerCase() !== "false" ? chatAnnouncements(bus, db, config, chatConfig.url, (t) => chat.say(t)) : null;
 
 // Bot players bet on every fight so the watch page is never empty (GI_BOTS, 0 turns them off).
 const botCount = loadBotCount();
@@ -167,6 +169,7 @@ async function shutdown(code = 0) {
   await step(checks?.stop());
   obs?.stop();
   capture?.stop();
+  stopAnnouncing?.();
   chat?.stop();
   bots?.stop();
   await step(app.close());

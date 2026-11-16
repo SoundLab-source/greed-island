@@ -16,6 +16,7 @@
 import type { Db } from "@greed-island/db";
 import { playerName, type Config, type Side } from "@greed-island/shared";
 import { currentFightId, fightView } from "./api/views.ts";
+import type { FightBus } from "./bus.ts";
 
 // ---------------------------------------------------------------------------
 // IRC lines
@@ -109,6 +110,8 @@ export interface ChatFight {
   sides: Record<Side, { name: string; tier: string; rating: number; wins: number; losses: number }>;
   /** Payouts, once there are odds. */
   odds: { multiplier: Record<Side, string>; chancePct: Record<Side, number> } | null;
+  /** How the players' Salt split, once betting has closed. */
+  crowd: { pct: Record<Side, number> } | null;
   winnerSide: Side | null;
 }
 
@@ -163,11 +166,58 @@ export const answerSalt = (url: string) => `Bet on every fight with Salt, free p
 export const answerCommands = () => "!fight (or !odds): the fight and its payouts · !fighter <name>: a fighter's record · !salt: how betting works";
 
 // ---------------------------------------------------------------------------
+// Announcements: the bot calls each fight in chat, as Salty Bet's does (bets open, bets locked, who won)
+
+export type ChatMoment = "open" | "locked" | "result";
+
+const mult = (m: string) => m.replace("x", "×");
+const corner = (s: Side) => (s === 1 ? "Red" : "Blue");
+const dot = (s: Side) => (s === 1 ? "🔴" : "🔵");
+
+/** The line for a moment of a fight, or null when there's nothing to say. */
+export function announce(moment: ChatMoment, f: ChatFight | null, url: string, now: Date, upsetChancePct = 30): string | null {
+  if (!f) return null;
+  if (moment === "open") {
+    if (f.state !== "BETTING_OPEN") return null;
+    const side = (s: Side) => `${dot(s)} ${f.sides[s].name}${f.odds ? ` ${mult(f.odds.multiplier[s])}` : ""}`;
+    const left = f.bettingClosesAt ? Math.max(0, Math.ceil((f.bettingClosesAt.getTime() - now.getTime()) / 1000)) : null;
+    return `Bets are OPEN! ${side(1)} vs ${side(2)} · #${f.number} ${f.label}${left ? ` · ${left}s` : ""} · bet free Salt at ${url}`;
+  }
+  if (moment === "locked") {
+    if (!f.odds) return null;
+    const crowd = f.crowd ? (f.crowd.pct[1] >= f.crowd.pct[2] ? `The crowd is ${f.crowd.pct[1]}% on Red. ` : `The crowd is ${f.crowd.pct[2]}% on Blue. `) : "";
+    return `Bets are LOCKED. ${crowd}Payouts: ${dot(1)} ${mult(f.odds.multiplier[1])} · ${dot(2)} ${mult(f.odds.multiplier[2])}`;
+  }
+  if (f.state === "VOIDED") return `#${f.number}: no contest, every bet refunded.`;
+  if (f.state !== "SETTLED" || !f.winnerSide) return null;
+  const w = f.winnerSide;
+  const upset = f.odds && f.odds.chancePct[w] <= upsetChancePct ? ` UPSET! (${Math.round(f.odds.chancePct[w])}% to win)` : "";
+  return `${dot(w)} ${f.sides[w].name} wins #${f.number}!${upset}${f.odds ? ` Payouts to Team ${corner(w)}: ${mult(f.odds.multiplier[w])}.` : ""}`;
+}
+
+/** Calls each fight in chat from the game's events. Returns a stop function. */
+export function chatAnnouncements(bus: FightBus, db: Db, config: Config, url: string, say: (text: string) => void, now: () => Date = () => new Date(), log: (m: string) => void = console.warn): () => void {
+  const upsetPct = config.bettors.upsetChanceBp / 100;
+  const call = (moment: ChatMoment, fightId: string) =>
+    chatFight(db, config, fightId)
+      .then((f) => {
+        const line = announce(moment, f, url, now(), upsetPct);
+        if (line) say(line);
+      })
+      .catch((err: Error) => log(`twitch chat: couldn't announce: ${err.message}`));
+  return bus.subscribe((e) => {
+    if (e.type === "fight_state" && e.state === "BETTING_OPEN") void call("open", e.fightId);
+    else if (e.type === "odds_locked") void call("locked", e.fightId);
+    else if (e.type === "fight_result") void call("result", e.fightId);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // The game's side
 
 /** The current fight as the bot describes it. */
-export async function chatFight(db: Db, config: Config): Promise<ChatFight | null> {
-  const id = await currentFightId(db);
+export async function chatFight(db: Db, config: Config, fightId?: string): Promise<ChatFight | null> {
+  const id = fightId ?? (await currentFightId(db));
   const v = id ? await fightView(db, config, id) : null;
   if (!v) return null;
   const side = (s: Side) => ({ name: v.sides[s].name, tier: v.sides[s].tier, rating: v.sides[s].rating, wins: v.sides[s].record.wins, losses: v.sides[s].record.losses });
@@ -180,7 +230,7 @@ export async function chatFight(db: Db, config: Config): Promise<ChatFight | nul
         : v.pairKind === "RIVALRY"
           ? "Rivalry rematch"
           : "Matchmaking";
-  const odds = v.odds as { multiplier: Record<Side, string>; chancePct: Record<Side, number> } | null;
+  const odds = v.odds as { multiplier: Record<Side, string>; chancePct: Record<Side, number>; crowd?: { pct: Record<Side, number> } | null } | null;
   return {
     number: v.number,
     label,
@@ -188,6 +238,7 @@ export async function chatFight(db: Db, config: Config): Promise<ChatFight | nul
     bettingClosesAt: v.times.bettingCloses ? new Date(v.times.bettingCloses) : null,
     sides: { 1: side(1), 2: side(2) },
     odds: odds ? { multiplier: odds.multiplier, chancePct: odds.chancePct } : null,
+    crowd: odds?.crowd ? { pct: odds.crowd.pct } : null,
     winnerSide: v.result && v.result.kind === "settled" ? (v.result.winnerSide as Side) : null,
   };
 }
@@ -241,6 +292,15 @@ export class ChatLimiter {
   private lastUser = new Map<string, number>();
   constructor(private readonly opts = { sameCommandMs: 10_000, perUserMs: 15_000, maxPer30s: 12, minGapMs: 1_500 }) {}
 
+  /** A line the bot says on its own (an announcement): only the overall budget and the gap apply. */
+  allowLine(now: number): boolean {
+    this.sent = this.sent.filter((t) => now - t < 30_000);
+    if (this.sent.length >= this.opts.maxPer30s) return false;
+    if (this.sent.length && now - this.sent[this.sent.length - 1]! < this.opts.minGapMs) return false;
+    this.sent.push(now);
+    return true;
+  }
+
   allow(commandKey: string, user: string, now: number): boolean {
     this.sent = this.sent.filter((t) => now - t < 30_000);
     if (this.sent.length >= this.opts.maxPer30s) return false;
@@ -280,6 +340,7 @@ export class TwitchChatBot {
   private retryMs = 2_000;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly limiter = new ChatLimiter();
+  private signedIn = false;
 
   constructor(
     private readonly cfg: TwitchChatConfig,
@@ -293,6 +354,7 @@ export class TwitchChatBot {
 
   stop(): void {
     this.stopped = true;
+    this.signedIn = false;
     if (this.timer) clearTimeout(this.timer);
     this.socket?.close();
     this.socket = null;
@@ -319,11 +381,23 @@ export class TwitchChatBot {
     ws.onerror = () => {};
     ws.onclose = () => {
       if (this.socket !== ws || this.stopped) return;
+      this.signedIn = false;
       this.socket = null;
       this.log(`disconnected; trying again in ${Math.round(this.retryMs / 1000)}s`);
       this.timer = setTimeout(() => this.open(), this.retryMs);
       this.retryMs = Math.min(this.retryMs * 2, 120_000);
     };
+  }
+
+  /** Says a line of its own in the channel (announcements), if signed in and within the chat budget; tries once more after a short wait. */
+  say(text: string, retry = true): void {
+    const ws = this.socket;
+    if (!ws || !this.signedIn) return;
+    if (this.limiter.allowLine((this.deps.now ?? Date.now)())) {
+      ws.send(`PRIVMSG #${this.cfg.channel} :${chatSafe(text)}`);
+    } else if (retry) {
+      setTimeout(() => this.say(text, false), 2_000);
+    }
   }
 
   /** Handles one line from Twitch (public for tests). */
@@ -336,6 +410,7 @@ export class TwitchChatBot {
         ws.send(`PONG :${msg.params[0] ?? "tmi.twitch.tv"}`);
         return;
       case "001":
+        this.signedIn = true;
         this.retryMs = 2_000;
         this.log(`signed in as ${this.cfg.login}, answering in #${this.cfg.channel}`);
         return;

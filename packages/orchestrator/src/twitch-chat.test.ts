@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  announce,
   answerFight,
   answerFighter,
   chatSafe,
@@ -22,6 +23,7 @@ const fight = (over: Partial<ChatFight> = {}): ChatFight => ({
   bettingClosesAt: new Date(NOW.getTime() + 42_000),
   sides: { 1: { name: "Free Loot", tier: "A", rating: 1640, wins: 12, losses: 5 }, 2: { name: "Hot Takes", tier: "A", rating: 1610, wins: 9, losses: 7 } },
   odds: { multiplier: { 1: "1.71x", 2: "2.21x" }, chancePct: { 1: 55.5, 2: 44.5 } },
+  crowd: null,
   winnerSide: null,
   ...over,
 });
@@ -120,6 +122,21 @@ class FakeSocket implements ChatSocket {
   }
 }
 
+describe("announcements", () => {
+  it("calls bets open, bets locked with the crowd, and the winner, with an upset called out", () => {
+    expect(announce("open", fight(), URL, NOW)).toBe("Bets are OPEN! 🔴 Free Loot 1.71× vs 🔵 Hot Takes 2.21× · #412 Matchmaking · 42s · bet free Salt at https://play.example.gg");
+    expect(announce("open", fight({ state: "LOCKED" }), URL, NOW)).toBeNull();
+    expect(announce("locked", fight({ state: "LOCKED", crowd: { pct: { 1: 28, 2: 72 } } }), URL, NOW)).toBe("Bets are LOCKED. The crowd is 72% on Blue. Payouts: 🔴 1.71× · 🔵 2.21×");
+    expect(announce("locked", fight({ state: "LOCKED", odds: null }), URL, NOW)).toBeNull();
+    expect(announce("result", fight({ state: "SETTLED", winnerSide: 1 }), URL, NOW)).toBe("🔴 Free Loot wins #412! Payouts to Team Red: 1.71×.");
+    const upset = fight({ state: "SETTLED", winnerSide: 2, odds: { multiplier: { 1: "1.15x", 2: "4.80x" }, chancePct: { 1: 80, 2: 20 } } });
+    expect(announce("result", upset, URL, NOW)).toBe("🔵 Hot Takes wins #412! UPSET! (20% to win) Payouts to Team Blue: 4.80×.");
+    expect(announce("result", fight({ state: "VOIDED" }), URL, NOW)).toBe("#412: no contest, every bet refunded.");
+    expect(announce("result", fight({ state: "IN_PROGRESS" }), URL, NOW)).toBeNull();
+    expect(announce("open", null, URL, NOW)).toBeNull();
+  });
+});
+
 describe("the bot", () => {
   const cfg = { channel: "greedislandgg", login: "gibot", token: "abc123", url: URL };
   const setup = () => {
@@ -143,6 +160,17 @@ describe("the bot", () => {
     await bot.onLine("@id=x;y :gibot!gibot@gibot.tmi.twitch.tv PRIVMSG #greedislandgg :!odds");
     await bot.onLine("@id=bad\\sid :other!other@other.tmi.twitch.tv PRIVMSG #greedislandgg :!salt");
     expect(socket.sent).toEqual(["PONG :tmi.twitch.tv", "@reply-parent-msg-id=885196de-cb67-427a-baa8-82f9b0fcd05f PRIVMSG #greedislandgg :answer to fight", "PRIVMSG #greedislandgg :answer to salt"]);
+    bot.stop();
+  });
+
+  it("says its own lines only once signed in, within the chat budget", async () => {
+    const { bot, socket } = setup();
+    socket.sent = [];
+    bot.say("Bets are OPEN!");
+    expect(socket.sent).toEqual([]); // not signed in yet
+    await bot.onLine(":tmi.twitch.tv 001 gibot :Welcome, GLHF!");
+    bot.say("Bets are OPEN!\r\nPRIVMSG #other :sneaky");
+    expect(socket.sent).toEqual(["PRIVMSG #greedislandgg :Bets are OPEN! PRIVMSG #other :sneaky"]);
     bot.stop();
   });
 
