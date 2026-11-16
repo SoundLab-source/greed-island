@@ -101,7 +101,8 @@ import { characterCardData, fighterCardData, renderCard, type CardData } from ".
 import { collectionView, markSeen } from "../collection.ts";
 import { callBoards, myBettorStats } from "../bettor-stats.ts";
 import { recapFor, recapLines } from "../recap.ts";
-import { shareImage } from "../share-image.ts";
+import { callImage, shareImage } from "../share-image.ts";
+import { callData, callMeta } from "../calls.ts";
 import { fillSharePage, shareMeta } from "./share-page.ts";
 import { lookCharacterId } from "../look-sprites.ts";
 import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
@@ -702,8 +703,24 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     if (!card) throw new HttpError(404, "NOT_FOUND", "no such fighter");
     return reply.type("image/png").header("cache-control", "public, max-age=300").send(shareImage(card));
   });
+  // A right call, to show off (calls.ts): its facts, its link-preview picture and its page (apps/web/call.html).
+  const callOf = async (raw: string) => {
+    const id = uuid.safeParse(raw);
+    const c = id.success ? await callData(db, id.data, config.bettors.upsetChanceBp) : null;
+    if (!c) throw new HttpError(404, "NOT_FOUND", "no such call");
+    return c;
+  };
+  app.get<{ Params: { id: string } }>("/api/calls/:id", async (req, reply) => send(reply, await callOf(req.params.id)));
+  app.get<{ Params: { id: string } }>("/api/calls/:id/share.png", async (req, reply) =>
+    reply.type("image/png").header("cache-control", "public, max-age=3600").send(callImage(await callOf(req.params.id))),
+  );
   // The share page for a character's card (apps/web/card.html), with the link-preview tags filled in for it.
   const webRoot = deps.webRoot ?? path.join(REPO_ROOT, "apps", "web");
+  app.get<{ Params: { id: string } }>("/call/:id", async (req, reply) => {
+    const c = await callOf(req.params.id);
+    const html = fillSharePage(await readFile(path.join(webRoot, "call.html"), "utf8"), callMeta(c, publicUrl));
+    return reply.type("text/html; charset=utf-8").header("cache-control", "no-cache").send(html);
+  });
   app.get<{ Params: { id: string } }>("/card/:id", async (req, reply) => {
     const id = uuid.safeParse(req.params.id);
     const card = id.success ? await characterCardData(db, deps.ikemenDir, id.data) : null;

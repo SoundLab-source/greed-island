@@ -41,7 +41,7 @@ export function shareMeta(card: CardData, characterId: string, publicUrl: string
 /** The page with its preview tags for this card (the page's own block, between the markers, is replaced). */
 export function fillSharePage(html: string, m: ShareMeta): string {
   const start = html.indexOf(START), end = html.indexOf(END);
-  if (start < 0 || end < start) throw new Error("card.html has no share-meta block");
+  if (start < 0 || end < start) throw new Error("the share page has no share-meta block");
   const tags = [
     `<title>${esc(m.title)}</title>`,
     `<meta name="description" content="${esc(m.description)}">`,

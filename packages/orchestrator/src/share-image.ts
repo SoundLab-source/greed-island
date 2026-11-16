@@ -5,6 +5,7 @@
  * takes the card's data (cards.ts).
  */
 import { drawText, GLYPH_HEIGHT, hasGlyph, readPng, textWidth, toRgba, writePng } from "@greed-island/engine";
+import type { CallData } from "./calls.ts";
 import { STYLE_COLORS, type CardData } from "./cards.ts";
 import { STYLE_NAME } from "./story.ts";
 
@@ -205,5 +206,56 @@ export function shareImage(c: CardData): Buffer {
   cv.rect(W - 14, 0, W, H, frame);
   for (const [a, b, c2, d] of [[14, 14, W - 14, 16], [14, H - 16, W - 14, H - 14], [14, 14, 16, H - 14], [W - 16, 14, W - 14, H - 14]] as const) cv.rect(a, b, c2, d, edge, 0.8);
 
+  return writePng({ width: W, height: H, colorType: 2, pixels: cv.px });
+}
+
+const RED: Rgb = [255, 77, 94];
+const BLUE: Rgb = [77, 143, 255];
+const GREEN: Rgb = [61, 220, 132];
+
+/**
+ * A right call as a link preview (calls.ts): "ALICE CALLED IT", who beat whom, the chance and the multiplier, and the
+ * Salt won, big, on the called side's colour.
+ */
+export function callImage(c: CallData): Buffer {
+  const W = SHARE_W, H = SHARE_H;
+  const side = c.side === 1 ? RED : BLUE;
+  const cv = new Canvas(W, H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const d = Math.hypot(x - W * 0.25, (y - H * 0.4) * 1.2) / 900;
+      const px = mix(NIGHT, side, d < 1 ? (1 - d) ** 2 * 0.35 : 0);
+      const i = (y * W + x) * 3;
+      cv.px[i] = Math.round(px[0]);
+      cv.px[i + 1] = Math.round(px[1]);
+      cv.px[i + 2] = Math.round(px[2]);
+    }
+  }
+  const x0 = 72, room = W - 2 * x0;
+  let y = 60;
+  cv.text(c.upset ? "UPSET CALLED" : "CALLED IT", x0, y, 5, c.upset ? GOLD : side);
+  y += 64;
+  const who = nameLayout(c.player, room, 12, 5);
+  who.lines.forEach((line, i) => {
+    if (i > 0) y += GLYPH_HEIGHT * who.scale + 10;
+    cv.text(line, x0, y, who.scale, WHITE);
+  });
+  y += GLYPH_HEIGHT * who.scale + 30;
+  const beat = `${c.winner} beat ${c.loser}`;
+  const s = scaleToFit(beat, room, 5, 3);
+  cv.text(clip(beat, room, s), x0, y, s, WHITE);
+  y += GLYPH_HEIGHT * s + 18;
+  cv.text(clip(`FIGHT ${c.fightNumber} - ${c.chancePct}% TO WIN - PAID ${c.multiplier.toUpperCase()}`, room, 3), x0, y, 3, DIM);
+  y += 56;
+  const won = `+${Number(c.profit).toLocaleString("en-US")} ${c.currency}`;
+  cv.text(clip(won, room, scaleToFit(won, room, 12, 5)), x0, y, scaleToFit(won, room, 12, 5), GREEN);
+
+  cv.text("GREED ISLAND", x0, H - 92, 5, GOLD);
+  const tag = "AI FIGHTERS - FREE PLAY MONEY";
+  cv.text(tag, W - x0 - textWidth(fontSafe(tag), 3), H - 84, 3, DIM);
+  cv.rect(0, 0, W, 14, side);
+  cv.rect(0, H - 14, W, H, side);
+  cv.rect(0, 0, 14, H, side);
+  cv.rect(W - 14, 0, W, H, side);
   return writePng({ width: W, height: H, colorType: 2, pixels: cv.px });
 }
