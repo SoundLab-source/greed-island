@@ -211,6 +211,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         S: numberFromEnv(env, "GI_TIER_S", DEFAULT_TIERS.thresholds.S),
       },
       hysteresis: numberFromEnv(env, "GI_TIER_HYSTERESIS", DEFAULT_TIERS.hysteresis),
+      placementFights: numberFromEnv(env, "GI_TIER_PLACEMENT_FIGHTS", DEFAULT_TIERS.placementFights),
     }),
     odds: validateOdds({
       marginBp: saltFromEnv(env, "GI_MARGIN_BP", DEFAULT_ODDS.marginBp),

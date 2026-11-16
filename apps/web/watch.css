@@ -53,8 +53,10 @@
 /* One column that never grows past its share: the fight label gives way (…) rather than pushing under the Blue card. */
 .center { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; align-content: center; min-width: 0; }
 .fightline { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: 11px; color: var(--dim); }
-.fightline #fight-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.countdown { font-size: 20px; color: var(--ink); letter-spacing: 0; white-space: nowrap; }
+.fightline #fight-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.countdown { font-size: 20px; color: var(--ink); letter-spacing: 0; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Words in place of the clock ("Bets locked", "Crimson Mongoose won"): smaller, so a long name can't run under the Sound button. */
+.countdown.word { font-size: 14px; white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
 .countdown.urgent { color: var(--red); }
 .stakebox { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 8px; align-items: center; }
 .stakebox label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); }
@@ -127,6 +129,9 @@
   .layout { grid-template-columns: 210px minmax(0, 1fr) 280px; }
   .betbar { grid-template-columns: minmax(0, 1fr) minmax(230px, 270px) minmax(0, 1fr); }
   .side .plate .name { font-size: 14px; }
+  /* The bet buttons are narrowest here: a name wraps onto a second line rather than being cut to "Grape ...". */
+  .side .plate { padding-left: 8px; padding-right: 8px; }
+  .side .plate .name { white-space: normal; overflow-wrap: break-word; hyphens: auto; line-height: 1.15; }
 }
 /* Side by side, a name and its payout need about 300px a side, so on anything narrower (laptops, tablets, phones)
    each payout goes under its name. */
