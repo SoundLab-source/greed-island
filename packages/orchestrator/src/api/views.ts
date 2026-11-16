@@ -219,7 +219,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   const mine = viewerId ? betRows.find((b) => b.userId === viewerId) : undefined;
   return {
     ...view,
-    myBet: mine ? { side: mine.side, stake: mine.stake.toFixed(0), status: mine.status, returned: mine.returned?.toFixed(0) ?? null } : null,
+    myBet: mine ? { id: mine.id, side: mine.side, stake: mine.stake.toFixed(0), status: mine.status, returned: mine.returned?.toFixed(0) ?? null } : null,
     bets: betRows.map((b) => ({
       id: b.id,
       name: playerName(b.user),
@@ -481,6 +481,7 @@ export async function betHistory(db: Db, userId: string, take = 50) {
     include: { fight: { select: { number: true, state: true, tournamentMatchId: true } } },
   });
   return bets.map((b) => ({
+    id: b.id,
     fightId: b.fightId,
     fightNumber: b.fight.number,
     fightState: b.fight.state,

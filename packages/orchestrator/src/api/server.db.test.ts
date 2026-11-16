@@ -176,7 +176,7 @@ describe("fights and bets", () => {
     expect((await bet(2, 80, "key-00000002")).json()).toMatchObject({ bet: { side: 2, stake: "80" }, balance: "320" });
     expect((await bet(2, 80, "key-00000002")).json()).toMatchObject({ replayed: true, balance: "320" });
     const view = (await app.inject({ method: "GET", url: `/api/fights/${f.id}`, headers: s.auth })).json();
-    expect(view.myBet).toEqual({ side: 2, stake: "80", status: "OPEN", returned: null });
+    expect(view.myBet).toEqual({ id: expect.any(String), side: 2, stake: "80", status: "OPEN", returned: null });
     const history = (await app.inject({ method: "GET", url: "/api/me/bets", headers: s.auth })).json();
     expect(history).toHaveLength(1);
   });
@@ -826,6 +826,18 @@ describe("bettor numbers and boards", () => {
     expect(mine.streak.me).toMatchObject({ rank: 1, value: 1 });
     const today = (await app.inject({ method: "GET", url: "/api/boards/today" })).json();
     expect(today.rows).toEqual([{ rank: 1, name: "Caller", profit: "18", bets: 1 }]);
+
+    // The right call, to share: its facts, its picture and its page with the link preview filled in.
+    const [won] = (await app.inject({ method: "GET", url: "/api/me/bets", headers: s.auth })).json();
+    const call = (await app.inject({ method: "GET", url: `/api/calls/${won.id}` })).json();
+    expect(call).toMatchObject({ betId: won.id, player: "Caller", side: 1, stake: "20", returned: "38", profit: "18", currency: "Salt" });
+    const png = await app.inject({ method: "GET", url: `/api/calls/${won.id}/share.png` });
+    expect(png.headers["content-type"]).toBe("image/png");
+    expect(png.rawPayload.subarray(1, 4).toString()).toBe("PNG");
+    const page = await app.inject({ method: "GET", url: `/call/${won.id}` });
+    expect(page.body).toContain(`<meta property="og:image" content="https://gi.test/api/calls/${won.id}/share.png">`);
+    expect(page.body).toContain("<title>Caller called it");
+    for (const url of [`/api/calls/${randomUUID()}`, "/api/calls/nope", `/call/${randomUUID()}`]) expect((await app.inject({ method: "GET", url })).statusCode).toBe(404);
   });
 
   it("shows the player's run of right calls with their account", async () => {

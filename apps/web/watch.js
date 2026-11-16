@@ -225,7 +225,7 @@
     $("bet1").classList.toggle("mine", b?.side === 1);
     $("bet2").classList.toggle("mine", b?.side === 2);
     $("my-bet").innerHTML = callStreakChip() + (b
-      ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${f.odds?.crowd?.against === b.side ? ", against the crowd" : ""}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}`
+      ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${f.odds?.crowd?.against === b.side ? ", against the crowd" : ""}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}${b.status === "WON" && b.id ? ` · <a class="share-call" href="/call/${encodeURIComponent(b.id)}" target="_blank" rel="noopener">Share your call</a>` : ""}`
       : open
         ? "Pick a stake, then click a side. You can change it until betting closes."
         : "");
