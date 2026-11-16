@@ -55,3 +55,18 @@ The scene switcher is `packages/orchestrator/src/obs.ts`; its tests run against 
 | Recording | RUN | `SetRecordDirectory`, `StartRecord`, `StopRecord`: 1920x1080 H.264 60 fps with AAC sound; `GetStats` showed 0 skipped output frames, 480 of 3,970 skipped render frames (36 fps) under emulation. |
 | Streaming to Twitch from Linux | UNVERIFIED | Not tried yet (no stream key). |
 
+
+## Twitch chat (the chat bot)
+
+Code: `packages/orchestrator/src/twitch-chat.ts` (`TwitchChatBot`). Sources: dev.twitch.tv/docs/chat/irc and dev.twitch.tv/docs/chat, read 2026-11-16.
+
+| Item | Status | Finding |
+|---|---|---|
+| Endpoint | SOURCE | `wss://irc-ws.chat.twitch.tv:443` (IRC over WebSocket; the non-SSL WebSocket endpoint is unavailable). |
+| Sign-in | SOURCE | `PASS oauth:<user access token>`, then `NICK <login, lowercase>`; the other order fails with "Improperly formatted auth". Then `CAP REQ :twitch.tv/tags twitch.tv/commands` (tags needs commands) and `JOIN #<channel>`. |
+| Token scopes | SOURCE | `chat:read` to read chat over IRC, `chat:edit` to send. |
+| Keep-alive | SOURCE | The server sends `PING :tmi.twitch.tv`; answer `PONG :tmi.twitch.tv` or it closes the connection. |
+| Messages | SOURCE | Incoming: `@...;display-name=...;id=<message id>;... :nick!nick@nick.tmi.twitch.tv PRIVMSG #channel :text`. Sending: `PRIVMSG #<channel> :<text>`; a reply puts the parent's id in a `@reply-parent-msg-id=<id>` tag. |
+| Rate limits | SOURCE | A normal account: at most 20 messages per 30 seconds and 1 per second per channel (100 per 30 s as broadcaster, moderator or VIP). Sending faster can drop messages or close the connection. The bot sends at most 12 per 30 s, 1.5 s apart, each command once per 10 s and each viewer once per 15 s, and drops what doesn't fit rather than queueing. |
+| Which interface | SOURCE | Twitch now prefers EventSub plus the Twitch API for chat, but IRC still works and needs no app registration; we use IRC. |
+| A real channel | UNVERIFIED | Not tried against Twitch yet (needs a bot account and its token). The `001` welcome and the NOTICE text on a failed sign-in ("Login authentication failed") are as Twitch's docs show them, not yet seen live. |

@@ -16,7 +16,7 @@ Phase 3: Community roster (see DESIGN.md §13): all seven steps of its plan are 
 - `packages/orchestrator`: match cycle, state machine, matchmaking, betting, settlement, reconcile, API + SSE
 - `apps/web`: the player site (plain HTML/JS, no build step; shared `site.css`/`site.js`): home = watch and bet (`index.html`), `shop.html`, `fighters.html`, `fighter.html`, `rankings.html`, `collection.html` (the card collection), `card.html` (a card's share page, served at `/card/<id>`), `vote.html`, `account.html`, `how-to-play.html`, `terms.html`, `privacy.html`; plus the stream overlay (`overlay.html`) for OBS, the staff page (`staff.html`), the fighter submission page (`submit.html`) and the plain dev page (`dev.html`)
 - `ikemen/mods/`: Lua event mod copied into IKEMEN's `external/mods/`
-- `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, PHASE3, ENGAGEMENT (a proposal), ikemen-notes, obs-notes, nft-notes
+- `docs/`: DESIGN, ARCHITECTURE, SETUP, PHASE2, PHASE3, ENGAGEMENT (a proposal), ikemen-notes, obs-notes (OBS and Twitch chat), nft-notes
 
 ## Commands
 <!-- Claude: keep this list accurate as scripts are added. -->
@@ -52,7 +52,7 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.
 
 - `pnpm demo`: migrate, sync roster, then 12 fights on the dev DB with the fake engine and 3 demo players betting (one forced crash → void); prints results, ratings, tier changes, titles earned and the ledger audit; exits non-zero unless ≥10 settle, ≥1 voids and the audit passes
-- `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + player site at http://127.0.0.1:3000 (dev page at `/dev.html`) and the stream overlay at `/overlay.html` (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`; `GI_OBS_URL` to switch OBS scenes; `GI_LOCAL_VIDEO=true` for the local preview: the watch page plays OBS's Virtual Camera, pointed at each fight's game window, docs/SETUP.md §5; `GI_BOTS` bot players, 40 by default, bet on every fight so the bets list is never empty: `orchestrator/src/bots.ts`, marked as bots, left out of leaderboards, prizes and the crowd numbers; `GI_BETS_LIVE=true` shows everyone's sides while betting is open, not just at lock). Ctrl+C voids and refunds the fight in progress.
+- `pnpm dev`: migrate, sync roster, then the orchestrator + API + SSE + player site at http://127.0.0.1:3000 (dev page at `/dev.html`) and the stream overlay at `/overlay.html` (`ENGINE_MODE=fake` default, or `live` with IKEMEN_DIR; `GI_PORT`, `GI_HOST`; `GI_OBS_URL` to switch OBS scenes; `GI_LOCAL_VIDEO=true` for the local preview: the watch page plays OBS's Virtual Camera, pointed at each fight's game window, docs/SETUP.md §5; `GI_BOTS` bot players, 40 by default, bet on every fight so the bets list is never empty: `orchestrator/src/bots.ts`, marked as bots, left out of leaderboards, prizes and the crowd numbers; `GI_BETS_LIVE=true` shows everyone's sides while betting is open, not just at lock; `GI_TWITCH_BOT_LOGIN` and `GI_TWITCH_BOT_TOKEN` with `GI_TWITCH_CHANNEL` start the chat bot: `orchestrator/src/twitch-chat.ts`, docs/DEPLOY.md §6). Ctrl+C voids and refunds the fight in progress.
 
 ## Hard rules
 - **Salt is closed-loop.** No code path may buy, sell, deposit, withdraw or convert Salt. No payment code, and no blockchain code except docs/PHASE3.md step 7's read-only holder verification (never a transaction). T-Salt (tournament balance) never converts to Salt: every ledger transaction stays in one book.
@@ -61,7 +61,7 @@ Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `
 - **Match state changes** go through the pure `transition(state, event)` function, one DB transaction each, with optimistic concurrency and an audit row.
 - **Winners are sides, not names.** Map winning side to character ID from what the runner launched; never parse display names to settle bets.
 - **Loadouts are frozen** when betting opens; every fight stores a snapshot of both loadouts, ratings and tiers.
-- **IKEMEN, OBS and NFT/wallet facts must be verified** in source, the official docs or by a real run (`docs/ikemen-notes.md`, `docs/obs-notes.md`, `docs/nft-notes.md`). Anything unverified is marked UNVERIFIED in those notes and kept behind an adapter. Never invent flags, config keys or Lua functions.
+- **IKEMEN, OBS, Twitch and NFT/wallet facts must be verified** in source, the official docs or by a real run (`docs/ikemen-notes.md`, `docs/obs-notes.md`, `docs/nft-notes.md`). Anything unverified is marked UNVERIFIED in those notes and kept behind an adapter. Never invent flags, config keys or Lua functions.
 - Spawn the engine with an argument array, never a shell string.
 - Never commit IKEMEN binaries, characters, stages, downloaded art (`art/sources/`), submitted images (`submissions/`), NFT look images (`looks/`) or secrets. Submitted images are untrusted: check them as PNG from their bytes, never build paths from what a submitter typed, and serve them only to their submitter and staff.
 
