@@ -193,3 +193,8 @@
 /* A season top-10 bettor's place, by their name on the bets list. */
 .rank-badge { display: inline-block; margin-right: 5px; padding: 0 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); color: var(--dim); font-size: 10px; font-weight: 800; vertical-align: 1px; }
 .rank-badge.top { background: linear-gradient(90deg, #ff9a3c, var(--gold)); color: #241a00; }
+
+/* A newcomer's first bet: the sides pulse gently until one is picked (not for people who ask for less motion). */
+@keyframes side-nudge { 0%, 100% { box-shadow: 0 0 0 0 rgba(246, 201, 69, 0); } 50% { box-shadow: 0 0 0 4px rgba(246, 201, 69, 0.45); } }
+.side.nudge:not(:disabled) { animation: side-nudge 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .side.nudge:not(:disabled) { animation: none; outline: 2px solid rgba(246, 201, 69, 0.6); } }
