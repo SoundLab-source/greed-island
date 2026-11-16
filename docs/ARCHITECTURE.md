@@ -130,7 +130,7 @@ Fastify, same process as the orchestrator (they share the event bus). `GET /api/
 |---|---|
 | `POST /api/session` | New anonymous player + token |
 | `POST /api/auth/email`, `POST /api/auth/verify`, `POST /api/auth/logout` | Send a sign-in link (`{email}`), redeem it (`{token}` → session token), sign out this device |
-| `GET /api/me`, `GET /api/me/bets` | Balance, open stakes, grant/bailout availability; bet history |
+| `GET /api/me`, `GET /api/me/bets` | Balance, open stakes, grant/bailout availability, the current run of right calls (`callStreak`); bet history |
 | `POST /api/me/daily-grant`, `POST /api/me/bailout` | Faucets |
 | `GET /api/fights/current`, `GET /api/fights/:id` | Fighters (frozen loadout once betting opens), tier, rating, record, win rate, last-10 form, head-to-head, odds (live model estimate before lock; locked odds, everyone's pools and crowd chance after), rounds, result, the viewer's bet, and everyone's bets (`bets`: name, bot or not, stake, and side once `betsRevealed`: at lock, or always with `GI_BETS_LIVE=true`; the viewer always sees their own) |
 | `POST /api/fights/:id/bets` | `{side, stake, idempotencyKey}`; latest bet counts until lock |
