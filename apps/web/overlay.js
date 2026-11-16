@@ -157,6 +157,16 @@
     }
   }
 
+  /** "Alice 2,000 on Red · Bo 1,500 on Blue": each side's biggest player bet, once sides are revealed; "" if none. */
+  function biggestBets(f) {
+    const parts = [];
+    for (const side of [1, 2]) {
+      const top = (f.bets ?? []).filter((b) => b.side === side && !b.bot).sort((a, b) => Number(b.stake) - Number(a.stake))[0];
+      if (top) parts.push(`<b>${esc(top.name)}</b> ${Number(top.stake).toLocaleString("en-US")} on <b class="${side === 1 ? "red" : "blue"}">${side === 1 ? "Red" : "Blue"}</b>`);
+    }
+    return parts.join(" · ");
+  }
+
   function renderClock() {
     const el = $("status");
     el.innerHTML = statusHtml(fight);
@@ -346,6 +356,9 @@
       await refreshFight();
       const c = fight && crowd(fight);
       if (c) toast(`<span>Bets locked · <b>the crowd is ${crowdText(c)}</b></span>`);
+      // The biggest player bet on each side (bots never headline), now that sides show.
+      const big = fight && biggestBets(fight);
+      if (big) setTimeout(() => toast(`<span>Biggest bets: ${big}</span>`), 1500);
     });
     es.addEventListener("engine_event", (e) => {
       if (JSON.parse(e.data).event.type === "round_end") refreshFight();
