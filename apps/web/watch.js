@@ -238,6 +238,7 @@
     const el = $("countdown");
     const f = fight;
     if (!f) return (el.textContent = "");
+    el.classList.toggle("word", f.state !== "BETTING_OPEN");
     if (f.state === "BETTING_OPEN") {
       const left = Math.max(0, Math.ceil((new Date(f.times.bettingCloses) - Date.now()) / 1000));
       el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
@@ -248,6 +249,7 @@
     el.textContent =
       { BOOKED: "Betting opens soon", LOCKED: "Bets locked", IN_PROGRESS: "Fight on", SETTLING: "Deciding", VOIDING: "No contest" }[f.state] ??
       (f.result?.kind === "settled" ? `${f.sides[f.result.winnerSide].name} won` : f.result ? "No contest: bets refunded" : "");
+    el.title = el.textContent;
   }
 
   async function refreshFight() {

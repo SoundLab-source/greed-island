@@ -15,12 +15,19 @@ export interface TierConfig {
    * below the tier's threshold, so ratings near a boundary don't flip every fight.
    */
   hysteresis: number;
+  /**
+   * Placement fights: a character's tier holds until it has finished this many fights. A new character's rating moves
+   * hundreds of points on its first result (its deviation starts high), so without this one lucky win took a new
+   * fighter from B to A, with an "A-Tier" title, and one loss dropped it to P. 0 turns placement off.
+   */
+  placementFights: number;
 }
 
 /** Open question (DESIGN §7 gives no numbers): defaults around the 1500 start. */
 export const DEFAULT_TIERS: Readonly<TierConfig> = Object.freeze({
   thresholds: Object.freeze({ B: 1450, A: 1600, S: 1750 }),
   hysteresis: 25,
+  placementFights: 5,
 });
 
 const rank = (t: BandTier) => BAND_TIERS.indexOf(t);
@@ -29,6 +36,7 @@ export function validateTiers(cfg: TierConfig): TierConfig {
   const { B, A, S } = cfg.thresholds;
   if (!(B < A && A < S)) throw new Error(`tier thresholds must increase: B ${B} < A ${A} < S ${S}`);
   if (cfg.hysteresis < 0) throw new Error("tier hysteresis must be >= 0");
+  if (!Number.isInteger(cfg.placementFights) || cfg.placementFights < 0) throw new Error("tier placement fights must be a whole number >= 0");
   return cfg;
 }
 
@@ -41,9 +49,18 @@ export function tierForRating(rating: number, cfg: TierConfig = DEFAULT_TIERS): 
   return "P";
 }
 
-/** Tier after a rating change. Promotion is immediate; demotion waits for the buffer. */
-export function nextTier(current: Tier, rating: number, cfg: TierConfig = DEFAULT_TIERS): Tier {
+/** Still in its placement fights, given the fights it has finished (this one included). */
+export function inPlacement(fightsPlayed: number, cfg: Pick<TierConfig, "placementFights"> = DEFAULT_TIERS): boolean {
+  return fightsPlayed < cfg.placementFights;
+}
+
+/**
+ * Tier after a rating change. Promotion is immediate; demotion waits for the buffer. With `fightsPlayed` (its finished
+ * fights, this one included), the tier holds during placement and is decided by its rating when placement ends.
+ */
+export function nextTier(current: Tier, rating: number, cfg: TierConfig = DEFAULT_TIERS, fightsPlayed?: number): Tier {
   if (current === "X") return "X";
+  if (fightsPlayed !== undefined && inPlacement(fightsPlayed, cfg)) return current;
   const promoted = tierForRating(rating, cfg);
   if (rank(promoted) > rank(current)) return promoted;
   const demoted = tierForRating(rating + cfg.hysteresis, cfg);

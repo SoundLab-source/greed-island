@@ -4,7 +4,7 @@
  * next tier up (by rating; the tier's title and name plate the first time). Pure.
  */
 import { NAMEPLATES, TITLES, type TitleCode } from "./titles.ts";
-import { BAND_TIERS, DEFAULT_TIERS, type BandTier, type Tier, type TierConfig } from "./tiers.ts";
+import { BAND_TIERS, DEFAULT_TIERS, inPlacement, type BandTier, type Tier, type TierConfig } from "./tiers.ts";
 
 export interface Milestone {
   kind: "wins" | "tier";
@@ -34,7 +34,10 @@ function rewardOf(code: TitleCode): string {
 }
 
 /** The character's next milestones, wins first. None past 100 wins and S tier (X is set by hand). */
-export function nextMilestones(c: { wins: number; rating: number; tier: Tier; titles: readonly TitleCode[] }, tiers: TierConfig = DEFAULT_TIERS): Milestone[] {
+export function nextMilestones(
+  c: { wins: number; losses?: number; rating: number; tier: Tier; titles: readonly TitleCode[] },
+  tiers: TierConfig = DEFAULT_TIERS,
+): Milestone[] {
   const out: Milestone[] = [];
   const held = new Set(c.titles);
   const rating = Math.round(c.rating);
@@ -52,7 +55,17 @@ export function nextMilestones(c: { wins: number; rating: number; tier: Tier; ti
     });
   }
 
-  if (c.tier !== "X" && c.tier !== "S") {
+  const played = c.wins + (c.losses ?? 0);
+  if (c.tier !== "X" && c.losses !== undefined && inPlacement(played, tiers)) {
+    // Placement: the tier holds until these fights are done, then the rating decides it.
+    const left = tiers.placementFights - played;
+    out.push({
+      kind: "tier",
+      text: `Placement: ${left} more fight${left === 1 ? "" : "s"}, then its rating sets its tier`,
+      reward: null,
+      progress: clamp01(played / tiers.placementFights),
+    });
+  } else if (c.tier !== "X" && c.tier !== "S") {
     const next = BAND_TIERS[BAND_TIERS.indexOf(c.tier) + 1] as Exclude<BandTier, "P">;
     const need = tiers.thresholds[next];
     const { B, A } = tiers.thresholds;
