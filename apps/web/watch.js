@@ -308,7 +308,9 @@
     const t = await api("GET", "/api/boards/today").catch(() => null);
     const rows = t ? t.rows : [];
     $("top-today").hidden = rows.length === 0;
+    // The top three: the column also holds the goals and the bets.
     $("top-today-list").innerHTML = rows
+      .slice(0, 3)
       .map((r) => `<li class="${GI.me && r.name === GI.me.name ? "me" : ""}"><span class="who">${esc(r.name)}</span><span class="amt">+${fmt(r.profit)}</span></li>`)
       .join("");
   }
