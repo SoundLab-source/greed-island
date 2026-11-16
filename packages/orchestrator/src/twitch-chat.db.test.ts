@@ -25,6 +25,7 @@ describe("chat answers from the game", () => {
   it("answers !fight with the open fight and its payouts, then with its result", async () => {
     const answer = gameAnswers(db, config, URL);
     expect(await answer({ kind: "fight" })).toMatch(/^No fight yet/);
+    expect(await answer({ kind: "top" })).toMatch(/^No one on the leaderboard yet/);
     const a = await character("a", "Free Loot", 1650);
     const b = await character("b", "Hot Takes", 1600);
     const fight = await db.fight.create({ data: { engineMode: "fake", cycle: 1, segment: "MATCHMAKING", segmentIndex: 0, pairKind: "CLOSE", stageId: "s1", side1CharacterId: a, side2CharacterId: b } });

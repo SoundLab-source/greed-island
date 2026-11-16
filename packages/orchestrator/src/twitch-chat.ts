@@ -16,6 +16,7 @@
 import type { Db } from "@greed-island/db";
 import { playerName, type Config, type Side } from "@greed-island/shared";
 import { currentFightId, fightView } from "./api/views.ts";
+import { leaderboard } from "./api/season-views.ts";
 import type { FightBus } from "./bus.ts";
 
 // ---------------------------------------------------------------------------
@@ -74,7 +75,7 @@ export function chatSafe(text: string, max = 500): string {
 // ---------------------------------------------------------------------------
 // Commands
 
-export type ChatCommand = { kind: "fight" } | { kind: "fighter"; name: string } | { kind: "salt" } | { kind: "commands" };
+export type ChatCommand = { kind: "fight" } | { kind: "fighter"; name: string } | { kind: "salt" } | { kind: "top" } | { kind: "commands" };
 
 const ALIASES: Record<string, ChatCommand["kind"]> = {
   "!fight": "fight",
@@ -83,6 +84,8 @@ const ALIASES: Record<string, ChatCommand["kind"]> = {
   "!salt": "salt",
   "!bet": "salt",
   "!play": "salt",
+  "!top": "top",
+  "!leaderboard": "top",
   "!commands": "commands",
   "!help": "commands",
 };
@@ -163,7 +166,15 @@ export function answerFighter(name: string, found: ChatFighter[], url: string): 
 }
 
 export const answerSalt = (url: string) => `Bet on every fight with Salt, free play money: you start with 400 and claim more daily. It can never be bought or cashed out. ${url}`;
-export const answerCommands = () => "!fight (or !odds): the fight and its payouts · !fighter <name>: a fighter's record · !salt: how betting works";
+export const answerCommands = () => "!fight (or !odds): the fight and its payouts · !fighter <name>: a fighter's record · !top: the season's top bettors · !salt: how betting works";
+
+/** The season leaderboard's top players (Salt won this season), for !top. */
+export function answerTop(season: number | null, rows: { rank: number; name: string; saltWon: string }[], url: string): string {
+  if (season === null || !rows.length) return `No one on the leaderboard yet: be the first. ${url}/rankings.html`;
+  const n = (x: string) => Number(x).toLocaleString("en-US");
+  const line = rows.slice(0, 5).map((r) => `${r.rank}. ${r.name} ${Number(r.saltWon) >= 0 ? "+" : ""}${n(r.saltWon)}`).join(" · ");
+  return `Season ${season} top bettors (Salt won): ${line} · ${url}/rankings.html`;
+}
 
 // ---------------------------------------------------------------------------
 // Announcements: the bot calls each fight in chat, as Salty Bet's does (bets open, bets locked, who won)
@@ -457,6 +468,10 @@ export function gameAnswers(db: Db, config: Config, url: string, now: () => Date
         return answerFighter(cmd.name, await chatFighters(db, cmd.name), url);
       case "salt":
         return answerSalt(url);
+      case "top": {
+        const s = await db.season.findFirst({ where: { status: "RUNNING" }, select: { number: true } });
+        return answerTop(s?.number ?? null, s ? await leaderboard(db, config) : [], url);
+      }
       case "commands":
         return answerCommands();
     }

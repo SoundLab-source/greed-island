@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   announce,
+  answerTop,
   answerFight,
   answerFighter,
   chatSafe,
@@ -54,6 +55,8 @@ describe("commands", () => {
     expect(parseCommand("!fighter")).toEqual({ kind: "fighter", name: "" });
     expect(parseCommand("!bet")).toEqual({ kind: "salt" });
     expect(parseCommand("!help")).toEqual({ kind: "commands" });
+    expect(parseCommand("!top")).toEqual({ kind: "top" });
+    expect(parseCommand("!leaderboard")).toEqual({ kind: "top" });
     expect(parseCommand("go red!")).toBeNull();
     expect(parseCommand("!ban someone")).toBeNull();
   });
@@ -121,6 +124,15 @@ class FakeSocket implements ChatSocket {
     this.onclose?.();
   }
 }
+
+describe("!top", () => {
+  it("lists the season's top five bettors, or invites the first", () => {
+    const rows = [1, 2, 3, 4, 5, 6].map((rank) => ({ rank, name: `P${rank}`, saltWon: String(7000 - rank * 1000) }));
+    expect(answerTop(3, rows, URL)).toBe(`Season 3 top bettors (Salt won): 1. P1 +6,000 · 2. P2 +5,000 · 3. P3 +4,000 · 4. P4 +3,000 · 5. P5 +2,000 · ${URL}/rankings.html`);
+    expect(answerTop(3, [{ rank: 1, name: "Down", saltWon: "-50" }], URL)).toMatch(/1\. Down -50/);
+    expect(answerTop(null, [], URL)).toBe(`No one on the leaderboard yet: be the first. ${URL}/rankings.html`);
+  });
+});
 
 describe("announcements", () => {
   it("calls bets open, bets locked with the crowd, and the winner, with an upset called out", () => {
