@@ -175,6 +175,7 @@ body[data-scene="betting"] #hud { opacity: 0; }
 .status .sub { display: block; color: var(--dim); font-size: calc(20 * var(--u)); letter-spacing: calc(2 * var(--u)); margin-top: calc(6 * var(--u)); }
 .pools { color: var(--dim); font-size: calc(22 * var(--u)); }
 .pools b { color: var(--ink); }
+.pools .pot b { color: var(--gold); font-size: 1.25em; }
 .meta { color: var(--dim); font-size: calc(20 * var(--u)); }
 
 .board-foot {
@@ -332,3 +333,5 @@ body[data-scene="fight"] .toasts { top: calc(160 * var(--u)); }
 
 /* An NFT look's portrait before the name (docs/PHASE3.md "NFTs as fighters"). */
 .plate .look { height: 1.6em; width: 1.6em; object-fit: cover; border-radius: 0.2em; vertical-align: middle; margin-right: 0.4em; }
+.toast b.red { color: var(--red); }
+.toast b.blue { color: var(--blue); }
