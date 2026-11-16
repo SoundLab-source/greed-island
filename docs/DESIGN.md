@@ -39,6 +39,8 @@ Think Salty Bet, plus ownership, progression and a community-built roster.
 5. **Compete.** Your characters are booked into stream fights, tournaments and exhibitions, where everyone else bets on them.
 6. **Trade (later).** Characters become tradeable, carrying everything with them.
 
+**Follow a fighter.** Players can follow fighters they like (the fighter, so every outfit and owned copy counts). When one is about to fight, the site gives a gentle heads-up: on any open page, in the tab title, and as a browser notification only if the player turns those on (never at night). Free, capped at a configurable number of fighters, and it never touches Salt.
+
 ## 5. The stream and match modes
 
 The stream runs a repeating cycle (all counts configurable):

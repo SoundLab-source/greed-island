@@ -24,7 +24,7 @@
         ${outfits}
         <div class="outfit-name">${main ? `<b>${esc(main.name)}</b> · ${main.record.wins}–${main.record.losses} · rating ${main.rating}` : ""}</div>
         ${moves}
-        <div class="card-foot"><span class="muted">${r.wins}–${r.losses} in all${f.owned ? ` · ${f.owned} owned` : ""}</span>${main ? `<a class="profile" href="/fighter.html?id=${encodeURIComponent(main.characterId)}">Profile →</a>` : ""}</div>
+        <div class="card-foot"><span class="muted">${r.wins}–${r.losses} in all${f.owned ? ` · ${f.owned} owned` : ""}</span>${GI.followButton(f.id, f.name)}${main ? `<a class="profile" href="/fighter.html?id=${encodeURIComponent(main.characterId)}">Profile →</a>` : ""}</div>
         <details class="credit"><summary>Credits</summary>${esc(f.credit)}</details>
       </div>
     </article>`;

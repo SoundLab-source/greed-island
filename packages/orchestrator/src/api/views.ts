@@ -10,6 +10,7 @@ import {
   crowdSplit,
   describeCosmetics,
   describeUnlocked,
+  followHeadsUp,
   formatMultiplier,
   liveOdds,
   maxLevel,
@@ -32,6 +33,7 @@ import {
   type UpgradeConfig,
 } from "@greed-island/shared";
 import { mySeason } from "./season-views.ts";
+import { followedIds, followerCount, myFollows } from "../follows.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
 import { signatureMoveName } from "../cards.ts";
 import { fightBreakdown, fightStory, scouting, storyFacts, type RoundRecord } from "../story.ts";
@@ -172,6 +174,8 @@ export async function characterProfile(db: Db, characterId: string, tiers?: Tier
   return {
     ...card,
     license: (await db.fighter.findUniqueOrThrow({ where: { id: card.fighter.id } })).licenseNote,
+    /** Players following its fighter (follows.ts). */
+    followers: await followerCount(db, card.fighter.id),
     formerNames: await formerNames(db, characterId),
     /** Community fighters: where it came from, and the engine character it plays with until its template exists. */
     community: await communityOrigin(db, card.fighter.id),
@@ -328,11 +332,23 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   const lastRound = rounds[rounds.length - 1];
   const finish = won && lastRound?.signatureKo === won && moves[won] ? { side: won, move: moves[won]! } : null;
 
+  // Follow a fighter: a heads-up for the viewer when they follow either side's fighter (shared follows.ts).
+  const following = viewerId
+    ? followHeadsUp(
+        [
+          { side: 1, fighterId: s1.fighter.id, name: s1.name },
+          { side: 2, fighterId: s2.fighter.id, name: s2.name },
+        ],
+        await followedIds(db, viewerId),
+      )
+    : null;
+
   return {
     id: f.id,
     number: f.number,
     state: f.state,
     version: f.version,
+    following,
     stage: { id: f.stage.id, displayName: f.stage.displayName },
     pairKind: f.pairKind,
     cycle: { cycle: f.cycle, segment: f.segment, index: f.segmentIndex },
@@ -422,6 +438,8 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
     })),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,
     bailoutAvailable: stakes === 0n && balance < config.economy.bailoutFloor,
+    /** Fighters this player follows (follows.ts), for the Follow buttons and the heads-up. */
+    follows: user.kind === "BOT" ? [] : (await myFollows(db, userId)).map((f) => ({ fighterId: f.fighterId, name: f.name, archetype: f.archetype, profileId: f.profileId })),
     goals: user.kind === "BOT" ? null : goalsJson(await goalsView(db, userId, goalSettings(config), await goalWorld(db, config.exhibitions.rivalryRate), now)),
   };
 }

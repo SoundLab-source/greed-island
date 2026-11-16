@@ -46,7 +46,7 @@ const voters: Record<string, string> = {};
 
 async function verified(email: string) {
   const u = (await createUser(db, { kind: "EMAIL", email }, testEconomy)).user;
-  await db.user.update({ where: { id: u.id }, data: { emailVerifiedAt: new Date() } });
+  await db.user.update({ where: { id: u.id }, data: { emailVerifiedAt: T0, createdAt: new Date(T0.getTime() - DAY) } });
   return u.id;
 }
 

@@ -97,7 +97,7 @@
       ? `<span class="newcomer" title="Voted in by ${esc(s.community.name)}: its first fight on the stream">Community debut</span>`
       : s.record.wins + s.record.losses === 0 ? '<span class="newcomer" title="Its first fight ever">New</span>' : "";
     return `<span class="cta">Bet ${n === 1 ? "Red" : "Blue"} ${GI.badges(s.cosmetics)}${fresh}${against}</span>
-      <span class="who">${n === 2 ? flame(f, n) : ""}${GI.plate(s.name, s.cosmetics)}${n === 1 ? flame(f, n) : ""}</span>
+      <span class="who">${n === 2 ? flame(f, n) : ""}${GI.plate(s.name, s.cosmetics)}${n === 1 ? flame(f, n) : ""}${f.following?.sides.includes(n) ? '<span class="following-tag" title="You follow this fighter">♥</span>' : ""}</span>
       <span class="odds">${odds}</span>
       <span class="sub">${chance ? `<b>${chance}</b> · ` : ""}${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} ${form((s.last10 ?? []).slice(-5))}</span>
       <span class="sub style">${scoutLine(n, f)}</span>`;

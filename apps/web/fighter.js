@@ -39,7 +39,7 @@
             <div class="fact"><span>Win rate</span><b>${c.winRate == null ? "–" : `${c.winRate}%`}</b></div>
           </div>
           <div>Last 10: ${form(c.last10)}</div>
-          <div class="row"><a class="ghost small" href="/card/${encodeURIComponent(c.id)}">Share this card</a></div>
+          <div class="row">${GI.followButton(c.fighter.id, c.fighter.displayName)}<a class="ghost small" href="/card/${encodeURIComponent(c.id)}">Share this card</a><span class="muted">${c.followers ? `${fmt(c.followers)} following ${esc(c.fighter.displayName)}` : ""}</span></div>
           <div class="muted">Life ${c.stats.lifePct}% · Attack ${c.stats.attackPct}% · Defense ${c.stats.defensePct}% · Starting power ${c.stats.startPower}${c.sidegrade ? ` · Sidegrade ${esc(c.sidegrade.toLowerCase().replace("_", " "))}` : ""}</div>
           ${community}${former}
         </div>

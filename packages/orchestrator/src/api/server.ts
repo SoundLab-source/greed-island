@@ -53,6 +53,7 @@ import { announceBet, placeFightBet } from "../betting.ts";
 import type { BusEvent, FightBus } from "../bus.ts";
 import { answerChallenge, expireChallenges, sendChallenge, type ChallengeAnswer } from "../challenges.ts";
 import { setCosmetics } from "../cosmetics.ts";
+import { followFighter, myFollows, unfollowFighter } from "../follows.ts";
 import { ConsoleMailer, signInMail, type Mailer } from "../mail.ts";
 import { buyCharacter, currentShop } from "../shop.ts";
 import { loadSubmissionStore, type SubmissionStore } from "../submission-store.ts";
@@ -330,6 +331,18 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     if (!r) throw new HttpError(404, "NOT_FOUND", "no such fight");
     return send(reply, r);
   });
+  // Follow a fighter (follows.ts): a heads-up on the site when it's about to fight.
+  const fighterParam = z.string().min(1).max(100);
+  app.get("/api/me/follows", async (req, reply) => send(reply, await myFollows(db, await requireViewer(req))));
+  app.put<{ Params: { fighterId: string } }>("/api/me/follows/:fighterId", async (req, reply) => {
+    const userId = await requireViewer(req);
+    const r = await followFighter(db, userId, fighterParam.parse(req.params.fighterId), config.follows);
+    if (!r) throw new HttpError(404, "NOT_FOUND", "no such fighter");
+    return send(reply, r);
+  });
+  app.delete<{ Params: { fighterId: string } }>("/api/me/follows/:fighterId", async (req, reply) =>
+    send(reply, await unfollowFighter(db, await requireViewer(req), fighterParam.parse(req.params.fighterId))),
+  );
   app.post("/api/me/daily-grant", async (req, reply) => {
     const userId = await requireViewer(req);
     const r = await claimDailyGrant(db, userId, config.economy);

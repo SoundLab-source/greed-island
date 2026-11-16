@@ -1,6 +1,7 @@
 import { DEFAULT_BETTORS, validateBettors, type BettorConfig } from "./bettors.ts";
 import { DEFAULT_EXHIBITIONS, type ExhibitionConfig } from "./exhibitions.ts";
 import { DEFAULT_GOALS, validateGoals, type GoalConfig } from "./goals.ts";
+import { DEFAULT_FOLLOWS, validateFollows, type FollowConfig } from "./follows.ts";
 import { DEFAULT_RATINGS, type RatingsConfig } from "./glicko2.ts";
 import { parseSalt, type Salt } from "./money.ts";
 import { DEFAULT_ODDS, validateOdds, type OddsConfig } from "./odds.ts";
@@ -55,6 +56,8 @@ export interface Config {
   bettors: BettorConfig;
   /** Daily goals (goals.ts): what each pays. */
   goals: GoalConfig;
+  /** Follow a fighter (follows.ts): how many one player can follow. */
+  follows: FollowConfig;
 }
 
 /** What everyone sees of each other's bets: names and stakes as they come in, and which side once betting closes. */
@@ -285,5 +288,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       winRateMinCalls: numberFromEnv(env, "GI_WIN_RATE_MIN_CALLS", DEFAULT_BETTORS.winRateMinCalls),
     }),
     goals: validateGoals({ reward: saltFromEnv(env, "GI_GOAL_REWARD", DEFAULT_GOALS.reward) }),
+    follows: validateFollows({ max: numberFromEnv(env, "GI_FOLLOW_MAX", DEFAULT_FOLLOWS.max) }),
   };
 }
