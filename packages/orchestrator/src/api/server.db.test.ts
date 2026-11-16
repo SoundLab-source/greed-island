@@ -780,6 +780,10 @@ describe("cards: sharing and the collection", () => {
     expect((await app.inject({ method: "GET", url: "/card.html" })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/card-back.svg" })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/collection.html" })).statusCode).toBe(200);
+    // The app icon and manifest (add to home screen).
+    const manifest = await app.inject({ method: "GET", url: "/site.webmanifest" });
+    expect(manifest.statusCode).toBe(200);
+    for (const icon of manifest.json().icons) expect((await app.inject({ method: "GET", url: icon.src })).headers["content-type"]).toBe("image/png");
   });
 
   it("collects the fighters a player watched, and the ones they backed", async () => {
