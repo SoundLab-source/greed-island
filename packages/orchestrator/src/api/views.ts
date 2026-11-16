@@ -31,7 +31,7 @@ import {
   type TitleCode,
   type UpgradeConfig,
 } from "@greed-island/shared";
-import { mySeason } from "./season-views.ts";
+import { mySeason, seasonTopRanks } from "./season-views.ts";
 import { fightMark, keptWhile } from "../view-cache.ts";
 import { currentCallStreak } from "../bettor-stats.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
@@ -215,7 +215,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     maxAgeMs: FIGHT_VIEW_MAX_AGE_MS,
   });
   if (!shared) return null;
-  const { betRows, betsRevealed, ...view } = shared;
+  const { betRows, betsRevealed, topRanks, ...view } = shared;
   const mine = viewerId ? betRows.find((b) => b.userId === viewerId) : undefined;
   return {
     ...view,
@@ -224,6 +224,8 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
       id: b.id,
       name: playerName(b.user),
       bot: b.user.kind === "BOT",
+      /** The bettor's place on the running season's leaderboard, when in its top 10. */
+      seasonRank: topRanks.get(b.userId) ?? null,
       stake: b.stake.toFixed(0),
       side: betsRevealed || b.userId === viewerId ? b.side : null,
       mine: b.userId === viewerId,
@@ -395,6 +397,7 @@ async function sharedFightView(db: Db, config: Config, fightId: string, ikemenDi
     betsRevealed,
     /** After a settled fight: players who called it, and the biggest win (Salt or T-Salt won over the stake). */
     payouts,
+    topRanks: await seasonTopRanks(db),
     story,
     /** After a settled fight: why it was won, up to three lines. */
     breakdown,

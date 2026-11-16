@@ -189,3 +189,7 @@
 .top-today li .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .top-today li .amt { color: var(--green, #3ddc84); font-weight: 700; }
 .top-today li.me .who { color: var(--gold); font-weight: 700; }
+
+/* A season top-10 bettor's place, by their name on the bets list. */
+.rank-badge { display: inline-block; margin-right: 5px; padding: 0 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); color: var(--dim); font-size: 10px; font-weight: 800; vertical-align: 1px; }
+.rank-badge.top { background: linear-gradient(90deg, #ff9a3c, var(--gold)); color: #241a00; }

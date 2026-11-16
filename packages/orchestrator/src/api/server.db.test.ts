@@ -838,6 +838,9 @@ describe("bettor numbers and boards", () => {
     expect(page.body).toContain(`<meta property="og:image" content="https://gi.test/api/calls/${won.id}/share.png">`);
     expect(page.body).toContain("<title>Caller called it");
     for (const url of [`/api/calls/${randomUUID()}`, "/api/calls/nope", `/call/${randomUUID()}`]) expect((await app.inject({ method: "GET", url })).statusCode).toBe(404);
+    // On the bets list, the season's top bettors wear their place.
+    const view = (await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json();
+    expect(view.bets).toEqual([expect.objectContaining({ name: "Caller", seasonRank: 1 })]);
   });
 
   it("shows the player's run of right calls with their account", async () => {
