@@ -130,8 +130,7 @@
       ? `<div class="bar"><span class="r" style="width:${o.chancePct[1]}%"></span><span class="b" style="width:${o.chancePct[2]}%"></span></div>
          <div class="bar-labels"><span>${o.chancePct[1].toFixed(1)}%</span><span>${o.locked ? "win chance, locked" : "win chance"}</span><span>${o.chancePct[2].toFixed(1)}%</span></div>`
       : "";
-    const c = crowd(f);
-    $("pools").innerHTML = o && o.locked ? `Pools <b>${o.pool[1]}</b> / <b>${o.pool[2]}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}${c ? ` · the crowd <b>${crowdText(c)}</b>` : ""}` : "";
+    renderPools();
     const h = f.headToHead;
     const r = f.scouting && f.scouting.styleRecord;
     const styles = r && r.fights ? ` · ${esc(f.scouting.styles[1])}s ${r.wins[1]}–${r.wins[2]} ${esc(f.scouting.styles[2])}s` : "";
@@ -139,6 +138,23 @@
     // The announcer's lines (docs/ENGAGEMENT.md §1).
     $("story").innerHTML = f.story ? f.story.lines.map((l) => `<li>${esc(l)}</li>`).join("") : "";
     renderClock();
+  }
+
+  // The pools once bets lock; while betting is open, the pot so far and how many are in (sides stay hidden until lock,
+  // as on the watch page), growing with every bet.
+  function renderPools() {
+    const f = fight;
+    const o = f && f.odds;
+    const c = f && crowd(f);
+    const n = (x) => Number(x).toLocaleString("en-US");
+    if (o && o.locked) {
+      $("pools").innerHTML = `Pools <b>${n(o.pool[1])}</b> / <b>${n(o.pool[2])}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}${c ? ` · the crowd <b>${crowdText(c)}</b>` : ""}`;
+    } else if (f && f.state === "BETTING_OPEN" && f.bets && f.bets.length) {
+      const pot = f.bets.reduce((t, b) => t + Number(b.stake), 0);
+      $("pools").innerHTML = `<span class="pot">Pot <b>${n(pot)}</b> ${salt(f)}</span> · <b>${f.bets.length}</b> bettor${f.bets.length === 1 ? "" : "s"} in`;
+    } else {
+      $("pools").innerHTML = "";
+    }
   }
 
   function renderClock() {
@@ -313,6 +329,14 @@
     es.addEventListener("odds_live", () => refreshFight());
     es.addEventListener("bet", (e) => {
       const d = JSON.parse(e.data);
+      // Into the pot (a changed bet keeps its id).
+      if (fight && d.fightId === fight.id) {
+        const bets = fight.bets ?? (fight.bets = []);
+        const old = bets.find((b) => b.id === d.betId);
+        if (old) old.stake = String(d.stake);
+        else bets.push({ id: d.betId, stake: String(d.stake) });
+        renderPools();
+      }
       if (d.bot || Number(d.stake) < bigBet || calledOut.has(d.betId)) return;
       calledOut.add(d.betId);
       const side = d.side ? ` on <b>${d.side === 1 ? "Red" : "Blue"}</b>` : "";

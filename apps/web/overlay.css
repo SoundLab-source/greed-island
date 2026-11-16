@@ -175,6 +175,7 @@ body[data-scene="betting"] #hud { opacity: 0; }
 .status .sub { display: block; color: var(--dim); font-size: calc(20 * var(--u)); letter-spacing: calc(2 * var(--u)); margin-top: calc(6 * var(--u)); }
 .pools { color: var(--dim); font-size: calc(22 * var(--u)); }
 .pools b { color: var(--ink); }
+.pools .pot b { color: var(--gold); font-size: 1.25em; }
 .meta { color: var(--dim); font-size: calc(20 * var(--u)); }
 
 .board-foot {
