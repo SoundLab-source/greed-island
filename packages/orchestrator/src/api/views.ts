@@ -420,6 +420,8 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
       balance: t.balance.toFixed(0),
       at: t.earnedAt,
     })),
+    /** Never bet yet: the watch page shows a newcomer how to start. */
+    firstBet: !(await db.bet.findFirst({ where: { userId }, select: { id: true } })),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,
     bailoutAvailable: stakes === 0n && balance < config.economy.bailoutFloor,
     goals: user.kind === "BOT" ? null : goalsJson(await goalsView(db, userId, goalSettings(config), await goalWorld(db, config.exhibitions.rivalryRate), now)),

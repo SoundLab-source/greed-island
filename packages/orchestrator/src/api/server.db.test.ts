@@ -70,7 +70,7 @@ async function openFight() {
 describe("sessions and the player", () => {
   it("creates an anonymous player with the starting balance", async () => {
     const s = await session("Tester");
-    expect(s.me).toMatchObject({ name: "Tester", balance: "400", dailyGrantAvailable: true, bailoutAvailable: false });
+    expect(s.me).toMatchObject({ name: "Tester", balance: "400", dailyGrantAvailable: true, bailoutAvailable: false, firstBet: true });
     const me = await app.inject({ method: "GET", url: "/api/me", headers: s.auth });
     expect(me.json().balance).toBe("400");
   });
@@ -179,6 +179,7 @@ describe("fights and bets", () => {
     expect(view.myBet).toEqual({ side: 2, stake: "80", status: "OPEN", returned: null });
     const history = (await app.inject({ method: "GET", url: "/api/me/bets", headers: s.auth })).json();
     expect(history).toHaveLength(1);
+    expect((await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).json().firstBet).toBe(false);
   });
 
   it.each([

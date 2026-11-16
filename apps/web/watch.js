@@ -221,12 +221,18 @@
     $("bet1").disabled = $("bet2").disabled = !open;
     $("stake-currency").textContent = currency();
     const b = f.myBet;
+    // A newcomer's first bet: the two sides pulse until they pick one.
+    const nudge = open && !b && Boolean(GI.me?.firstBet);
+    $("bet1").classList.toggle("nudge", nudge);
+    $("bet2").classList.toggle("nudge", nudge);
     $("bet1").classList.toggle("mine", b?.side === 1);
     $("bet2").classList.toggle("mine", b?.side === 2);
     $("my-bet").innerHTML = b
       ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${f.odds?.crowd?.against === b.side ? ", against the crowd" : ""}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}`
       : open
-        ? "Pick a stake, then click a side. You can change it until betting closes."
+        ? GI.me?.firstBet
+          ? `You have <b>${fmt(available())} free ${currency()}</b> to play with. Pick a stake, then tap the side you think wins!`
+          : "Pick a stake, then click a side. You can change it until betting closes."
         : "";
     renderMatchup(f);
     renderStory(f);
@@ -234,6 +240,7 @@
     renderBets();
   }
 
+  let lastTick = "";
   function renderClock() {
     const el = $("countdown");
     const f = fight;
@@ -242,6 +249,12 @@
       const left = Math.max(0, Math.ceil((new Date(f.times.bettingCloses) - Date.now()) / 1000));
       el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
       el.classList.toggle("urgent", left <= 10);
+      // A tick for each of the last five seconds (once per second, per fight).
+      const tickKey = `${f.id}:${left}`;
+      if (left >= 1 && left <= 5 && tickKey !== lastTick) {
+        lastTick = tickKey;
+        GI.sfx.play("tick", left === 1);
+      }
       return;
     }
     el.classList.remove("urgent");
@@ -323,6 +336,7 @@
       odds_live: () => refreshFight().catch(() => {}),
       bet: onBet,
       odds_locked: async () => {
+        GI.sfx.play("lock");
         await refreshFight().catch(() => {});
         const c = fight?.odds?.crowd;
         if (c) feed(`Fight #${fight.number}: bets locked, <b>the crowd is ${crowdText(c)}</b>`);
