@@ -826,10 +826,14 @@ describe("bettor numbers and boards", () => {
     expect((await me()).callStreak).toBe(0);
     const f = await openFight();
     await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 2, stake: "20", idempotencyKey: "streak-1" } });
+    expect((await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json().payouts).toBeNull();
     for (const type of ["LOCK", "ENGINE_STARTED"] as const) await applyTransition(deps, f.id, { type });
     await applyTransition(deps, f.id, { type: "MATCH_END", winnerSide: 2 });
     await applyTransition(deps, f.id, { type: "SETTLED_OK" });
     expect((await me()).callStreak).toBe(1);
+    const after = (await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json();
+    expect(after.payouts).toMatchObject({ calledIt: 1, players: 1, biggest: { name: "Hot Hand", stake: "20" } });
+    expect(BigInt(after.payouts.biggest.profit)).toBeGreaterThan(0n);
     expect((await app.inject({ method: "GET", url: "/api/site" })).json().maxPayout).toBe("5000");
   });
 });

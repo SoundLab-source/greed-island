@@ -358,7 +358,9 @@
         if (!f) return;
         const headline = f.story && f.story.headline ? ` <span class="headline ${f.story.headline.kind}">${esc(f.story.headline.text)}</span>` : "";
         const why = f.breakdown && f.breakdown.length ? ` <span class="muted">${esc(f.breakdown[0])}</span>` : "";
-        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}${why}` : `Fight #${d.number}: no contest, bets refunded`);
+        const p = f.payouts;
+        const paid = p && p.players ? ` <span class="muted">${p.calledIt ? `${fmt(p.calledIt)} of ${fmt(p.players)} called it` : "nobody called it"}${p.biggest ? `; biggest win <b>${esc(p.biggest.name)} +${fmt(p.biggest.profit)}</b>` : ""}</span>` : "";
+        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}${why}${paid}` : `Fight #${d.number}: no contest, bets refunded`);
         if (d.result !== "SETTLED") return;
         // The crowd: a cheer, or a gasp and a roar for an upset; and a ka-ching when your own bet came in.
         const upset = f.story?.headline?.kind === "upset";

@@ -238,6 +238,13 @@
   }
 
   // ---- Result banner and toasts ----
+  // Who called it, and the biggest win (players only), once a fight is settled.
+  function payoutLine(f) {
+    const p = f.payouts;
+    if (!p || !p.players) return "";
+    const n = (x) => Number(x).toLocaleString("en-US");
+    return `${p.calledIt ? `<b>${n(p.calledIt)}</b> of ${n(p.players)} called it` : "<b>nobody</b> called it"}${p.biggest ? ` · biggest win <b>${esc(p.biggest.name)} +${n(p.biggest.profit)} ${salt(f)}</b>` : ""}`;
+  }
   async function showResult(d) {
     const f = await get(`/api/fights/${d.fightId}`);
     if (!f) return;
@@ -249,6 +256,7 @@
         w.ratingAfter != null ? `rating ${w.rating} → <b>${w.ratingAfter}</b>${w.tierAfter && w.tierAfter !== w.tier ? ` · now <b>${esc(w.tierAfter)}</b> tier` : ""}` : "",
         f.tournament ? `wins the ${esc(f.tournament.roundName)}` : "",
         f.result && f.result.ownerReward ? `owner ${esc(w.owner.name)} earns <b>${f.result.ownerReward} Salt</b>` : "",
+        payoutLine(f),
       ].filter(Boolean);
       el.className = `banner ${side === 1 ? "red" : "blue"}`;
       const headline = f.story && f.story.headline ? `<div class="headline ${esc(f.story.headline.kind)}">${esc(f.story.headline.text)}</div>` : "";
