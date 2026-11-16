@@ -692,18 +692,18 @@ describe("live stream", () => {
     expect(overlay.body).toContain("overlay.js");
     for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css", "/staff.html", "/staff.js", "/submit.html", "/submit.js"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
     // The watch page embeds Twitch only when a channel is configured.
-    expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: false, bigBet: "1000" });
+    expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: false, bigBet: "1000", maxPayout: "5000" });
     expect((await app.inject({ method: "GET", url: "/" })).headers["permissions-policy"]).toMatch(/camera=\(\)/);
     const withTwitch = await buildServer({ db, config, bus, mailer, twitchChannel: "greed_island" });
     try {
-      expect((await withTwitch.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: "greed_island", localVideo: false, bigBet: "1000" });
+      expect((await withTwitch.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: "greed_island", localVideo: false, bigBet: "1000", maxPayout: "5000" });
     } finally {
       await withTwitch.close();
     }
     // The local preview (GI_LOCAL_VIDEO): the watch page plays OBS's Virtual Camera, so the page may use a camera.
     const local = await buildServer({ db, config, bus, mailer, localVideo: true });
     try {
-      expect((await local.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: true, bigBet: "1000" });
+      expect((await local.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: true, bigBet: "1000", maxPayout: "5000" });
       expect((await local.inject({ method: "GET", url: "/" })).headers["permissions-policy"]).toMatch(/camera=\(self\)/);
     } finally {
       await local.close();
@@ -818,6 +818,19 @@ describe("bettor numbers and boards", () => {
     const mine = (await app.inject({ method: "GET", url: "/api/boards/calls", headers: s.auth })).json();
     expect(mine.winRate.me).toEqual({ rank: 0, name: "", value: 100, detail: 1 });
     expect(mine.streak.me).toMatchObject({ rank: 1, value: 1 });
+  });
+
+  it("shows the player's run of right calls with their account", async () => {
+    const s = await session("Hot Hand");
+    const me = async () => (await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).json();
+    expect((await me()).callStreak).toBe(0);
+    const f = await openFight();
+    await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 2, stake: "20", idempotencyKey: "streak-1" } });
+    for (const type of ["LOCK", "ENGINE_STARTED"] as const) await applyTransition(deps, f.id, { type });
+    await applyTransition(deps, f.id, { type: "MATCH_END", winnerSide: 2 });
+    await applyTransition(deps, f.id, { type: "SETTLED_OK" });
+    expect((await me()).callStreak).toBe(1);
+    expect((await app.inject({ method: "GET", url: "/api/site" })).json().maxPayout).toBe("5000");
   });
 });
 

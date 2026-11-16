@@ -64,6 +64,7 @@
 
   async function setupEmbeds() {
     const site = await api("GET", "/api/site");
+    if (site.maxPayout) maxPayout = Number(site.maxPayout);
     const parent = encodeURIComponent(location.hostname);
     if (site.twitchChannel) {
       // Twitch's chat works whether or not the channel is live.
@@ -89,7 +90,7 @@
   // ---- The current fight ----
   function sideButton(n, s, f) {
     const o = f.odds;
-    const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}` : "–";
+    const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}<small class="towin" data-side="${n}"></small>` : "–";
     const chance = o ? `${o.chancePct[n].toFixed(1)}% to win` : "";
     const against = f.odds?.crowd?.against === n ? '<span class="against" title="Less of the players\' Salt went on this side">Against the crowd</span>' : "";
     const debut = s.community && s.community.debut;
@@ -223,15 +224,37 @@
     const b = f.myBet;
     $("bet1").classList.toggle("mine", b?.side === 1);
     $("bet2").classList.toggle("mine", b?.side === 2);
-    $("my-bet").innerHTML = b
+    $("my-bet").innerHTML = callStreakChip() + (b
       ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${f.odds?.crowd?.against === b.side ? ", against the crowd" : ""}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}`
       : open
         ? "Pick a stake, then click a side. You can change it until betting closes."
-        : "";
+        : "");
+    renderToWin();
     renderMatchup(f);
     renderStory(f);
     renderClock();
     renderBets();
+  }
+
+  // The player's own run of right calls (2 or more), by their bet.
+  function callStreakChip() {
+    const k = GI.me?.callStreak ?? 0;
+    return k >= 2 ? `<span class="call-streak" title="Right calls in a row (bets of at least the call stake)">🔥 ${k} right in a row</span> ` : "";
+  }
+
+  // What the stake in the box would pay on each side (stake × multiplier, rounded down, capped like the ledger's
+  // payoutFor), so a bet's size and its odds read as one number. While betting is open the odds are an estimate:
+  // they lock, with the crowd blended in, when betting closes.
+  let maxPayout = Infinity;
+  function renderToWin() {
+    const f = fight;
+    const stake = Math.floor(Number($("stake").value) || 0);
+    for (const el of document.querySelectorAll(".towin")) {
+      const bp = f && f.odds && f.odds.multiplierBp ? Number(f.odds.multiplierBp[el.dataset.side]) : 0;
+      const show = f && f.state === "BETTING_OPEN" && stake > 0 && bp > 0;
+      el.textContent = show ? `${f.odds.locked ? "" : "≈ "}${fmt(Math.min(Math.floor((stake * bp) / 10000), maxPayout))} back` : "";
+      el.title = show ? `What ${fmt(stake)} ${currency()} on this side would pay if it wins${f.odds.locked ? "" : " (an estimate: the odds lock when betting closes)"}` : "";
+    }
   }
 
   function renderClock() {
@@ -289,8 +312,10 @@
         const input = $("stake");
         if (chip.dataset.add) input.value = String(Math.max(0, Number(input.value) || 0) + Number(chip.dataset.add));
         else input.value = String(Math.max(1, Math.floor(available() * Number(chip.dataset.share))));
+        renderToWin();
       };
     }
+    $("stake").addEventListener("input", renderToWin);
   }
 
   // ---- Live feed (shown when there's no Twitch chat) ----
@@ -341,7 +366,10 @@
         setTimeout(() => GI.sfx.play("cheer", upset), upset ? 450 : 0);
         if (f.myBet?.status === "WON") {
           setTimeout(() => GI.sfx.play("kaChing"), 700);
-          GI.toast(`You called it! ${fmt(f.myBet.returned)} ${f.currency} back${upset ? ", on an upset" : ""}.`, "ok");
+          await GI.refreshMe().catch(() => {});
+          const k = GI.me?.callStreak ?? 0;
+          GI.toast(`You called it! ${fmt(f.myBet.returned)} ${f.currency} back${upset ? ", on an upset" : ""}.${k >= 2 ? ` That's ${k} right in a row!` : ""}`, "ok");
+          renderFight();
         }
       },
       title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),

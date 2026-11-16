@@ -32,6 +32,7 @@ import {
   type UpgradeConfig,
 } from "@greed-island/shared";
 import { mySeason } from "./season-views.ts";
+import { currentCallStreak } from "../bettor-stats.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
 import { signatureMoveName } from "../cards.ts";
 import { fightBreakdown, fightStory, scouting, storyFacts, type RoundRecord } from "../story.ts";
@@ -420,6 +421,8 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
       balance: t.balance.toFixed(0),
       at: t.earnedAt,
     })),
+    /** Right calls in a row, up to now (bettor-stats.ts). */
+    callStreak: user.kind === "BOT" ? 0 : await currentCallStreak(db, config, userId),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,
     bailoutAvailable: stakes === 0n && balance < config.economy.bailoutFloor,
     goals: user.kind === "BOT" ? null : goalsJson(await goalsView(db, userId, goalSettings(config), await goalWorld(db, config.exhibitions.rivalryRate), now)),
