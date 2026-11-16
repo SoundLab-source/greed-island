@@ -12,6 +12,7 @@ import { FightBus } from "../bus.ts";
 import { loadOrchestratorConfig } from "../config.ts";
 import { acquireOrchestratorLock } from "../lock.ts";
 import { loadObsConfig, ObsSceneSwitcher } from "../obs.ts";
+import { chatAnnouncements, gameAnswers, loadTwitchChatConfig, TwitchChatBot } from "../twitch-chat.ts";
 import { loadFollowGame, loadLocalVideo, ObsGameCapture } from "../game-capture.ts";
 import { BotPlayers, loadBotCount } from "../bots.ts";
 import { Orchestrator } from "../orchestrator.ts";
@@ -114,7 +115,8 @@ const checks = config.checks.enabled
     )
   : null;
 const localVideo = loadLocalVideo();
-const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel: loadTwitchChannel(), localVideo, ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
+const twitchChannel = loadTwitchChannel();
+const app = await buildServer({ db, config, bus, mailer: loadMailer(), publicUrl, auth: loadAuthConfig(), twitchChannel, localVideo, ikemenDir: engine.ikemenDir, rateLimits: loadRateLimits(), trustProxy: loadTrustProxy(), submissionStore, ...(checks ? { onCheckQueued: checks.poke } : {}) });
 await app.listen({ host, port });
 console.log(`Greed Island dev server: http://${host === "0.0.0.0" ? "localhost" : host}:${port}  (engine: ${engine.mode}, betting window ${orch.bettingWindowMs / 1000}s)`);
 
@@ -134,6 +136,13 @@ if (localVideo && !obsConfig) console.log("GI_LOCAL_VIDEO needs OBS: set GI_OBS_
 capture?.start(bus);
 
 await checks?.start();
+
+// Optional: answer !fight, !fighter, !salt in the stream's Twitch chat (GI_TWITCH_BOT_LOGIN and GI_TWITCH_BOT_TOKEN).
+const chatConfig = loadTwitchChatConfig(twitchChannel, publicUrl);
+const chat = chatConfig ? new TwitchChatBot(chatConfig, { answer: gameAnswers(db, config, chatConfig.url) }) : null;
+chat?.start();
+// It also calls each fight in chat (bets open, locked, who won) unless GI_TWITCH_ANNOUNCE=false.
+const stopAnnouncing = chat && chatConfig && process.env["GI_TWITCH_ANNOUNCE"]?.trim().toLowerCase() !== "false" ? chatAnnouncements(bus, db, config, chatConfig.url, (t) => chat.say(t)) : null;
 
 // Bot players bet on every fight so the watch page is never empty (GI_BOTS, 0 turns them off).
 const botCount = loadBotCount();
@@ -160,6 +169,8 @@ async function shutdown(code = 0) {
   await step(checks?.stop());
   obs?.stop();
   capture?.stop();
+  stopAnnouncing?.();
+  chat?.stop();
   bots?.stop();
   await step(app.close());
   await step(lock.release());
