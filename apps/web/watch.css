@@ -180,3 +180,12 @@
 
 /* The player's own run of right calls, by their bet. */
 .call-streak { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 999px; background: linear-gradient(90deg, #ff6a3c, var(--gold)); color: #241a00; font-size: 11px; font-weight: 800; white-space: nowrap; }
+
+/* Today's top winners (players only), above the bets. */
+.top-today { margin-bottom: 12px; }
+.top-today ol { margin: 6px 0 0; padding: 0; list-style: none; counter-reset: top; }
+.top-today li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; font-size: 13px; counter-increment: top; }
+.top-today li::before { content: counter(top) "."; color: var(--dim); min-width: 1.4em; }
+.top-today li .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-today li .amt { color: var(--green, #3ddc84); font-weight: 700; }
+.top-today li.me .who { color: var(--gold); font-weight: 700; }

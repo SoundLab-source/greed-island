@@ -824,6 +824,8 @@ describe("bettor numbers and boards", () => {
     const mine = (await app.inject({ method: "GET", url: "/api/boards/calls", headers: s.auth })).json();
     expect(mine.winRate.me).toEqual({ rank: 0, name: "", value: 100, detail: 1 });
     expect(mine.streak.me).toMatchObject({ rank: 1, value: 1 });
+    const today = (await app.inject({ method: "GET", url: "/api/boards/today" })).json();
+    expect(today.rows).toEqual([{ rank: 1, name: "Caller", profit: "18", bets: 1 }]);
   });
 
   it("shows the player's run of right calls with their account", async () => {

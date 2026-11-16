@@ -6,7 +6,7 @@
  */
 import { fromSalt, toSalt, type Db, type Prisma } from "@greed-island/db";
 import { untilNextSettle } from "./view-cache.ts";
-import { bettorStats, playerName, rankBoard, type Archetype, type BettorStats, type Config } from "@greed-island/shared";
+import { bettorStats, playerName, rankBoard, type Archetype, type BettorStats, type Config, type Salt } from "@greed-island/shared";
 
 /**
  * The player's current run of right calls (the account page's "current streak", without reading every bet): calls are
@@ -168,6 +168,36 @@ async function callRows(db: Db, config: Config, now: Date) {
       SELECT "user_id", grp, won, COUNT(*) AS n FROM c GROUP BY "user_id", grp, won
     ) r WHERE won GROUP BY "user_id"`;
   return { upsets, rates, runs, season };
+}
+
+export interface TopWinner {
+  rank: number;
+  name: string;
+  /** Salt won over Salt staked on today's settled fights (losses count against it). */
+  profit: Salt;
+  bets: number;
+}
+
+/**
+ * Today's biggest winners (UTC day), for the stream's ticker and the watch page: players whose settled Salt bets today
+ * came out furthest ahead. Tournament T-Salt doesn't count; bots are never on it. Kept until the next fight settles.
+ */
+export async function todaysTopWinners(db: Db, now = new Date(), n = 5): Promise<{ day: string; rows: TopWinner[] }> {
+  const day = now.toISOString().slice(0, 10);
+  const from = new Date(`${day}T00:00:00.000Z`);
+  return untilNextSettle(db, `top-winners:${day}:${n}`, async () => {
+    const rows = await db.$queryRaw<{ user_id: string; display_name: string | null; profit: Prisma.Decimal; bets: bigint }[]>`
+      SELECT b."user_id", u."display_name", SUM(COALESCE(b."returned", 0) - b."stake") AS profit, COUNT(*) AS bets
+      FROM "bet" b
+      JOIN "fight" f ON f."id" = b."fight_id" AND f."state" = 'SETTLED' AND f."tournament_match_id" IS NULL AND f."closed_at" >= ${from}
+      JOIN "user" u ON u."id" = b."user_id" AND u."kind" <> 'BOT'
+      WHERE b."status" IN ('WON', 'LOST')
+      GROUP BY b."user_id", u."display_name"
+      HAVING SUM(COALESCE(b."returned", 0) - b."stake") > 0
+      ORDER BY profit DESC, MIN(f."number") ASC
+      LIMIT ${n}`;
+    return { day, rows: rows.map((r, i) => ({ rank: i + 1, name: playerName({ id: r.user_id, displayName: r.display_name }), profit: toSalt(r.profit), bets: Number(r.bets) })) };
+  });
 }
 
 /** A not-yet-qualified viewer's win rate: no rank. */
