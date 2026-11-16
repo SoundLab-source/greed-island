@@ -468,6 +468,11 @@ model Fight {
   @@index([state])
   @@index([tournamentMatchId])
   @@index([bookedAt])
+  /// Season standings and the "best calls" boards read fights by when they settled.
+  @@index([closedAt])
+  /// A character's fights (form, head-to-head, its page), newest first.
+  @@index([side1CharacterId, number])
+  @@index([side2CharacterId, number])
   @@map("fight")
 }
 
