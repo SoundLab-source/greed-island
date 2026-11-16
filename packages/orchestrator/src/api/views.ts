@@ -32,6 +32,7 @@ import {
   type UpgradeConfig,
 } from "@greed-island/shared";
 import { mySeason } from "./season-views.ts";
+import { currentCallStreak } from "../bettor-stats.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
 import { signatureMoveName } from "../cards.ts";
 import { fightBreakdown, fightStory, scouting, storyFacts, type RoundRecord } from "../story.ts";
@@ -260,6 +261,17 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   }));
   const pool = { 1: 0n, 2: 0n };
   for (const b of betRows) pool[b.side as Side] += toSalt(b.stake);
+  // After a settled fight: how many players called it and the biggest win (players only: bots never headline).
+  const winners = f.state === "SETTLED" ? betRows.filter((b) => b.status === "WON" && b.user.kind !== "BOT" && b.returned !== null) : [];
+  const top = winners.map((b) => ({ b, profit: toSalt(b.returned!) - toSalt(b.stake) })).sort((x, y) => (x.profit === y.profit ? 0 : x.profit > y.profit ? -1 : 1))[0];
+  const payouts =
+    f.state === "SETTLED"
+      ? {
+          calledIt: winners.length,
+          players: betRows.filter((b) => b.user.kind !== "BOT").length,
+          biggest: top ? { name: playerName(top.b.user), profit: top.profit.toString(), stake: top.b.stake.toFixed(0) } : null,
+        }
+      : null;
 
   let odds: unknown = null;
   if (f.odds) {
@@ -365,6 +377,8 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     myBet,
     bets,
     betsRevealed,
+    /** After a settled fight: players who called it, and the biggest win (Salt or T-Salt won over the stake). */
+    payouts,
     story,
     /** After a settled fight: why it was won, up to three lines. */
     breakdown,
@@ -420,6 +434,8 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
       balance: t.balance.toFixed(0),
       at: t.earnedAt,
     })),
+    /** Right calls in a row, up to now (bettor-stats.ts). */
+    callStreak: user.kind === "BOT" ? 0 : await currentCallStreak(db, config, userId),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,
     bailoutAvailable: stakes === 0n && balance < config.economy.bailoutFloor,
     goals: user.kind === "BOT" ? null : goalsJson(await goalsView(db, userId, goalSettings(config), await goalWorld(db, config.exhibitions.rivalryRate), now)),

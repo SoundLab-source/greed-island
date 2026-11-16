@@ -7,6 +7,23 @@
 import { fromSalt, toSalt, type Db, type Prisma } from "@greed-island/db";
 import { bettorStats, playerName, rankBoard, type Archetype, type BettorStats, type Config } from "@greed-island/shared";
 
+/**
+ * The player's current run of right calls (the account page's "current streak", without reading every bet): calls are
+ * settled bets of at least the call stake, newest first, counted until the first wrong one. Shown on the watch page.
+ */
+export async function currentCallStreak(db: Db, config: Config, userId: string, look = 200): Promise<number> {
+  const rows = await db.$queryRaw<{ won: boolean }[]>`
+    SELECT (b."status" = 'WON') AS won
+    FROM "bet" b
+    JOIN "fight" f ON f."id" = b."fight_id" AND f."state" = 'SETTLED'
+    WHERE b."user_id" = ${userId}::uuid AND b."status" IN ('WON', 'LOST') AND b."stake" >= ${fromSalt(config.bettors.minCallStake)}::numeric
+    ORDER BY f."number" DESC
+    LIMIT ${look}`;
+  let n = 0;
+  while (n < rows.length && rows[n]!.won) n++;
+  return n;
+}
+
 /** A player's numbers from all their settled bets. */
 export async function myBettorStats(db: Db, config: Config, userId: string): Promise<BettorStats & { minCallStake: bigint }> {
   const rows = await db.$queryRaw<
