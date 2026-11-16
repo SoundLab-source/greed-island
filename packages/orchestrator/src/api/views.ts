@@ -220,6 +220,8 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   return {
     ...view,
     myBet: mine ? { id: mine.id, side: mine.side, stake: mine.stake.toFixed(0), status: mine.status, returned: mine.returned?.toFixed(0) ?? null } : null,
+    /** The viewer's record backing each side's character before this fight (settled bets only). */
+    myRecord: viewerId ? await backingRecord(db, viewerId, fightId, view.sides[1].id, view.sides[2].id) : null,
     bets: betRows.map((b) => ({
       id: b.id,
       name: playerName(b.user),
@@ -404,6 +406,24 @@ async function sharedFightView(db: Db, config: Config, fightId: string, ikemenDi
     finish,
     scouting: await scouting(db, f),
   };
+}
+
+/** A player's settled bets on each of two characters (on whichever side it fought), leaving out one fight. */
+export async function backingRecord(db: Db, userId: string, exceptFightId: string, c1: string, c2: string): Promise<Record<Side, { wins: number; losses: number }>> {
+  const rows = await db.$queryRaw<{ cid: string; wins: bigint; losses: bigint }[]>`
+    SELECT x.cid, COUNT(*) FILTER (WHERE x.won) AS wins, COUNT(*) FILTER (WHERE NOT x.won) AS losses
+    FROM (
+      SELECT (CASE WHEN b."side" = 1 THEN f."side1_character_id" ELSE f."side2_character_id" END)::text AS cid, (b."status" = 'WON') AS won
+      FROM "bet" b JOIN "fight" f ON f."id" = b."fight_id"
+      WHERE b."user_id" = ${userId}::uuid AND b."status" IN ('WON', 'LOST') AND b."fight_id" <> ${exceptFightId}::uuid
+    ) x
+    WHERE x.cid IN (${c1}, ${c2})
+    GROUP BY x.cid`;
+  const of = (c: string) => {
+    const r = rows.find((x) => x.cid === c);
+    return { wins: Number(r?.wins ?? 0n), losses: Number(r?.losses ?? 0n) };
+  };
+  return { 1: of(c1), 2: of(c2) };
 }
 
 /** The fight to show now: the newest unfinished one, else the newest finished one. */

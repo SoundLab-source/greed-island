@@ -204,3 +204,6 @@
 @keyframes side-nudge { 0%, 100% { box-shadow: 0 0 0 0 rgba(246, 201, 69, 0); } 50% { box-shadow: 0 0 0 4px rgba(246, 201, 69, 0.45); } }
 .side.nudge:not(:disabled) { animation: side-nudge 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .side.nudge:not(:disabled) { animation: none; outline: 2px solid rgba(246, 201, 69, 0.6); } }
+
+/* Your record backing a side's character (fightView myRecord). */
+.side .my-rec { color: var(--gold); white-space: nowrap; }
