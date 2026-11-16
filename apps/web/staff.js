@@ -188,9 +188,9 @@ async function refreshEconomy() {
   $("economy-advice").className = r.inflatingStreak ? "error" : "muted";
   const flows = (w) => Object.entries(w.flows).filter(([, v]) => Number(v) !== 0).map(([k, v]) => `${esc(nice(k))} ${Number(v) > 0 ? "+" : ""}${salt(v)}`).join(", ");
   $("economy").innerHTML = `<tr><th>Week of</th><th>In</th><th>Out</th><th>Players' Salt</th><th>Active players</th><th>Per active</th><th>Growth (Salt / players)</th><th>Where from and to</th></tr>` +
-    r.weeks.slice().reverse().map((w) => `<tr${w.inflating ? ' class="error"' : ""}><td>${new Date(w.week).toISOString().slice(0, 10)}</td>
-      <td>+${salt(w.in)}</td><td>−${salt(w.out)}</td><td>${salt(w.supply)}</td><td>${w.activePlayers}</td><td>${w.perActive === null ? "" : salt(w.perActive)}</td>
-      <td>${pct(w.supplyGrowthPct)} / ${pct(w.activeGrowthPct)}</td><td class="muted">${flows(w)}</td></tr>`).join("");
+    r.weeks.slice().reverse().map((w) => `<tr${w.inflating ? ' class="error"' : ""}><td style="white-space:nowrap">${new Date(w.week).toISOString().slice(0, 10)}</td>
+      <td>${Number(w.in) ? `+${salt(w.in)}` : "0"}</td><td>${Number(w.out) ? `−${salt(w.out)}` : "0"}</td><td>${salt(w.supply)}</td><td>${w.activePlayers}</td><td>${w.perActive === null ? "" : salt(w.perActive)}</td>
+      <td style="white-space:nowrap">${w.supplyGrowthPct === null && w.activeGrowthPct === null ? "" : `${pct(w.supplyGrowthPct) || "–"} / ${pct(w.activeGrowthPct) || "–"}`}</td><td class="muted">${flows(w)}</td></tr>`).join("");
 }
 
 async function refresh() {
