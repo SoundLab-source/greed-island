@@ -100,7 +100,14 @@
       <span class="who">${n === 2 ? flame(f, n) : ""}${GI.plate(s.name, s.cosmetics)}${n === 1 ? flame(f, n) : ""}</span>
       <span class="odds">${odds}</span>
       <span class="sub">${chance ? `<b>${chance}</b> · ` : ""}${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} ${form((s.last10 ?? []).slice(-5))}</span>
-      <span class="sub style">${scoutLine(n, f)}</span>`;
+      <span class="sub style">${scoutLine(n, f)}${myRecord(n, f)}</span>`;
+  }
+
+  // Your own record backing this character, from your settled bets (only once you've backed it).
+  function myRecord(n, f) {
+    const r = f.myRecord?.[n];
+    if (!r || r.wins + r.losses === 0) return "";
+    return ` · <span class="my-rec" title="Your bets on ${esc(f.sides[n].name)}: ${r.wins} won, ${r.losses} lost">you're ${r.wins}–${r.losses} on it</span>`;
   }
 
   // A win streak of 3 or more (docs/ENGAGEMENT.md §1): a flame by the name, with its length.

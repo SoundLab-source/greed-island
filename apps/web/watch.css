@@ -170,3 +170,6 @@
 /* The sound toggle (site.js GI.sfx). */
 .sound { flex: none; white-space: nowrap; background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; font-weight: 700; padding: 1px 8px; margin-left: 8px; }
 .sound:hover { color: var(--ink); }
+
+/* Your record backing a side's character (fightView myRecord). */
+.side .my-rec { color: var(--gold); white-space: nowrap; }
