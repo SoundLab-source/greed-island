@@ -49,6 +49,8 @@ Node and pnpm are installed per-user in `~/.local/node/bin`; the Docker CLI is i
 - `pnpm web:check [--widths 375,826,1100,1280,1600,2000] [--pages shop,rankings] [--cards]`: with the site running (`pnpm dev`), open every page in a hidden Chrome (its own throwaway profile; `CHROME_BIN` to point at it) at each width and report what looks broken (content spilling out of or cut off in its box, buttons, badges and menu links on extra lines, the bet bar overlapping, sideways scrolling); `--cards` also measures the text on every character's and fighter's card (overlaps, text off the card); screenshots in `runs/web-check/`; exits 1 when anything's found
 - `pnpm staff:role <email> <admin|moderator|player>`: set an account's staff role (the only way to add or remove an admin; the account must have signed in with that email); no arguments lists the staff. Logged in the staff log
 
+CI (`.github/workflows/ci.yml`) runs `pnpm typecheck` and `pnpm test` on every pull request and push to main, with Postgres as a service.
+
 Test layout: `*.test.ts` next to code. Anything touching Postgres is either in `packages/db` or named `*.db.test.ts`; those run serially in the `db` Vitest project, everything else in `unit`.
 
 - `pnpm demo`: migrate, sync roster, then 12 fights on the dev DB with the fake engine and 3 demo players betting (one forced crash → void); prints results, ratings, tier changes, titles earned and the ledger audit; exits non-zero unless ≥10 settle, ≥1 voids and the audit passes
