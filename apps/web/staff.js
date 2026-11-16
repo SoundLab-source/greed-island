@@ -181,10 +181,10 @@ async function refreshStaff() {
 
 // The pulse: players betting, new and returning, and whether newcomers come back (orchestrator pulse.ts).
 const n = (v) => Number(v).toLocaleString("en-US");
-const pct = (a, b) => (b ? ` (${Math.round((100 * a) / b)}%)` : "");
+const share = (a, b) => (b ? ` (${Math.round((100 * a) / b)}%)` : "");
 async function refreshPulse() {
   const p = await api("GET", "/api/staff/pulse");
-  $("pulse-now").textContent = `${n(p.watchingNow)} page${p.watchingNow === 1 ? "" : "s"} watching live right now · ${n(p.fights.settled)} fights in the last 7 days, ${p.fights.bettorsPerFight} players betting on each · of the ${n(p.cameBack.players)} players who first bet 2–8 days ago, ${n(p.cameBack.returned)}${pct(p.cameBack.returned, p.cameBack.players)} came back another day`;
+  $("pulse-now").textContent = `${n(p.watchingNow)} page${p.watchingNow === 1 ? "" : "s"} watching live right now · ${n(p.fights.settled)} fights in the last 7 days, ${p.fights.bettorsPerFight} players betting on each · of the ${n(p.cameBack.players)} players who first bet 2–8 days ago, ${n(p.cameBack.returned)}${share(p.cameBack.returned, p.cameBack.players)} came back another day`;
   $("pulse-windows").innerHTML = `<tr><th></th><th>Players betting</th><th>New</th><th>Returning</th><th>Bets</th><th>Salt staked</th></tr>` +
     p.windows.map((w) => `<tr><td>${esc(w.label)}</td><td><strong>${n(w.bettors)}</strong></td><td>${n(w.newBettors)}</td><td>${n(w.returning)}</td><td>${n(w.bets)}</td><td>${n(w.staked)}</td></tr>`).join("");
   const most = Math.max(1, ...p.days.map((d) => d.bettors));
