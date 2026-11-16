@@ -24,6 +24,17 @@ describe("owners' next milestones", () => {
   });
 
   it("uses the configured tier thresholds", () => {
-    expect(nextMilestones({ wins: 100, rating: 1000, tier: "P", titles: [] }, { thresholds: { B: 1100, A: 1200, S: 1300 }, hysteresis: 25 })[0]!.text).toBe("Rating 1100 for B tier: 100 to go");
+    expect(nextMilestones({ wins: 100, rating: 1000, tier: "P", titles: [] }, { thresholds: { B: 1100, A: 1200, S: 1300 }, hysteresis: 25, placementFights: 5 })[0]!.text).toBe("Rating 1100 for B tier: 100 to go");
+  });
+
+  it("shows placement instead of the next tier during a new character's first fights", () => {
+    expect(nextMilestones({ wins: 1, losses: 1, rating: 1520, tier: "B", titles: ["FIRST_BLOOD"] })[1]).toEqual({
+      kind: "tier",
+      text: "Placement: 3 more fights, then its rating sets its tier",
+      reward: null,
+      progress: 2 / 5,
+    });
+    expect(nextMilestones({ wins: 0, losses: 4, rating: 1300, tier: "B", titles: [] })[1]!.text).toBe("Placement: 1 more fight, then its rating sets its tier");
+    expect(nextMilestones({ wins: 2, losses: 3, rating: 1520, tier: "B", titles: [] })[1]!.text).toBe("Rating 1600 for A tier: 80 to go");
   });
 });

@@ -500,8 +500,8 @@ export async function recentResults(db: Db, take = 10) {
 
 /** A player's own characters, strongest first. */
 /** A character's next milestones from its card and titles. */
-function milestonesOf(card: { record: { wins: number }; rating: number; tier: string }, titles: { code: TitleCode }[], tiers?: TierConfig) {
-  return nextMilestones({ wins: card.record.wins, rating: card.rating, tier: card.tier as Tier, titles: titles.map((t) => t.code) }, tiers);
+function milestonesOf(card: { record: { wins: number; losses: number }; rating: number; tier: string }, titles: { code: TitleCode }[], tiers?: TierConfig) {
+  return nextMilestones({ wins: card.record.wins, losses: card.record.losses, rating: card.rating, tier: card.tier as Tier, titles: titles.map((t) => t.code) }, tiers);
 }
 
 export async function myCharacters(db: Db, config: Config, userId: string) {

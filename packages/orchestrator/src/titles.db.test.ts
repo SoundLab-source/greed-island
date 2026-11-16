@@ -86,6 +86,8 @@ describe("titles at settlement", () => {
   it("awards tier firsts on promotion, never twice", async () => {
     const a = await character("a", "P", 1447);
     const b = await character("b", "P", 1447);
+    // Past their placement fights (a new character's tier holds for its first few).
+    await db.character.updateMany({ where: { id: { in: [a, b] } }, data: { losses: config.tiers.placementFights } });
     // Deviation 50: a win moves the rating a little, enough to cross 1450.
     const f1 = await play(a, b, 1);
     expect((await loadout(f1.id, 1)).tierAfter).toBe("B");
@@ -102,8 +104,9 @@ describe("titles at settlement", () => {
     const c = await db.$transaction((tx) => createCharacter(tx, { rosterKey: "c", fighterId: "c", name: "Starter" }, ratingSettings));
     expect(c.tier).toBe("B");
     const d = await character("d", "P", 1447);
+    await db.character.update({ where: { id: d }, data: { losses: config.tiers.placementFights } });
     // Dropped to P, then climbs back into B: not a first.
-    await db.character.update({ where: { id: c.id }, data: { tier: "P", rating: 1447, deviation: 50 } });
+    await db.character.update({ where: { id: c.id }, data: { tier: "P", rating: 1447, deviation: 50, losses: config.tiers.placementFights } });
     const f = await play(c.id, d, 1);
     expect((await loadout(f.id, 1)).tierAfter).toBe("B");
     expect((await db.characterTitle.findMany({ where: { characterId: c.id } })).map((t) => t.code)).toEqual(["FIRST_BLOOD"]);

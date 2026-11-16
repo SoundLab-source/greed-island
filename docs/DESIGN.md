@@ -81,6 +81,7 @@ The stream runs a repeating cycle (all counts configurable):
 
 - Every character has a **Glicko-2 rating** (rating, deviation, volatility). New characters start with high deviation.
 - **Tiers are rating bands:** P, B, A, S. **X tier** is manual, reserved for deliberately overpowered house characters as spectacle.
+- **Placement:** a new character's tier holds for its first 5 fights, then its rating sets it. A new rating is uncertain enough that one result moves it about 160 points, which would otherwise swing a tier (and award a tier title) on a single lucky fight. Configurable (`GI_TIER_PLACEMENT_FIGHTS`).
 - **Upgrades change a character**, so its history becomes less predictive. Every stat or sidegrade change widens the rating deviation.
 - **Every fight stores a full loadout snapshot** for both sides (stats, sidegrades, tier, rating), so records and head-to-heads stay interpretable.
 - **Stats shown to bettors:** rating, tier, win rate, head-to-head record, recent form (last 10), tier history.
