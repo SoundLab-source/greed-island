@@ -1,0 +1,47 @@
+# Typecheck and every test suite on each pull request and push to main, against a throwaway Postgres.
+# Nothing here needs IKEMEN, OBS or secrets: the engine-backed paths run on the fake engine in tests.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: greed
+          POSTGRES_PASSWORD: greed
+          POSTGRES_DB: greed_island_test
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U greed -d greed_island_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql://greed:greed@localhost:54329/greed_island_test
+      TEST_DATABASE_URL: postgresql://greed:greed@localhost:54329/greed_island_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
