@@ -200,6 +200,39 @@ export async function todaysTopWinners(db: Db, now = new Date(), n = 5): Promise
   });
 }
 
+export interface DayUpset {
+  number: number;
+  winner: string;
+  loser: string;
+  /** The winner's chance when bets locked, in %, and what it paid. */
+  chancePct: number;
+  multiplier: string;
+}
+
+/**
+ * Today's biggest upset (UTC day): the settled fight, outside tournaments, whose winner had the lowest chance when bets
+ * locked, if it was below `maxChanceBp` (40% by default: a favourite winning is no upset).
+ */
+export async function todaysUpset(db: Db, now = new Date(), maxChanceBp = 4000): Promise<DayUpset | null> {
+  const day = now.toISOString().slice(0, 10);
+  const from = new Date(`${day}T00:00:00.000Z`);
+  return untilNextSettle(db, `upset:${day}:${maxChanceBp}`, async () => {
+    const [r] = await db.$queryRaw<{ number: number; winner: string; loser: string; chance_bp: number; multiplier_bp: number }[]>`
+      SELECT f."number", w."name" AS winner, l."name" AS loser,
+             CASE WHEN f."winner_side" = 1 THEN o."chance_bp1" ELSE o."chance_bp2" END AS chance_bp,
+             CASE WHEN f."winner_side" = 1 THEN o."multiplier_bp1" ELSE o."multiplier_bp2" END AS multiplier_bp
+      FROM "fight" f
+      JOIN "fight_odds" o ON o."fight_id" = f."id"
+      JOIN "character" w ON w."id" = CASE WHEN f."winner_side" = 1 THEN f."side1_character_id" ELSE f."side2_character_id" END
+      JOIN "character" l ON l."id" = CASE WHEN f."winner_side" = 1 THEN f."side2_character_id" ELSE f."side1_character_id" END
+      WHERE f."state" = 'SETTLED' AND f."tournament_match_id" IS NULL AND f."closed_at" >= ${from} AND f."closed_at" < ${now}
+        AND (CASE WHEN f."winner_side" = 1 THEN o."chance_bp1" ELSE o."chance_bp2" END) < ${maxChanceBp}
+      ORDER BY chance_bp ASC, f."number" ASC
+      LIMIT 1`;
+    return r ? { number: r.number, winner: r.winner, loser: r.loser, chancePct: r.chance_bp / 100, multiplier: `${(r.multiplier_bp / 10000).toFixed(2)}x` } : null;
+  });
+}
+
 /** A not-yet-qualified viewer's win rate: no rank. */
 function ownRate(r: { calls: bigint; wins: bigint } | undefined, pct: (w: bigint, c: bigint) => number): BoardRow | null {
   return r ? { rank: 0, name: "", value: pct(r.wins, r.calls), detail: Number(r.calls) } : null;

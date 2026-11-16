@@ -11,6 +11,7 @@
   let fight = null;
   let results = [];
   let topToday = [];
+  let upsetToday = null;
   let tickerTurn = 0;
   let stillIn = null;
   let bannerTimer = null;
@@ -180,7 +181,11 @@
     $("cta").innerHTML = site ? `Bet free play money at <span>${esc(site)}</span>` : `<span>Free play money</span> · never bought, never cashed out`;
     if (fight && fight.tournament && stillIn) {
       $("ticker").innerHTML = `Tournament #${fight.tournament.number} · still in: <b>${stillIn.map(esc).join("</b>, <b>")}</b>`;
-    } else if (topToday.length && tickerTurn % 2 === 1) {
+    } else if (upsetToday && tickerTurn % 3 === 2) {
+      // Every third turn: the day's biggest upset, the fight people will talk about.
+      const u = upsetToday;
+      $("ticker").innerHTML = `Upset of the day: <b>${esc(u.winner)}</b> beat ${esc(u.loser)} at ${u.chancePct.toFixed(0)}% · paid ${esc(u.multiplier.replace("x", "×"))} · fight #${u.number}`;
+    } else if (topToday.length && tickerTurn % 3 === 1) {
       // Every other turn: today's biggest winners, so players see their names on the stream.
       const n = (x) => Number(x).toLocaleString("en-US");
       $("ticker").innerHTML = `Today's top winners: ${topToday.slice(0, 3).map((r) => `${r.rank}. <b>${esc(r.name)}</b> +${n(r.profit)}`).join(" · ")}`;
@@ -322,7 +327,9 @@
   }
   async function refreshResults() {
     results = (await get("/api/results")) ?? [];
-    topToday = ((await get("/api/boards/today")) ?? { rows: [] }).rows;
+    const today = (await get("/api/boards/today")) ?? { rows: [], upset: null };
+    topToday = today.rows;
+    upsetToday = today.upset ?? null;
     renderFooter();
   }
   async function refreshTournament() {
@@ -411,7 +418,7 @@
   setInterval(() => {
     if (fight && fight.state === "BETTING_OPEN") renderClock();
   }, 250);
-  // The ticker turns between recent results and today's top winners.
+  // The ticker turns between recent results, today's top winners and the day's biggest upset.
   setInterval(() => {
     tickerTurn++;
     renderFooter();
