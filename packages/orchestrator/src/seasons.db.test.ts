@@ -96,6 +96,9 @@ describe("seasons", () => {
     expect(await leaderboard(db, config)).toHaveLength(2);
     expect(await mySeason(db, config, bob)).toMatchObject({ number: 1, rank: 2, saltWon: "-80", bets: 4 });
     const aliceWon = BigInt(live.players[0]!.saltWon);
+    // The race: Bob needs to win one Salt more than the gap to pass Alice; Alice leads by the gap.
+    expect(await mySeason(db, config, bob)).toMatchObject({ players: 2, toPass: { rank: 1, salt: String(aliceWon + 80n + 1n) }, lead: null });
+    expect(await mySeason(db, config, alice)).toMatchObject({ players: 2, toPass: null, lead: String(aliceWon + 80n) });
     expect(aliceWon).toBeGreaterThan(0n);
 
     // The season ends; the next booking closes it.
@@ -122,7 +125,7 @@ describe("seasons", () => {
     expect(final.characters.find((c) => c.characterId === champ.id)).toBeDefined();
     expect([await getBalance(db, alice), await getBalance(db, bob)]).toEqual(balances);
     expect(await leaderboard(db, config)).toEqual([]);
-    expect(await mySeason(db, config, alice)).toMatchObject({ number: 2, rank: null, saltWon: "0", bets: 0 });
+    expect(await mySeason(db, config, alice)).toMatchObject({ number: 2, rank: null, saltWon: "0", bets: 0, players: 0, toPass: null, lead: null });
   });
 
   it("counts a fight in the season its result came in", async () => {
