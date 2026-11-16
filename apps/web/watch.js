@@ -403,7 +403,10 @@
   async function refreshTopToday() {
     const t = await api("GET", "/api/boards/today").catch(() => null);
     const rows = t ? t.rows : [];
-    $("top-today").hidden = rows.length === 0;
+    const u = t ? t.upset : null;
+    $("top-today").hidden = rows.length === 0 && !u;
+    $("upset-today").hidden = !u;
+    if (u) $("upset-today").innerHTML = `Upset of the day: <b>${esc(u.winner)}</b> beat ${esc(u.loser)} at ${u.chancePct.toFixed(0)}%, paying ${esc(u.multiplier.replace("x", "×"))}`;
     // The top three: the column also holds the goals, the season race and the bets.
     $("top-today-list").innerHTML = rows
       .slice(0, 3)
