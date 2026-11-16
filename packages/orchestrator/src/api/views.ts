@@ -298,7 +298,7 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   let myBet: unknown = null;
   if (viewerId) {
     const b = await db.bet.findUnique({ where: { userId_fightId: { userId: viewerId, fightId } } });
-    if (b) myBet = { side: b.side, stake: b.stake.toFixed(0), status: b.status, returned: b.returned?.toFixed(0) ?? null };
+    if (b) myBet = { id: b.id, side: b.side, stake: b.stake.toFixed(0), status: b.status, returned: b.returned?.toFixed(0) ?? null };
   }
 
   // The announcer's lines before the fight, and its headline after (docs/ENGAGEMENT.md §1).
@@ -449,6 +449,7 @@ export async function betHistory(db: Db, userId: string, take = 50) {
     include: { fight: { select: { number: true, state: true, tournamentMatchId: true } } },
   });
   return bets.map((b) => ({
+    id: b.id,
     fightId: b.fightId,
     fightNumber: b.fight.number,
     fightState: b.fight.state,

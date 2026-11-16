@@ -97,3 +97,13 @@ describe("the share page's link preview", () => {
     expect(() => fillSharePage("<head></head>", shareMeta(card, "x", "https://g"))).toThrow(/share-meta/);
   });
 });
+
+describe("a right call's picture", () => {
+  it("is a 1200 x 630 PNG, whatever the names", async () => {
+    const { callImage } = await import("./share-image.ts");
+    for (const player of ["Al", "A Very Long Player Name That Goes On And On"]) {
+      const png = readPng(callImage({ betId: "x", player, fightNumber: 412, side: 2, winner: "Hot Takes", loser: "Free Loot", chancePct: 20, multiplier: "4.80x", stake: 1000n, returned: 4800n, profit: 3800n, currency: "Salt", upset: true, at: new Date() }));
+      expect([png.width, png.height]).toEqual([1200, 630]);
+    }
+  });
+});
