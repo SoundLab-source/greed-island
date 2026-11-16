@@ -70,7 +70,7 @@ async function openFight() {
 describe("sessions and the player", () => {
   it("creates an anonymous player with the starting balance", async () => {
     const s = await session("Tester");
-    expect(s.me).toMatchObject({ name: "Tester", balance: "400", dailyGrantAvailable: true, bailoutAvailable: false });
+    expect(s.me).toMatchObject({ name: "Tester", balance: "400", dailyGrantAvailable: true, bailoutAvailable: false, firstBet: true });
     const me = await app.inject({ method: "GET", url: "/api/me", headers: s.auth });
     expect(me.json().balance).toBe("400");
   });
@@ -176,9 +176,10 @@ describe("fights and bets", () => {
     expect((await bet(2, 80, "key-00000002")).json()).toMatchObject({ bet: { side: 2, stake: "80" }, balance: "320" });
     expect((await bet(2, 80, "key-00000002")).json()).toMatchObject({ replayed: true, balance: "320" });
     const view = (await app.inject({ method: "GET", url: `/api/fights/${f.id}`, headers: s.auth })).json();
-    expect(view.myBet).toEqual({ side: 2, stake: "80", status: "OPEN", returned: null });
+    expect(view.myBet).toEqual({ id: expect.any(String), side: 2, stake: "80", status: "OPEN", returned: null });
     const history = (await app.inject({ method: "GET", url: "/api/me/bets", headers: s.auth })).json();
     expect(history).toHaveLength(1);
+    expect((await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).json().firstBet).toBe(false);
   });
 
   it.each([
@@ -223,8 +224,8 @@ describe("shop", () => {
       expect(buy.json()).toMatchObject({ balance: "4000", replayed: false, character: { serial: 1, firstEdition: true, tier: "P", owner: { kind: "player" } } });
       const mine = (await rich.inject({ method: "GET", url: "/api/me/characters", headers: auth })).json();
       expect(mine).toHaveLength(1);
-      // What it's climbing toward: its first win, and B tier from its owned start rating of 1350.
-      expect(mine[0].milestones.map((m: { text: string }) => m.text)).toEqual(["Win a fight for First Blood", "Rating 1450 for B tier: 100 to go"]);
+      // What it's climbing toward: its first win, and its placement fights (its tier holds until they're done).
+      expect(mine[0].milestones.map((m: { text: string }) => m.text)).toEqual(["Win a fight for First Blood", "Placement: 5 more fights, then its rating sets its tier"]);
       const again = await rich.inject({ method: "POST", url: "/api/shop/buy", headers: auth, payload: { fighterId: shop.offers[0].fighterId, idempotencyKey: "buy-key-0001" } });
       expect(again.statusCode).toBe(200);
       expect(again.json().replayed).toBe(true);
@@ -446,6 +447,17 @@ describe("staff and custom names", () => {
     const log = (await app.inject({ method: "GET", url: "/api/staff/log", headers: modAuth })).json();
     expect(log.map((l: { kind: string }) => l.kind)).toEqual(["CHARACTER_NAME_RESET", "DISPLAY_NAME_RESET", "REVIEW_APPROVED", "ROLE_SET", "ROLE_SET"]);
     expect((await app.inject({ method: "GET", url: "/api/staff/log", headers: player.auth })).statusCode).toBe(403);
+    // The Salt supply report: staff only.
+    const economy = (await app.inject({ method: "GET", url: "/api/staff/economy", headers: modAuth })).json();
+    expect(economy.weeks).toHaveLength(12);
+    expect(economy.weeks[11].activePlayers).toBeGreaterThanOrEqual(0);
+    expect(typeof economy.advice).toBe("string");
+    expect((await app.inject({ method: "GET", url: "/api/staff/economy", headers: player.auth })).statusCode).toBe(403);
+    // The pulse: staff only.
+    const p = (await app.inject({ method: "GET", url: "/api/staff/pulse", headers: modAuth })).json();
+    expect(p).toMatchObject({ watchingNow: 0, windows: [{ label: "Last 24 hours" }, { label: "Last 7 days" }, { label: "The 7 days before" }] });
+    expect(p.days).toHaveLength(14);
+    expect((await app.inject({ method: "GET", url: "/api/staff/pulse", headers: player.auth })).statusCode).toBe(403);
   });
 });
 
@@ -692,18 +704,18 @@ describe("live stream", () => {
     expect(overlay.body).toContain("overlay.js");
     for (const file of ["/overlay.js", "/overlay.css", "/watch.html", "/watch.js", "/watch.css", "/staff.html", "/staff.js", "/submit.html", "/submit.js"]) expect((await app.inject({ method: "GET", url: file })).statusCode).toBe(200);
     // The watch page embeds Twitch only when a channel is configured.
-    expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: false, bigBet: "1000" });
+    expect((await app.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: false, bigBet: "1000", maxPayout: "5000" });
     expect((await app.inject({ method: "GET", url: "/" })).headers["permissions-policy"]).toMatch(/camera=\(\)/);
     const withTwitch = await buildServer({ db, config, bus, mailer, twitchChannel: "greed_island" });
     try {
-      expect((await withTwitch.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: "greed_island", localVideo: false, bigBet: "1000" });
+      expect((await withTwitch.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: "greed_island", localVideo: false, bigBet: "1000", maxPayout: "5000" });
     } finally {
       await withTwitch.close();
     }
     // The local preview (GI_LOCAL_VIDEO): the watch page plays OBS's Virtual Camera, so the page may use a camera.
     const local = await buildServer({ db, config, bus, mailer, localVideo: true });
     try {
-      expect((await local.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: true, bigBet: "1000" });
+      expect((await local.inject({ method: "GET", url: "/api/site" })).json()).toEqual({ twitchChannel: null, localVideo: true, bigBet: "1000", maxPayout: "5000" });
       expect((await local.inject({ method: "GET", url: "/" })).headers["permissions-policy"]).toMatch(/camera=\(self\)/);
     } finally {
       await local.close();
@@ -780,6 +792,10 @@ describe("cards: sharing and the collection", () => {
     expect((await app.inject({ method: "GET", url: "/card.html" })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/card-back.svg" })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/collection.html" })).statusCode).toBe(200);
+    // The app icon and manifest (add to home screen).
+    const manifest = await app.inject({ method: "GET", url: "/site.webmanifest" });
+    expect(manifest.statusCode).toBe(200);
+    for (const icon of manifest.json().icons) expect((await app.inject({ method: "GET", url: icon.src })).headers["content-type"]).toBe("image/png");
   });
 
   it("collects the fighters a player watched, and the ones they backed", async () => {
@@ -818,6 +834,40 @@ describe("bettor numbers and boards", () => {
     const mine = (await app.inject({ method: "GET", url: "/api/boards/calls", headers: s.auth })).json();
     expect(mine.winRate.me).toEqual({ rank: 0, name: "", value: 100, detail: 1 });
     expect(mine.streak.me).toMatchObject({ rank: 1, value: 1 });
+    const today = (await app.inject({ method: "GET", url: "/api/boards/today" })).json();
+    expect(today.rows).toEqual([{ rank: 1, name: "Caller", profit: "18", bets: 1 }]);
+
+    // The right call, to share: its facts, its picture and its page with the link preview filled in.
+    const [won] = (await app.inject({ method: "GET", url: "/api/me/bets", headers: s.auth })).json();
+    const call = (await app.inject({ method: "GET", url: `/api/calls/${won.id}` })).json();
+    expect(call).toMatchObject({ betId: won.id, player: "Caller", side: 1, stake: "20", returned: "38", profit: "18", currency: "Salt" });
+    const png = await app.inject({ method: "GET", url: `/api/calls/${won.id}/share.png` });
+    expect(png.headers["content-type"]).toBe("image/png");
+    expect(png.rawPayload.subarray(1, 4).toString()).toBe("PNG");
+    const page = await app.inject({ method: "GET", url: `/call/${won.id}` });
+    expect(page.body).toContain(`<meta property="og:image" content="https://gi.test/api/calls/${won.id}/share.png">`);
+    expect(page.body).toContain("<title>Caller called it");
+    for (const url of [`/api/calls/${randomUUID()}`, "/api/calls/nope", `/call/${randomUUID()}`]) expect((await app.inject({ method: "GET", url })).statusCode).toBe(404);
+    // On the bets list, the season's top bettors wear their place.
+    const view = (await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json();
+    expect(view.bets).toEqual([expect.objectContaining({ name: "Caller", seasonRank: 1 })]);
+  });
+
+  it("shows the player's run of right calls with their account", async () => {
+    const s = await session("Hot Hand");
+    const me = async () => (await app.inject({ method: "GET", url: "/api/me", headers: s.auth })).json();
+    expect((await me()).callStreak).toBe(0);
+    const f = await openFight();
+    await app.inject({ method: "POST", url: `/api/fights/${f.id}/bets`, headers: s.auth, payload: { side: 2, stake: "20", idempotencyKey: "streak-1" } });
+    expect((await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json().payouts).toBeNull();
+    for (const type of ["LOCK", "ENGINE_STARTED"] as const) await applyTransition(deps, f.id, { type });
+    await applyTransition(deps, f.id, { type: "MATCH_END", winnerSide: 2 });
+    await applyTransition(deps, f.id, { type: "SETTLED_OK" });
+    expect((await me()).callStreak).toBe(1);
+    const after = (await app.inject({ method: "GET", url: `/api/fights/${f.id}` })).json();
+    expect(after.payouts).toMatchObject({ calledIt: 1, players: 1, biggest: { name: "Hot Hand", stake: "20" } });
+    expect(BigInt(after.payouts.biggest.profit)).toBeGreaterThan(0n);
+    expect((await app.inject({ method: "GET", url: "/api/site" })).json().maxPayout).toBe("5000");
   });
 });
 

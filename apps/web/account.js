@@ -79,7 +79,7 @@
     $("bets").innerHTML = `<tr><th>Fight</th><th>Side</th><th class="num">Stake</th><th>Result</th><th class="num">When</th></tr>` +
       (bets.map((b) => {
         const result = b.status === "OPEN" ? '<span class="muted">open</span>'
-          : b.status === "WON" ? `<span class="good">won ${fmt(b.returned)}</span>`
+          : b.status === "WON" ? `<span class="good">won ${fmt(b.returned)}</span>${b.fightState === "SETTLED" ? ` <a class="muted" href="/call/${encodeURIComponent(b.id)}">share</a>` : ""}`
           : b.status === "LOST" ? '<span class="red">lost</span>'
           : `<span class="muted">${esc(b.status.toLowerCase())}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}</span>`;
         return `<tr><td>#${b.fightNumber}</td><td class="${b.side === 1 ? "red" : "blue"}">${b.side === 1 ? "Red" : "Blue"}</td><td class="num">${fmt(b.stake)} <span class="muted">${b.currency}</span></td><td>${result}</td><td class="num muted">${GI.when(b.placedAt)}</td></tr>`;

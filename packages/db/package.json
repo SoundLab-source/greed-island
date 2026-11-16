@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev && prisma generate",
     "ledger:audit": "tsx src/scripts/ledger-audit.ts",
-    "titles:backfill": "tsx src/scripts/titles-backfill.ts"
+    "titles:backfill": "tsx src/scripts/titles-backfill.ts",
+    "economy:report": "tsx src/scripts/economy-report.ts"
   },
   "devDependencies": {
     "@types/pg": "8.23.1",

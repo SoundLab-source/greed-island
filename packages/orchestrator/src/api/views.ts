@@ -31,7 +31,9 @@ import {
   type TitleCode,
   type UpgradeConfig,
 } from "@greed-island/shared";
-import { mySeason } from "./season-views.ts";
+import { mySeason, seasonTopRanks } from "./season-views.ts";
+import { fightMark, keptWhile } from "../view-cache.ts";
+import { currentCallStreak } from "../bettor-stats.ts";
 import { formerNames, latestNameRequest, staffInfo } from "./staff-views.ts";
 import { signatureMoveName } from "../cards.ts";
 import { fightBreakdown, fightStory, scouting, storyFacts, type RoundRecord } from "../story.ts";
@@ -203,7 +205,42 @@ export async function characterProfile(db: Db, characterId: string, tiers?: Tier
 }
 
 /** Full view of one fight, optionally with the viewer's own bet. With the game folder, it knows signature moves' names. */
+/**
+ * A fight as the site shows it. Every viewer's page asks for it again at each step of the fight (the stream's events),
+ * so the part that's the same for everyone is worked out once per change of the fight or its bets (fight-cache.ts)
+ * and only the viewer's own bet is added per request.
+ */
 export async function fightView(db: Db, config: Config, fightId: string, viewerId?: string, ikemenDir?: string) {
+  const shared = await keptWhile(db, `fight:${fightId}`, await fightMark(db, fightId, `${config.bets.sidesLive}:${ikemenDir ?? ""}`), () => sharedFightView(db, config, fightId, ikemenDir), {
+    maxAgeMs: FIGHT_VIEW_MAX_AGE_MS,
+  });
+  if (!shared) return null;
+  const { betRows, betsRevealed, topRanks, ...view } = shared;
+  const mine = viewerId ? betRows.find((b) => b.userId === viewerId) : undefined;
+  return {
+    ...view,
+    myBet: mine ? { id: mine.id, side: mine.side, stake: mine.stake.toFixed(0), status: mine.status, returned: mine.returned?.toFixed(0) ?? null } : null,
+    /** The viewer's record backing each side's character before this fight (settled bets only). */
+    myRecord: viewerId ? await backingRecord(db, viewerId, fightId, view.sides[1].id, view.sides[2].id) : null,
+    bets: betRows.map((b) => ({
+      id: b.id,
+      name: playerName(b.user),
+      bot: b.user.kind === "BOT",
+      /** The bettor's place on the running season's leaderboard, when in its top 10. */
+      seasonRank: topRanks.get(b.userId) ?? null,
+      stake: b.stake.toFixed(0),
+      side: betsRevealed || b.userId === viewerId ? b.side : null,
+      mine: b.userId === viewerId,
+      at: b.updatedAt,
+    })),
+    betsRevealed,
+  };
+}
+
+/** How long the shared part of a fight's view is kept at most, even with nothing new (its fighters' live cards). */
+const FIGHT_VIEW_MAX_AGE_MS = 10_000;
+
+async function sharedFightView(db: Db, config: Config, fightId: string, ikemenDir?: string) {
   const f = await db.fight.findUnique({
     where: { id: fightId },
     include: {
@@ -249,17 +286,19 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
     include: { user: { select: { id: true, displayName: true, kind: true } } },
     orderBy: [{ stake: "desc" }, { updatedAt: "asc" }],
   });
-  const bets = betRows.map((b) => ({
-    id: b.id,
-    name: playerName(b.user),
-    bot: b.user.kind === "BOT",
-    stake: b.stake.toFixed(0),
-    side: betsRevealed || b.userId === viewerId ? b.side : null,
-    mine: b.userId === viewerId,
-    at: b.updatedAt,
-  }));
   const pool = { 1: 0n, 2: 0n };
   for (const b of betRows) pool[b.side as Side] += toSalt(b.stake);
+  // After a settled fight: how many players called it and the biggest win (players only: bots never headline).
+  const winners = f.state === "SETTLED" ? betRows.filter((b) => b.status === "WON" && b.user.kind !== "BOT" && b.returned !== null) : [];
+  const top = winners.map((b) => ({ b, profit: toSalt(b.returned!) - toSalt(b.stake) })).sort((x, y) => (x.profit === y.profit ? 0 : x.profit > y.profit ? -1 : 1))[0];
+  const payouts =
+    f.state === "SETTLED"
+      ? {
+          calledIt: winners.length,
+          players: betRows.filter((b) => b.user.kind !== "BOT").length,
+          biggest: top ? { name: playerName(top.b.user), profit: top.profit.toString(), stake: top.b.stake.toFixed(0) } : null,
+        }
+      : null;
 
   let odds: unknown = null;
   if (f.odds) {
@@ -294,12 +333,6 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
   const challenge = await db.challenge.findUnique({ where: { fightId }, include: { challenger: true, challenged: true } });
   const reward = f.state === "SETTLED" ? await db.ledgerTxn.findUnique({ where: { idempotencyKey: `owner-reward:${fightId}` }, include: { entries: true } }) : null;
   const rewardAmount = reward ? reward.entries.reduce((n, e) => (e.amount.isPositive() ? n + toSalt(e.amount) : n), 0n) : null;
-
-  let myBet: unknown = null;
-  if (viewerId) {
-    const b = await db.bet.findUnique({ where: { userId_fightId: { userId: viewerId, fightId } } });
-    if (b) myBet = { side: b.side, stake: b.stake.toFixed(0), status: b.status, returned: b.returned?.toFixed(0) ?? null };
-  }
 
   // The announcer's lines before the fight, and its headline after (docs/ENGAGEMENT.md §1).
   const tournament = tm ? { roundName: roundName(tm.round, tm.tournament.size) } : null;
@@ -362,15 +395,35 @@ export async function fightView(db: Db, config: Config, fightId: string, viewerI
         : f.state === "VOIDED"
           ? { kind: "voided", reason: f.voidReason, detail: f.voidDetail }
           : null,
-    myBet,
-    bets,
+    betRows,
     betsRevealed,
+    /** After a settled fight: players who called it, and the biggest win (Salt or T-Salt won over the stake). */
+    payouts,
+    topRanks: await seasonTopRanks(db),
     story,
     /** After a settled fight: why it was won, up to three lines. */
     breakdown,
     finish,
     scouting: await scouting(db, f),
   };
+}
+
+/** A player's settled bets on each of two characters (on whichever side it fought), leaving out one fight. */
+export async function backingRecord(db: Db, userId: string, exceptFightId: string, c1: string, c2: string): Promise<Record<Side, { wins: number; losses: number }>> {
+  const rows = await db.$queryRaw<{ cid: string; wins: bigint; losses: bigint }[]>`
+    SELECT x.cid, COUNT(*) FILTER (WHERE x.won) AS wins, COUNT(*) FILTER (WHERE NOT x.won) AS losses
+    FROM (
+      SELECT (CASE WHEN b."side" = 1 THEN f."side1_character_id" ELSE f."side2_character_id" END)::text AS cid, (b."status" = 'WON') AS won
+      FROM "bet" b JOIN "fight" f ON f."id" = b."fight_id"
+      WHERE b."user_id" = ${userId}::uuid AND b."status" IN ('WON', 'LOST') AND b."fight_id" <> ${exceptFightId}::uuid
+    ) x
+    WHERE x.cid IN (${c1}, ${c2})
+    GROUP BY x.cid`;
+  const of = (c: string) => {
+    const r = rows.find((x) => x.cid === c);
+    return { wins: Number(r?.wins ?? 0n), losses: Number(r?.losses ?? 0n) };
+  };
+  return { 1: of(c1), 2: of(c2) };
 }
 
 /** The fight to show now: the newest unfinished one, else the newest finished one. */
@@ -420,6 +473,10 @@ export async function meView(db: Db, config: Config, userId: string, now = new D
       balance: t.balance.toFixed(0),
       at: t.earnedAt,
     })),
+    /** Right calls in a row, up to now (bettor-stats.ts). */
+    callStreak: user.kind === "BOT" ? 0 : await currentCallStreak(db, config, userId),
+    /** Never bet yet: the watch page shows a newcomer how to start. */
+    firstBet: !(await db.bet.findFirst({ where: { userId }, select: { id: true } })),
     dailyGrantAvailable: !grant && config.economy.dailyGrant > 0n,
     bailoutAvailable: stakes === 0n && balance < config.economy.bailoutFloor,
     goals: user.kind === "BOT" ? null : goalsJson(await goalsView(db, userId, goalSettings(config), await goalWorld(db, config.exhibitions.rivalryRate), now)),
@@ -449,6 +506,7 @@ export async function betHistory(db: Db, userId: string, take = 50) {
     include: { fight: { select: { number: true, state: true, tournamentMatchId: true } } },
   });
   return bets.map((b) => ({
+    id: b.id,
     fightId: b.fightId,
     fightNumber: b.fight.number,
     fightState: b.fight.state,
@@ -500,8 +558,8 @@ export async function recentResults(db: Db, take = 10) {
 
 /** A player's own characters, strongest first. */
 /** A character's next milestones from its card and titles. */
-function milestonesOf(card: { record: { wins: number }; rating: number; tier: string }, titles: { code: TitleCode }[], tiers?: TierConfig) {
-  return nextMilestones({ wins: card.record.wins, rating: card.rating, tier: card.tier as Tier, titles: titles.map((t) => t.code) }, tiers);
+function milestonesOf(card: { record: { wins: number; losses: number }; rating: number; tier: string }, titles: { code: TitleCode }[], tiers?: TierConfig) {
+  return nextMilestones({ wins: card.record.wins, losses: card.record.losses, rating: card.rating, tier: card.tier as Tier, titles: titles.map((t) => t.code) }, tiers);
 }
 
 export async function myCharacters(db: Db, config: Config, userId: string) {

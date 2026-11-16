@@ -10,6 +10,8 @@
 
   let fight = null;
   let results = [];
+  let topToday = [];
+  let tickerTurn = 0;
   let stillIn = null;
   let bannerTimer = null;
   // A real player's bet this big is called out (docs/ENGAGEMENT.md §4); from the server's settings.
@@ -130,8 +132,7 @@
       ? `<div class="bar"><span class="r" style="width:${o.chancePct[1]}%"></span><span class="b" style="width:${o.chancePct[2]}%"></span></div>
          <div class="bar-labels"><span>${o.chancePct[1].toFixed(1)}%</span><span>${o.locked ? "win chance, locked" : "win chance"}</span><span>${o.chancePct[2].toFixed(1)}%</span></div>`
       : "";
-    const c = crowd(f);
-    $("pools").innerHTML = o && o.locked ? `Pools <b>${o.pool[1]}</b> / <b>${o.pool[2]}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}${c ? ` · the crowd <b>${crowdText(c)}</b>` : ""}` : "";
+    renderPools();
     const h = f.headToHead;
     const r = f.scouting && f.scouting.styleRecord;
     const styles = r && r.fights ? ` · ${esc(f.scouting.styles[1])}s ${r.wins[1]}–${r.wins[2]} ${esc(f.scouting.styles[2])}s` : "";
@@ -139,6 +140,33 @@
     // The announcer's lines (docs/ENGAGEMENT.md §1).
     $("story").innerHTML = f.story ? f.story.lines.map((l) => `<li>${esc(l)}</li>`).join("") : "";
     renderClock();
+  }
+
+  // The pools once bets lock; while betting is open, the pot so far and how many are in (sides stay hidden until lock,
+  // as on the watch page), growing with every bet.
+  function renderPools() {
+    const f = fight;
+    const o = f && f.odds;
+    const c = f && crowd(f);
+    const n = (x) => Number(x).toLocaleString("en-US");
+    if (o && o.locked) {
+      $("pools").innerHTML = `Pools <b>${n(o.pool[1])}</b> / <b>${n(o.pool[2])}</b> ${salt(f)} · <b>${o.bettors}</b> bettor${o.bettors === 1 ? "" : "s"}${c ? ` · the crowd <b>${crowdText(c)}</b>` : ""}`;
+    } else if (f && f.state === "BETTING_OPEN" && f.bets && f.bets.length) {
+      const pot = f.bets.reduce((t, b) => t + Number(b.stake), 0);
+      $("pools").innerHTML = `<span class="pot">Pot <b>${n(pot)}</b> ${salt(f)}</span> · <b>${f.bets.length}</b> bettor${f.bets.length === 1 ? "" : "s"} in`;
+    } else {
+      $("pools").innerHTML = "";
+    }
+  }
+
+  /** "Alice 2,000 on Red · Bo 1,500 on Blue": each side's biggest player bet, once sides are revealed; "" if none. */
+  function biggestBets(f) {
+    const parts = [];
+    for (const side of [1, 2]) {
+      const top = (f.bets ?? []).filter((b) => b.side === side && !b.bot).sort((a, b) => Number(b.stake) - Number(a.stake))[0];
+      if (top) parts.push(`<b>${esc(top.name)}</b> ${Number(top.stake).toLocaleString("en-US")} on <b class="${side === 1 ? "red" : "blue"}">${side === 1 ? "Red" : "Blue"}</b>`);
+    }
+    return parts.join(" · ");
   }
 
   function renderClock() {
@@ -152,6 +180,10 @@
     $("cta").innerHTML = site ? `Bet free play money at <span>${esc(site)}</span>` : `<span>Free play money</span> · never bought, never cashed out`;
     if (fight && fight.tournament && stillIn) {
       $("ticker").innerHTML = `Tournament #${fight.tournament.number} · still in: <b>${stillIn.map(esc).join("</b>, <b>")}</b>`;
+    } else if (topToday.length && tickerTurn % 2 === 1) {
+      // Every other turn: today's biggest winners, so players see their names on the stream.
+      const n = (x) => Number(x).toLocaleString("en-US");
+      $("ticker").innerHTML = `Today's top winners: ${topToday.slice(0, 3).map((r) => `${r.rank}. <b>${esc(r.name)}</b> +${n(r.profit)}`).join(" · ")}`;
     } else {
       $("ticker").innerHTML = results.length
         ? `Recent: ${results
@@ -238,6 +270,13 @@
   }
 
   // ---- Result banner and toasts ----
+  // Who called it, and the biggest win (players only), once a fight is settled.
+  function payoutLine(f) {
+    const p = f.payouts;
+    if (!p || !p.players) return "";
+    const n = (x) => Number(x).toLocaleString("en-US");
+    return `${p.calledIt ? `<b>${n(p.calledIt)}</b> of ${n(p.players)} called it` : "<b>nobody</b> called it"}${p.biggest ? ` · biggest win <b>${esc(p.biggest.name)} +${n(p.biggest.profit)} ${salt(f)}</b>` : ""}`;
+  }
   async function showResult(d) {
     const f = await get(`/api/fights/${d.fightId}`);
     if (!f) return;
@@ -249,6 +288,7 @@
         w.ratingAfter != null ? `rating ${w.rating} → <b>${w.ratingAfter}</b>${w.tierAfter && w.tierAfter !== w.tier ? ` · now <b>${esc(w.tierAfter)}</b> tier` : ""}` : "",
         f.tournament ? `wins the ${esc(f.tournament.roundName)}` : "",
         f.result && f.result.ownerReward ? `owner ${esc(w.owner.name)} earns <b>${f.result.ownerReward} Salt</b>` : "",
+        payoutLine(f),
       ].filter(Boolean);
       el.className = `banner ${side === 1 ? "red" : "blue"}`;
       const headline = f.story && f.story.headline ? `<div class="headline ${esc(f.story.headline.kind)}">${esc(f.story.headline.text)}</div>` : "";
@@ -282,6 +322,7 @@
   }
   async function refreshResults() {
     results = (await get("/api/results")) ?? [];
+    topToday = ((await get("/api/boards/today")) ?? { rows: [] }).rows;
     renderFooter();
   }
   async function refreshTournament() {
@@ -313,6 +354,14 @@
     es.addEventListener("odds_live", () => refreshFight());
     es.addEventListener("bet", (e) => {
       const d = JSON.parse(e.data);
+      // Into the pot (a changed bet keeps its id).
+      if (fight && d.fightId === fight.id) {
+        const bets = fight.bets ?? (fight.bets = []);
+        const old = bets.find((b) => b.id === d.betId);
+        if (old) old.stake = String(d.stake);
+        else bets.push({ id: d.betId, stake: String(d.stake) });
+        renderPools();
+      }
       if (d.bot || Number(d.stake) < bigBet || calledOut.has(d.betId)) return;
       calledOut.add(d.betId);
       const side = d.side ? ` on <b>${d.side === 1 ? "Red" : "Blue"}</b>` : "";
@@ -322,6 +371,9 @@
       await refreshFight();
       const c = fight && crowd(fight);
       if (c) toast(`<span>Bets locked · <b>the crowd is ${crowdText(c)}</b></span>`);
+      // The biggest player bet on each side (bots never headline), now that sides show.
+      const big = fight && biggestBets(fight);
+      if (big) setTimeout(() => toast(`<span>Biggest bets: ${big}</span>`), 1500);
     });
     es.addEventListener("engine_event", (e) => {
       if (JSON.parse(e.data).event.type === "round_end") refreshFight();
@@ -359,6 +411,11 @@
   setInterval(() => {
     if (fight && fight.state === "BETTING_OPEN") renderClock();
   }, 250);
+  // The ticker turns between recent results and today's top winners.
+  setInterval(() => {
+    tickerTurn++;
+    renderFooter();
+  }, 10_000);
   render();
   get("/api/site").then((s) => {
     if (s && s.bigBet) bigBet = Number(s.bigBet);

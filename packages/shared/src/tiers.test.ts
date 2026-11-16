@@ -25,6 +25,23 @@ describe("nextTier", () => {
     expect(nextTier("S", 1400)).toBe("P");
   });
 
+  it("holds the tier during placement fights, then lets the rating decide", () => {
+    const cfg = { ...DEFAULT_TIERS, placementFights: 5 };
+    // One lucky first win (1500 -> 1662) no longer jumps B to A, nor one loss to P.
+    expect(nextTier("B", 1662, cfg, 1)).toBe("B");
+    expect(nextTier("B", 1338, cfg, 1)).toBe("B");
+    expect(nextTier("B", 1700, cfg, 4)).toBe("B");
+    // The fifth fight ends placement.
+    expect(nextTier("B", 1700, cfg, 5)).toBe("A");
+    expect(nextTier("B", 1400, cfg, 5)).toBe("P");
+    // Off, or without a count: as before.
+    expect(nextTier("B", 1662, { ...cfg, placementFights: 0 }, 1)).toBe("A");
+    expect(nextTier("B", 1662, cfg)).toBe("A");
+    expect(nextTier("X", 100, cfg, 1)).toBe("X");
+    expect(() => validateTiers({ ...cfg, placementFights: -1 })).toThrow();
+    expect(() => validateTiers({ ...cfg, placementFights: 1.5 })).toThrow();
+  });
+
   it("never touches X", () => {
     expect(nextTier("X", 100)).toBe("X");
     expect(nextTier("X", 3000)).toBe("X");
@@ -46,6 +63,6 @@ describe("nextTier", () => {
 
 describe("validateTiers", () => {
   it("rejects thresholds that don't increase", () => {
-    expect(() => validateTiers({ thresholds: { B: 1500, A: 1500, S: 1700 }, hysteresis: 0 })).toThrow();
+    expect(() => validateTiers({ thresholds: { B: 1500, A: 1500, S: 1700 }, hysteresis: 0, placementFights: 0 })).toThrow();
   });
 });

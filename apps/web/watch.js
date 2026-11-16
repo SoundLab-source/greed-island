@@ -64,6 +64,7 @@
 
   async function setupEmbeds() {
     const site = await api("GET", "/api/site");
+    if (site.maxPayout) maxPayout = Number(site.maxPayout);
     const parent = encodeURIComponent(location.hostname);
     if (site.twitchChannel) {
       // Twitch's chat works whether or not the channel is live.
@@ -89,7 +90,7 @@
   // ---- The current fight ----
   function sideButton(n, s, f) {
     const o = f.odds;
-    const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}` : "–";
+    const odds = o ? `${String(o.multiplier[n]).replace("x", "×")}<small class="towin" data-side="${n}"></small>` : "–";
     const chance = o ? `${o.chancePct[n].toFixed(1)}% to win` : "";
     const against = f.odds?.crowd?.against === n ? '<span class="against" title="Less of the players\' Salt went on this side">Against the crowd</span>' : "";
     const debut = s.community && s.community.debut;
@@ -100,7 +101,14 @@
       <span class="who">${n === 2 ? flame(f, n) : ""}${GI.plate(s.name, s.cosmetics)}${n === 1 ? flame(f, n) : ""}</span>
       <span class="odds">${odds}</span>
       <span class="sub">${chance ? `<b>${chance}</b> · ` : ""}${esc(s.tier)} tier · ${s.rating} · ${s.record.wins}–${s.record.losses} ${form((s.last10 ?? []).slice(-5))}</span>
-      <span class="sub style">${scoutLine(n, f)}</span>`;
+      <span class="sub style">${scoutLine(n, f)}${myRecord(n, f)}</span>`;
+  }
+
+  // Your own record backing this character, from your settled bets (only once you've backed it).
+  function myRecord(n, f) {
+    const r = f.myRecord?.[n];
+    if (!r || r.wins + r.losses === 0) return "";
+    return ` · <span class="my-rec" title="Your bets on ${esc(f.sides[n].name)}: ${r.wins} won, ${r.losses} lost">you're ${r.wins}–${r.losses} on it</span>`;
   }
 
   // A win streak of 3 or more (docs/ENGAGEMENT.md §1): a flame by the name, with its length.
@@ -188,7 +196,9 @@
           .map((b) => {
             const cls = b.side === 1 ? "r" : b.side === 2 ? "b" : "u";
             const tag = b.mine ? '<span class="tag you">you</span>' : b.bot ? '<span class="tag">bot</span>' : "";
-            return `<li class="${cls}${b.mine ? " me" : ""}${shown.has(key(b)) ? "" : " new"}"><span class="dot"></span><span class="who">${esc(b.name)}${tag}</span><span class="amt">${fmt(b.stake)}</span></li>`;
+            // The season's top 10 bettors wear their place (a crown for the top 3).
+            const rank = b.seasonRank ? `<span class="rank-badge${b.seasonRank <= 3 ? " top" : ""}" title="#${b.seasonRank} on the season leaderboard">${b.seasonRank <= 3 ? "👑" : ""}#${b.seasonRank}</span>` : "";
+            return `<li class="${cls}${b.mine ? " me" : ""}${shown.has(key(b)) ? "" : " new"}"><span class="dot"></span><span class="who">${rank}${esc(b.name)}${tag}</span><span class="amt">${fmt(b.stake)}</span></li>`;
           })
           .join("")
       : `<li class="empty">${f.state === "BETTING_OPEN" ? "No bets yet: be the first." : "No bets on this fight."}</li>`;
@@ -201,7 +211,7 @@
     const bets = fight.bets ?? (fight.bets = []);
     const old = bets.find((b) => b.id === d.betId);
     const row = { id: d.betId, name: d.name, bot: d.bot, stake: String(d.stake), side: d.side, mine: false, at: d.at };
-    if (old) Object.assign(old, row, { mine: old.mine, side: old.mine && d.side === null ? old.side : d.side });
+    if (old) Object.assign(old, row, { mine: old.mine, seasonRank: old.seasonRank, side: old.mine && d.side === null ? old.side : d.side });
     else bets.push(row);
     renderBets();
   }
@@ -220,34 +230,95 @@
     const open = f.state === "BETTING_OPEN";
     $("bet1").disabled = $("bet2").disabled = !open;
     $("stake-currency").textContent = currency();
+    if (!f.myBet) restoreStake();
     const b = f.myBet;
+    // A newcomer's first bet: the two sides pulse until they pick one.
+    const nudge = open && !b && Boolean(GI.me?.firstBet);
+    $("bet1").classList.toggle("nudge", nudge);
+    $("bet2").classList.toggle("nudge", nudge);
     $("bet1").classList.toggle("mine", b?.side === 1);
     $("bet2").classList.toggle("mine", b?.side === 2);
-    $("my-bet").innerHTML = b
-      ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${f.odds?.crowd?.against === b.side ? ", against the crowd" : ""}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}`
+    $("my-bet").innerHTML = callStreakChip() + (b
+      ? `Your bet: <b>${fmt(b.stake)} ${currency()}</b> on ${b.side === 1 ? "Red" : "Blue"}${f.odds?.crowd?.against === b.side ? ", against the crowd" : ""}${b.status === "OPEN" ? "" : ` · ${b.status.toLowerCase()}${b.returned != null ? `, ${fmt(b.returned)} back` : ""}`}${b.status === "WON" && b.id ? ` · <a class="share-call" href="/call/${encodeURIComponent(b.id)}" target="_blank" rel="noopener">Share your call</a>` : ""}`
       : open
-        ? "Pick a stake, then click a side. You can change it until betting closes."
-        : "";
+        ? GI.me?.firstBet
+          ? `You have <b>${fmt(available())} free ${currency()}</b> to play with. Pick a stake, then tap the side you think wins!`
+          : "Pick a stake, then click a side. You can change it until betting closes."
+        : "");
+    renderToWin();
     renderMatchup(f);
     renderStory(f);
     renderClock();
     renderBets();
   }
 
+  // The player's own run of right calls (2 or more), by their bet.
+  function callStreakChip() {
+    const k = GI.me?.callStreak ?? 0;
+    return k >= 2 ? `<span class="call-streak" title="Right calls in a row (bets of at least the call stake)">🔥 ${k} right in a row</span> ` : "";
+  }
+
+  // What the stake in the box would pay on each side (stake × multiplier, rounded down, capped like the ledger's
+  // payoutFor), so a bet's size and its odds read as one number. While betting is open the odds are an estimate:
+  // they lock, with the crowd blended in, when betting closes.
+  let maxPayout = Infinity;
+  function renderToWin() {
+    const f = fight;
+    const stake = Math.floor(Number($("stake").value) || 0);
+    for (const el of document.querySelectorAll(".towin")) {
+      const bp = f && f.odds && f.odds.multiplierBp ? Number(f.odds.multiplierBp[el.dataset.side]) : 0;
+      const show = f && f.state === "BETTING_OPEN" && stake > 0 && bp > 0;
+      el.textContent = show ? `${f.odds.locked ? "" : "≈ "}${fmt(Math.min(Math.floor((stake * bp) / 10000), maxPayout))} back` : "";
+      el.title = show ? `What ${fmt(stake)} ${currency()} on this side would pay if it wins${f.odds.locked ? "" : " (an estimate: the odds lock when betting closes)"}` : "";
+    }
+  }
+
+  let lastTick = "";
   function renderClock() {
     const el = $("countdown");
     const f = fight;
     if (!f) return (el.textContent = "");
+    el.classList.toggle("word", f.state !== "BETTING_OPEN");
     if (f.state === "BETTING_OPEN") {
       const left = Math.max(0, Math.ceil((new Date(f.times.bettingCloses) - Date.now()) / 1000));
       el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
       el.classList.toggle("urgent", left <= 10);
+      // A tick for each of the last five seconds (once per second, per fight).
+      const tickKey = `${f.id}:${left}`;
+      if (left >= 1 && left <= 5 && tickKey !== lastTick) {
+        lastTick = tickKey;
+        GI.sfx.play("tick", left === 1);
+      }
       return;
     }
     el.classList.remove("urgent");
+    if (f.state === "IN_PROGRESS") return (el.textContent = roundLine(f));
     el.textContent =
       { BOOKED: "Betting opens soon", LOCKED: "Bets locked", IN_PROGRESS: "Fight on", SETTLING: "Deciding", VOIDING: "No contest" }[f.state] ??
       (f.result?.kind === "settled" ? `${f.sides[f.result.winnerSide].name} won` : f.result ? "No contest: bets refunded" : "");
+    el.title = el.textContent;
+  }
+
+  // During the fight: the round being fought and the score in rounds, as on the stream's overlay.
+  const roundWins = (f, side) => (f.rounds ?? []).filter((r) => r.winnerSide === side).length;
+  function roundLine(f) {
+    if (!f.rounds || !f.roundsToWin) return "Fight on";
+    const w1 = roundWins(f, 1), w2 = roundWins(f, 2);
+    if (Math.max(w1, w2) >= f.roundsToWin) return `Fight over · ${w1}–${w2}`;
+    return `Round ${Math.min(f.rounds.length + 1, f.roundsToWin * 2 - 1)} · ${w1}–${w2}`;
+  }
+
+  // A round just ended: the score, and in the feed who took it (a ding when it went your way).
+  async function onRoundEnd(d) {
+    if (!fight || d.fightId !== fight.id || d.event.type !== "round_end") return;
+    await refreshFight().catch(() => {});
+    const e = d.event, f = fight;
+    if (!f || f.id !== d.fightId) return;
+    if (e.winnerSide === 0) return feed(`Fight #${f.number}, round ${e.round}: <b>a draw</b>`);
+    const how = e.reason === "ko" ? "by KO" : "on time";
+    const left = e.life ? `, ${Math.round(e.life[e.winnerSide - 1] / 10)}% life left` : "";
+    feed(`Fight #${f.number}, round ${e.round}: <b>${esc(f.sides[e.winnerSide].name)}</b> takes it ${how}${left}`);
+    if (f.myBet?.side === e.winnerSide) GI.sfx.play("ding");
   }
 
   async function refreshFight() {
@@ -272,6 +343,7 @@
     msg.textContent = "";
     try {
       const r = await api("POST", `/api/fights/${fight.id}/bets`, { side, stake: $("stake").value, idempotencyKey: crypto.randomUUID() });
+      saveStake(r.bet.stake);
       msg.className = "msg ok";
       msg.textContent = `Bet placed: ${fmt(r.bet.stake)} ${currency()} on ${side === 1 ? "Red" : "Blue"}.`;
       await Promise.all([refreshFight(), GI.refreshMe()]);
@@ -279,6 +351,28 @@
       msg.className = "msg error";
       msg.textContent = e.message;
     }
+  }
+
+  // The stake you last bet, per currency, offered again when the next fight opens (only while you can cover it).
+  const stakeKey = () => `gi_stake_${currency() === "T-Salt" ? "tsalt" : "salt"}`;
+  function saveStake(stake) {
+    try {
+      localStorage.setItem(stakeKey(), String(stake));
+    } catch {
+      /* private mode: the stake isn't remembered */
+    }
+  }
+  let stakeFor = null;
+  function restoreStake() {
+    if (!fight || fight.state !== "BETTING_OPEN" || stakeFor === fight.id || document.activeElement === $("stake")) return;
+    stakeFor = fight.id;
+    let saved = 0;
+    try {
+      saved = Math.floor(Number(localStorage.getItem(stakeKey())) || 0);
+    } catch {
+      return;
+    }
+    if (saved >= 1 && saved <= available()) $("stake").value = String(saved);
   }
 
   function wireControls() {
@@ -289,8 +383,10 @@
         const input = $("stake");
         if (chip.dataset.add) input.value = String(Math.max(0, Number(input.value) || 0) + Number(chip.dataset.add));
         else input.value = String(Math.max(1, Math.floor(available() * Number(chip.dataset.share))));
+        renderToWin();
       };
     }
+    $("stake").addEventListener("input", renderToWin);
   }
 
   // ---- Live feed (shown when there's no Twitch chat) ----
@@ -303,6 +399,18 @@
   }
 
   // What's already happened, so the list isn't empty when the page opens (live news goes on top of it).
+  // Today's biggest winners (players only): a name on the board is a reason to come back.
+  async function refreshTopToday() {
+    const t = await api("GET", "/api/boards/today").catch(() => null);
+    const rows = t ? t.rows : [];
+    $("top-today").hidden = rows.length === 0;
+    // The top three: the column also holds the goals, the season race and the bets.
+    $("top-today-list").innerHTML = rows
+      .slice(0, 3)
+      .map((r) => `<li class="${GI.me && r.name === GI.me.name ? "me" : ""}"><span class="who">${esc(r.name)}</span><span class="amt">+${fmt(r.profit)}</span></li>`)
+      .join("");
+  }
+
   async function seedFeed() {
     const results = await api("GET", "/api/results");
     for (const r of results.slice(0, 8).reverse()) {
@@ -322,7 +430,9 @@
       },
       odds_live: () => refreshFight().catch(() => {}),
       bet: onBet,
+      engine_event: (d) => void onRoundEnd(d),
       odds_locked: async () => {
+        GI.sfx.play("lock");
         await refreshFight().catch(() => {});
         const c = fight?.odds?.crowd;
         if (c) feed(`Fight #${fight.number}: bets locked, <b>the crowd is ${crowdText(c)}</b>`);
@@ -333,15 +443,28 @@
         if (!f) return;
         const headline = f.story && f.story.headline ? ` <span class="headline ${f.story.headline.kind}">${esc(f.story.headline.text)}</span>` : "";
         const why = f.breakdown && f.breakdown.length ? ` <span class="muted">${esc(f.breakdown[0])}</span>` : "";
-        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}${why}` : `Fight #${d.number}: no contest, bets refunded`);
+        const p = f.payouts;
+        const paid = p && p.players ? ` <span class="muted">${p.calledIt ? `${fmt(p.calledIt)} of ${fmt(p.players)} called it` : "nobody called it"}${p.biggest ? `; biggest win <b>${esc(p.biggest.name)} +${fmt(p.biggest.profit)}</b>` : ""}</span>` : "";
+        feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}${why}${paid}` : `Fight #${d.number}: no contest, bets refunded`);
         if (d.result !== "SETTLED") return;
+        refreshTopToday();
         // The crowd: a cheer, or a gasp and a roar for an upset; and a ka-ching when your own bet came in.
         const upset = f.story?.headline?.kind === "upset";
         if (upset) GI.sfx.play("gasp");
         setTimeout(() => GI.sfx.play("cheer", upset), upset ? 450 : 0);
         if (f.myBet?.status === "WON") {
           setTimeout(() => GI.sfx.play("kaChing"), 700);
-          GI.toast(`You called it! ${fmt(f.myBet.returned)} ${f.currency} back${upset ? ", on an upset" : ""}.`, "ok");
+          const rankBefore = GI.me?.season?.rank ?? null;
+          await GI.refreshMe().catch(() => {});
+          const k = GI.me?.callStreak ?? 0;
+          GI.toast(`You called it! ${fmt(f.myBet.returned)} ${f.currency} back${upset ? ", on an upset" : ""}.${k >= 2 ? ` That's ${k} right in a row!` : ""}`, "ok");
+          renderFight();
+          // A climb up the season leaderboard (Salt won this season) is worth saying out loud.
+          const rank = GI.me?.season?.rank ?? null;
+          if (rank !== null && rank <= 100 && (rankBefore === null || rank < rankBefore)) {
+            setTimeout(() => GI.toast(`You're up to #${rank} on the Season ${GI.me.season.number} leaderboard!`, "ok"), 1500);
+          }
+          refreshTopToday();
         }
       },
       title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),
@@ -422,12 +545,37 @@
     GI.renderGoals($("goals"), me?.goals);
   };
   GI.onMe(showGoals);
+
+  // The season race: where you stand on the season leaderboard and the Salt won it takes to climb a place.
+  const left = (t) => {
+    const ms = new Date(t) - Date.now();
+    if (ms <= 0) return "ending now";
+    const d = Math.floor(ms / 86_400_000), h = Math.floor((ms % 86_400_000) / 3_600_000), m = Math.floor((ms % 3_600_000) / 60_000);
+    return `${d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`} left`;
+  };
+  function showRace(me) {
+    const s = me?.season;
+    const el = $("race");
+    el.hidden = !s;
+    if (!s) return;
+    const head = `<span class="head"><span>Season ${s.number}</span><span>${left(s.endsAt)}</span></span>`;
+    const more = s.bets < s.minBets ? ` · ${s.minBets - s.bets} more bet${s.minBets - s.bets === 1 ? "" : "s"} to qualify for Top Bettor` : "";
+    let line;
+    if (s.rank === null) line = "Bet on a fight to join the season leaderboard.";
+    else if (s.rank === 1) line = `<b>You lead the season</b>${s.lead !== null ? ` by ${fmt(s.lead)} Salt` : ""}${more}`;
+    else line = `You're <b>#${s.rank}</b> of ${fmt(s.players)} · ${fmt(s.toPass.salt)} Salt won passes #${s.toPass.rank}${more}`;
+    el.innerHTML = `${head}<span>${line}</span>`;
+  }
+  GI.onMe(showRace);
+  setInterval(() => showRace(GI.me), 60_000);
   setInterval(() => showGoals(GI.me), 60_000); // the "new in 6h" countdown
 
   (async () => {
     wireControls();
-    showGoals(await GI.ready);
-    await Promise.all([setupEmbeds(), refreshFight(), seedFeed().catch(() => {})]);
+    const me0 = await GI.ready;
+    showGoals(me0);
+    showRace(me0);
+    await Promise.all([setupEmbeds(), refreshFight(), seedFeed().catch(() => {}), refreshTopToday()]);
     connect();
     recaps().catch(() => {});
   })().catch((e) => ($("bet-msg").textContent = `Couldn't load: ${e.message}`));

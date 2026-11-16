@@ -9,6 +9,7 @@ import {
   AuthError,
   claimBailout,
   claimDailyGrant,
+  economyReportFor,
   goalWorld,
   swapGoal,
   createUser,
@@ -99,13 +100,15 @@ import {
 import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.ts";
 import { characterCardData, fighterCardData, renderCard, type CardData } from "../cards.ts";
 import { collectionView, markSeen } from "../collection.ts";
-import { callBoards, myBettorStats } from "../bettor-stats.ts";
+import { callBoards, todaysTopWinners, myBettorStats } from "../bettor-stats.ts";
 import { recapFor, recapLines } from "../recap.ts";
-import { shareImage } from "../share-image.ts";
+import { callImage, shareImage } from "../share-image.ts";
+import { callData, callMeta } from "../calls.ts";
 import { fillSharePage, shareMeta } from "./share-page.ts";
 import { lookCharacterId } from "../look-sprites.ts";
 import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
 import { loadNftSource, NftSourceError, type NftSource } from "../nft-source.ts";
+import { pulse } from "../pulse.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
 
 export interface ApiDeps {
@@ -313,6 +316,8 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   // A bettor's own numbers (bettor-stats.ts), and the best-calls boards (public; the viewer's own line when signed in).
   app.get("/api/me/stats", async (req, reply) => send(reply, await myBettorStats(db, config, await requireViewer(req))));
   app.get("/api/boards/calls", async (req, reply) => send(reply, await callBoards(db, config, await viewer(req))));
+  // Today's biggest winners: the stream's ticker and the watch page put players' names up (bettor-stats.ts).
+  app.get("/api/boards/today", async (_req, reply) => send(reply, await todaysTopWinners(db)));
   // What happened since a moment (recap.ts): "while you were away", and a long session's own recap.
   app.get<{ Querystring: { since?: string } }>("/api/me/recap", async (req, reply) => {
     const userId = await requireViewer(req);
@@ -470,6 +475,16 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   app.get("/api/staff/log", async (req, reply) => {
     await requireStaffViewer(req, "view_log");
     return send(reply, await staffLog(db));
+  });
+  // The Salt supply week by week (DESIGN §9: watch it weekly; db economy.ts).
+  app.get("/api/staff/economy", async (req, reply) => {
+    await requireStaffViewer(req, "view_log");
+    return send(reply, await economyReportFor(db, { weeks: 12 }));
+  });
+  // How many people bet and come back (pulse.ts), and how many pages hold the live stream open right now.
+  app.get("/api/staff/pulse", async (req, reply) => {
+    await requireStaffViewer(req, "view_log");
+    return send(reply, { ...(await pulse(db)), watchingNow: streams.size });
   });
   app.get("/api/staff/members", async (req, reply) => {
     const viewer = await requireStaffViewer(req, "view_log");
@@ -656,7 +671,7 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   });
 
   // What the watch page embeds.
-  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null, localVideo: deps.localVideo === true, bigBet: config.bets.bigBet }));
+  app.get("/api/site", async (_req, reply) => send(reply, { twitchChannel: deps.twitchChannel ?? null, localVideo: deps.localVideo === true, bigBet: config.bets.bigBet, maxPayout: config.economy.maxPayout }));
 
   app.get("/api/results", async (_req, reply) => send(reply, await recentResults(db)));
   app.get("/api/leaderboard", async (_req, reply) => send(reply, await leaderboard(db, config)));
@@ -702,8 +717,24 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
     if (!card) throw new HttpError(404, "NOT_FOUND", "no such fighter");
     return reply.type("image/png").header("cache-control", "public, max-age=300").send(shareImage(card));
   });
+  // A right call, to show off (calls.ts): its facts, its link-preview picture and its page (apps/web/call.html).
+  const callOf = async (raw: string) => {
+    const id = uuid.safeParse(raw);
+    const c = id.success ? await callData(db, id.data, config.bettors.upsetChanceBp) : null;
+    if (!c) throw new HttpError(404, "NOT_FOUND", "no such call");
+    return c;
+  };
+  app.get<{ Params: { id: string } }>("/api/calls/:id", async (req, reply) => send(reply, await callOf(req.params.id)));
+  app.get<{ Params: { id: string } }>("/api/calls/:id/share.png", async (req, reply) =>
+    reply.type("image/png").header("cache-control", "public, max-age=3600").send(callImage(await callOf(req.params.id))),
+  );
   // The share page for a character's card (apps/web/card.html), with the link-preview tags filled in for it.
   const webRoot = deps.webRoot ?? path.join(REPO_ROOT, "apps", "web");
+  app.get<{ Params: { id: string } }>("/call/:id", async (req, reply) => {
+    const c = await callOf(req.params.id);
+    const html = fillSharePage(await readFile(path.join(webRoot, "call.html"), "utf8"), callMeta(c, publicUrl));
+    return reply.type("text/html; charset=utf-8").header("cache-control", "no-cache").send(html);
+  });
   app.get<{ Params: { id: string } }>("/card/:id", async (req, reply) => {
     const id = uuid.safeParse(req.params.id);
     const card = id.success ? await characterCardData(db, deps.ikemenDir, id.data) : null;

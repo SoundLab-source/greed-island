@@ -179,6 +179,33 @@ async function refreshStaff() {
       <td>${describe(a)}${a.detail?.note ? ` <span class="muted">"${esc(a.detail.note)}"</span>` : ""}</td></tr>`).join("") || `<tr><td class="muted">Nothing yet.</td></tr>`;
 }
 
+// The Salt supply, newest week first: what came in and went out, players' Salt at the end, per active player.
+const salt = (v) => Number(v).toLocaleString();
+const pct = (v) => (v === null || v === undefined ? "" : `${v > 0 ? "+" : ""}${v.toFixed(1)}%`);
+async function refreshEconomy() {
+  const r = await api("GET", "/api/staff/economy");
+  $("economy-advice").textContent = r.advice;
+  $("economy-advice").className = r.inflatingStreak ? "error" : "muted";
+  const flows = (w) => Object.entries(w.flows).filter(([, v]) => Number(v) !== 0).map(([k, v]) => `${esc(nice(k))} ${Number(v) > 0 ? "+" : ""}${salt(v)}`).join(", ");
+  $("economy").innerHTML = `<tr><th>Week of</th><th>In</th><th>Out</th><th>Players' Salt</th><th>Active players</th><th>Per active</th><th>Growth (Salt / players)</th><th>Where from and to</th></tr>` +
+    r.weeks.slice().reverse().map((w) => `<tr${w.inflating ? ' class="error"' : ""}><td style="white-space:nowrap">${new Date(w.week).toISOString().slice(0, 10)}</td>
+      <td>${Number(w.in) ? `+${salt(w.in)}` : "0"}</td><td>${Number(w.out) ? `−${salt(w.out)}` : "0"}</td><td>${salt(w.supply)}</td><td>${w.activePlayers}</td><td>${w.perActive === null ? "" : salt(w.perActive)}</td>
+      <td style="white-space:nowrap">${w.supplyGrowthPct === null && w.activeGrowthPct === null ? "" : `${pct(w.supplyGrowthPct) || "–"} / ${pct(w.activeGrowthPct) || "–"}`}</td><td class="muted">${flows(w)}</td></tr>`).join("");
+}
+
+// The pulse: players betting, new and returning, and whether newcomers come back (orchestrator pulse.ts).
+const n = (v) => Number(v).toLocaleString("en-US");
+const share = (a, b) => (b ? ` (${Math.round((100 * a) / b)}%)` : "");
+async function refreshPulse() {
+  const p = await api("GET", "/api/staff/pulse");
+  $("pulse-now").textContent = `${n(p.watchingNow)} page${p.watchingNow === 1 ? "" : "s"} watching live right now · ${n(p.fights.settled)} fights in the last 7 days, ${p.fights.bettorsPerFight} players betting on each · of the ${n(p.cameBack.players)} players who first bet 2–8 days ago, ${n(p.cameBack.returned)}${share(p.cameBack.returned, p.cameBack.players)} came back another day`;
+  $("pulse-windows").innerHTML = `<tr><th></th><th>Players betting</th><th>New</th><th>Returning</th><th>Bets</th><th>Salt staked</th></tr>` +
+    p.windows.map((w) => `<tr><td>${esc(w.label)}</td><td><strong>${n(w.bettors)}</strong></td><td>${n(w.newBettors)}</td><td>${n(w.returning)}</td><td>${n(w.bets)}</td><td>${n(w.staked)}</td></tr>`).join("");
+  const most = Math.max(1, ...p.days.map((d) => d.bettors));
+  $("pulse-days").innerHTML = `<tr><th>Day (UTC)</th><th>Players betting</th><th>New</th><th>Bets</th><th>Salt staked</th></tr>` +
+    p.days.map((d) => `<tr><td class="muted">${esc(d.day)}</td><td><span style="display:inline-block;height:.7em;width:${Math.round((80 * d.bettors) / most)}px;background:#c9a227;margin-right:6px"></span>${n(d.bettors)}</td><td>${n(d.newBettors)}</td><td>${n(d.bets)}</td><td>${n(d.staked)}</td></tr>`).join("");
+}
+
 async function refresh() {
   try {
     me = await api("GET", "/api/me");
@@ -190,7 +217,7 @@ async function refresh() {
   $("not-staff").hidden = staff;
   $("staff").hidden = !staff;
   if (!staff) return;
-  await Promise.all([can("review") && refreshQueue(), can("view_log") && refreshStaff(), can("view_log") && refreshCollections()]).catch((e) => { $("msg").textContent = e.message; });
+  await Promise.all([can("review") && refreshQueue(), can("view_log") && refreshStaff(), can("view_log") && refreshPulse(), can("view_log") && refreshCollections(), can("view_log") && refreshEconomy()]).catch((e) => { $("msg").textContent = e.message; });
 }
 
 $("search").onclick = () => search().catch((e) => { $("msg").textContent = e.message; });

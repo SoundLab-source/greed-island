@@ -119,7 +119,8 @@ export async function applyFightRating(tx: Tx, input: FightRatingInput, cfg: Rat
   const [r1, r2] = rateFight(c1, c2, input.scoreSide1, cfg.ratings.tau);
 
   const update = async (c: Character, r: typeof r1, score: number): Promise<RatingChange> => {
-    const tier = nextTier(c.tier, r.rating, cfg.tiers);
+    // Draws void the fight, so every rated fight is a win or a loss.
+    const tier = nextTier(c.tier, r.rating, cfg.tiers, c.wins + c.losses + 1);
     await tx.character.update({
       where: { id: c.id },
       data: {
