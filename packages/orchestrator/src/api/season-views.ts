@@ -6,6 +6,7 @@
 import type { Db, Prisma } from "@greed-island/db";
 import { playerName, seasonChampion, topBettor, type Config } from "@greed-island/shared";
 import { seasonRankings } from "../seasons.ts";
+import { untilNextSettle } from "../standings-cache.ts";
 
 type SeasonWithWinners = Prisma.SeasonGetPayload<{ include: { champion: true; topBettor: true } }>;
 
@@ -33,9 +34,14 @@ async function names(db: Db, userIds: string[], characterIds: string[]) {
   };
 }
 
+/** The running season's rankings, kept until the next fight settles (standings-cache.ts): every page asks for them. */
+function liveRankings(db: Db, season: { id: string; startsAt: Date; endsAt: Date }) {
+  return untilNextSettle(db, `season:${season.id}:${season.startsAt.getTime()}:${season.endsAt.getTime()}`, () => seasonRankings(db, season));
+}
+
 /** Live standings of a running season: top players by Salt won, top characters by rating (with the season's record). */
-async function liveStandings(db: Db, config: Config, season: { startsAt: Date; endsAt: Date }, viewerId?: string) {
-  const { players, characters } = await seasonRankings(db, season);
+async function liveStandings(db: Db, config: Config, season: { id: string; startsAt: Date; endsAt: Date }, viewerId?: string) {
+  const { players, characters } = await liveRankings(db, season);
   const n = config.seasons.standingsSize;
   const shownPlayers = players.slice(0, n);
   const shownCharacters = characters.slice(0, n);
@@ -111,7 +117,7 @@ export async function leaderboard(db: Db, config: Config) {
 export async function mySeason(db: Db, config: Config, userId: string) {
   const s = await db.season.findFirst({ where: { status: "RUNNING" } });
   if (!s) return null;
-  const { players } = await seasonRankings(db, s);
+  const { players } = await liveRankings(db, s);
   const mine = players.find((p) => p.userId === userId);
   return { number: s.number, endsAt: s.endsAt, rank: mine?.rank ?? null, saltWon: (mine?.saltWon ?? 0n).toString(), bets: mine?.bets ?? 0, minBets: config.seasons.minBets };
 }

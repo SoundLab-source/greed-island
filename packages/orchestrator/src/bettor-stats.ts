@@ -5,6 +5,7 @@
  * calls this season. The rules are shared bettors.ts; bots are never on a board.
  */
 import { fromSalt, toSalt, type Db, type Prisma } from "@greed-island/db";
+import { untilNextSettle } from "./standings-cache.ts";
 import { bettorStats, playerName, rankBoard, type Archetype, type BettorStats, type Config } from "@greed-island/shared";
 
 /** A player's numbers from all their settled bets. */
@@ -83,6 +84,36 @@ export async function callBoards(db: Db, config: Config, viewerId?: string, now 
     return { rows: ranked.slice(0, n).map(show), me: mine ? show(mine) : null };
   };
 
+  // Added up from the whole season's bets: kept until the next fight settles, and at most a minute (the week's window slides).
+  const cacheName = `calls:${min}:${cfg.upsetChanceBp}:${cfg.upsetsWindowMs}:${Math.floor(now.getTime() / 60_000)}`;
+  const { upsets, rates, runs, season } = await untilNextSettle(db, cacheName, () => callRows(db, config, now));
+  const pct = (w: bigint, c: bigint) => Math.round((1000 * Number(w)) / Number(c)) / 10;
+  const qualified = rates.filter((r) => Number(r.calls) >= cfg.winRateMinCalls);
+  return {
+    minCallStake: cfg.minCallStake,
+    upsets: {
+      days: Math.round(cfg.upsetsWindowMs / 86_400_000),
+      upsetPct: cfg.upsetChanceBp / 100,
+      ...(await board(upsets, (a, b) => Number(b.upsets) - Number(a.upsets) || a.best - b.best, (r) => ({ value: Number(r.upsets), detail: Math.round(r.best / 100) }))),
+    },
+    winRate: {
+      minCalls: cfg.winRateMinCalls,
+      season: season?.number ?? null,
+      ...(await board(qualified, (a, b) => pct(b.wins, b.calls) - pct(a.wins, a.calls) || Number(b.calls) - Number(a.calls), (r) => ({ value: pct(r.wins, r.calls), detail: Number(r.calls) }))),
+      // The viewer's own numbers even before they qualify.
+      ...(viewerId && !qualified.some((r) => r.user_id === viewerId) ? { me: ownRate(rates.find((r) => r.user_id === viewerId), pct) } : {}),
+    },
+    streak: {
+      season: season?.number ?? null,
+      ...(await board(runs, (a, b) => Number(b.best) - Number(a.best), (r) => ({ value: Number(r.best), detail: Number(r.right) }))),
+    },
+  };
+}
+
+/** The rows behind the "best calls" boards. */
+async function callRows(db: Db, config: Config, now: Date) {
+  const cfg = config.bettors;
+  const min = fromSalt(cfg.minCallStake);
   // Upsets called in the last week: right calls on a side given the upset chance or less.
   const since = new Date(now.getTime() - cfg.upsetsWindowMs);
   const upsets = await db.$queryRaw<{ user_id: string; upsets: bigint; best: number }[]>`
@@ -119,28 +150,7 @@ export async function callBoards(db: Db, config: Config, viewerId?: string, now 
     SELECT "user_id", MAX(n) AS best, SUM(n) AS "right" FROM (
       SELECT "user_id", grp, won, COUNT(*) AS n FROM c GROUP BY "user_id", grp, won
     ) r WHERE won GROUP BY "user_id"`;
-
-  const pct = (w: bigint, c: bigint) => Math.round((1000 * Number(w)) / Number(c)) / 10;
-  const qualified = rates.filter((r) => Number(r.calls) >= cfg.winRateMinCalls);
-  return {
-    minCallStake: cfg.minCallStake,
-    upsets: {
-      days: Math.round(cfg.upsetsWindowMs / 86_400_000),
-      upsetPct: cfg.upsetChanceBp / 100,
-      ...(await board(upsets, (a, b) => Number(b.upsets) - Number(a.upsets) || a.best - b.best, (r) => ({ value: Number(r.upsets), detail: Math.round(r.best / 100) }))),
-    },
-    winRate: {
-      minCalls: cfg.winRateMinCalls,
-      season: season?.number ?? null,
-      ...(await board(qualified, (a, b) => pct(b.wins, b.calls) - pct(a.wins, a.calls) || Number(b.calls) - Number(a.calls), (r) => ({ value: pct(r.wins, r.calls), detail: Number(r.calls) }))),
-      // The viewer's own numbers even before they qualify.
-      ...(viewerId && !qualified.some((r) => r.user_id === viewerId) ? { me: ownRate(rates.find((r) => r.user_id === viewerId), pct) } : {}),
-    },
-    streak: {
-      season: season?.number ?? null,
-      ...(await board(runs, (a, b) => Number(b.best) - Number(a.best), (r) => ({ value: Number(r.best), detail: Number(r.right) }))),
-    },
-  };
+  return { upsets, rates, runs, season };
 }
 
 /** A not-yet-qualified viewer's win rate: no rank. */
