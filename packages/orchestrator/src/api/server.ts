@@ -108,6 +108,7 @@ import { fillSharePage, shareMeta } from "./share-page.ts";
 import { lookCharacterId } from "../look-sprites.ts";
 import { imageFetcher, type ImageFetcher } from "../image-fetch.ts";
 import { loadNftSource, NftSourceError, type NftSource } from "../nft-source.ts";
+import { pulse } from "../pulse.ts";
 import { reviewQueue, staffLog, staffMembers, staffSearch } from "./staff-views.ts";
 
 export interface ApiDeps {
@@ -479,6 +480,11 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   app.get("/api/staff/economy", async (req, reply) => {
     await requireStaffViewer(req, "view_log");
     return send(reply, await economyReportFor(db, { weeks: 12 }));
+  });
+  // How many people bet and come back (pulse.ts), and how many pages hold the live stream open right now.
+  app.get("/api/staff/pulse", async (req, reply) => {
+    await requireStaffViewer(req, "view_log");
+    return send(reply, { ...(await pulse(db)), watchingNow: streams.size });
   });
   app.get("/api/staff/members", async (req, reply) => {
     const viewer = await requireStaffViewer(req, "view_log");

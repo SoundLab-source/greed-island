@@ -453,6 +453,11 @@ describe("staff and custom names", () => {
     expect(economy.weeks[11].activePlayers).toBeGreaterThanOrEqual(0);
     expect(typeof economy.advice).toBe("string");
     expect((await app.inject({ method: "GET", url: "/api/staff/economy", headers: player.auth })).statusCode).toBe(403);
+    // The pulse: staff only.
+    const p = (await app.inject({ method: "GET", url: "/api/staff/pulse", headers: modAuth })).json();
+    expect(p).toMatchObject({ watchingNow: 0, windows: [{ label: "Last 24 hours" }, { label: "Last 7 days" }, { label: "The 7 days before" }] });
+    expect(p.days).toHaveLength(14);
+    expect((await app.inject({ method: "GET", url: "/api/staff/pulse", headers: player.auth })).statusCode).toBe(403);
   });
 });
 
