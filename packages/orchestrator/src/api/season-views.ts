@@ -113,6 +113,14 @@ export async function leaderboard(db: Db, config: Config) {
   return (await liveStandings(db, config, s)).players;
 }
 
+/** The running season's top players (ahead on the season, rank `n` or better) by user id: their badge on the bets list. */
+export async function seasonTopRanks(db: Db, n = 10): Promise<Map<string, number>> {
+  const s = await db.season.findFirst({ where: { status: "RUNNING" } });
+  if (!s) return new Map();
+  const { players } = await liveRankings(db, s);
+  return new Map(players.filter((p) => p.rank <= n && p.saltWon > 0n).map((p) => [p.userId, p.rank]));
+}
+
 /** The viewer's running-season numbers, for /api/me. */
 export async function mySeason(db: Db, config: Config, userId: string) {
   const s = await db.season.findFirst({ where: { status: "RUNNING" } });

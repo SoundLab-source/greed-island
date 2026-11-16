@@ -188,7 +188,9 @@
           .map((b) => {
             const cls = b.side === 1 ? "r" : b.side === 2 ? "b" : "u";
             const tag = b.mine ? '<span class="tag you">you</span>' : b.bot ? '<span class="tag">bot</span>' : "";
-            return `<li class="${cls}${b.mine ? " me" : ""}${shown.has(key(b)) ? "" : " new"}"><span class="dot"></span><span class="who">${esc(b.name)}${tag}</span><span class="amt">${fmt(b.stake)}</span></li>`;
+            // The season's top 10 bettors wear their place (a crown for the top 3).
+            const rank = b.seasonRank ? `<span class="rank-badge${b.seasonRank <= 3 ? " top" : ""}" title="#${b.seasonRank} on the season leaderboard">${b.seasonRank <= 3 ? "👑" : ""}#${b.seasonRank}</span>` : "";
+            return `<li class="${cls}${b.mine ? " me" : ""}${shown.has(key(b)) ? "" : " new"}"><span class="dot"></span><span class="who">${rank}${esc(b.name)}${tag}</span><span class="amt">${fmt(b.stake)}</span></li>`;
           })
           .join("")
       : `<li class="empty">${f.state === "BETTING_OPEN" ? "No bets yet: be the first." : "No bets on this fight."}</li>`;
@@ -201,7 +203,7 @@
     const bets = fight.bets ?? (fight.bets = []);
     const old = bets.find((b) => b.id === d.betId);
     const row = { id: d.betId, name: d.name, bot: d.bot, stake: String(d.stake), side: d.side, mine: false, at: d.at };
-    if (old) Object.assign(old, row, { mine: old.mine, side: old.mine && d.side === null ? old.side : d.side });
+    if (old) Object.assign(old, row, { mine: old.mine, seasonRank: old.seasonRank, side: old.mine && d.side === null ? old.side : d.side });
     else bets.push(row);
     renderBets();
   }
