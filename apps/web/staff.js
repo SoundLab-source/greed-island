@@ -179,6 +179,19 @@ async function refreshStaff() {
       <td>${describe(a)}${a.detail?.note ? ` <span class="muted">"${esc(a.detail.note)}"</span>` : ""}</td></tr>`).join("") || `<tr><td class="muted">Nothing yet.</td></tr>`;
 }
 
+// The pulse: players betting, new and returning, and whether newcomers come back (orchestrator pulse.ts).
+const n = (v) => Number(v).toLocaleString("en-US");
+const pct = (a, b) => (b ? ` (${Math.round((100 * a) / b)}%)` : "");
+async function refreshPulse() {
+  const p = await api("GET", "/api/staff/pulse");
+  $("pulse-now").textContent = `${n(p.watchingNow)} page${p.watchingNow === 1 ? "" : "s"} watching live right now · ${n(p.fights.settled)} fights in the last 7 days, ${p.fights.bettorsPerFight} players betting on each · of the ${n(p.cameBack.players)} players who first bet 2–8 days ago, ${n(p.cameBack.returned)}${pct(p.cameBack.returned, p.cameBack.players)} came back another day`;
+  $("pulse-windows").innerHTML = `<tr><th></th><th>Players betting</th><th>New</th><th>Returning</th><th>Bets</th><th>Salt staked</th></tr>` +
+    p.windows.map((w) => `<tr><td>${esc(w.label)}</td><td><strong>${n(w.bettors)}</strong></td><td>${n(w.newBettors)}</td><td>${n(w.returning)}</td><td>${n(w.bets)}</td><td>${n(w.staked)}</td></tr>`).join("");
+  const most = Math.max(1, ...p.days.map((d) => d.bettors));
+  $("pulse-days").innerHTML = `<tr><th>Day (UTC)</th><th>Players betting</th><th>New</th><th>Bets</th><th>Salt staked</th></tr>` +
+    p.days.map((d) => `<tr><td class="muted">${esc(d.day)}</td><td><span style="display:inline-block;height:.7em;width:${Math.round((80 * d.bettors) / most)}px;background:#c9a227;margin-right:6px"></span>${n(d.bettors)}</td><td>${n(d.newBettors)}</td><td>${n(d.bets)}</td><td>${n(d.staked)}</td></tr>`).join("");
+}
+
 async function refresh() {
   try {
     me = await api("GET", "/api/me");
@@ -190,7 +203,7 @@ async function refresh() {
   $("not-staff").hidden = staff;
   $("staff").hidden = !staff;
   if (!staff) return;
-  await Promise.all([can("review") && refreshQueue(), can("view_log") && refreshStaff(), can("view_log") && refreshCollections()]).catch((e) => { $("msg").textContent = e.message; });
+  await Promise.all([can("review") && refreshQueue(), can("view_log") && refreshStaff(), can("view_log") && refreshPulse(), can("view_log") && refreshCollections()]).catch((e) => { $("msg").textContent = e.message; });
 }
 
 $("search").onclick = () => search().catch((e) => { $("msg").textContent = e.message; });
