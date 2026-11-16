@@ -99,7 +99,7 @@ import {
 import { LOOK_IMAGE_TYPES, loadLookStore, type LookStore } from "../look-images.ts";
 import { characterCardData, fighterCardData, renderCard, type CardData } from "../cards.ts";
 import { collectionView, markSeen } from "../collection.ts";
-import { callBoards, myBettorStats } from "../bettor-stats.ts";
+import { callBoards, todaysTopWinners, myBettorStats } from "../bettor-stats.ts";
 import { recapFor, recapLines } from "../recap.ts";
 import { shareImage } from "../share-image.ts";
 import { fillSharePage, shareMeta } from "./share-page.ts";
@@ -313,6 +313,8 @@ export async function buildServer(deps: ApiDeps): Promise<FastifyInstance> {
   // A bettor's own numbers (bettor-stats.ts), and the best-calls boards (public; the viewer's own line when signed in).
   app.get("/api/me/stats", async (req, reply) => send(reply, await myBettorStats(db, config, await requireViewer(req))));
   app.get("/api/boards/calls", async (req, reply) => send(reply, await callBoards(db, config, await viewer(req))));
+  // Today's biggest winners: the stream's ticker and the watch page put players' names up (bettor-stats.ts).
+  app.get("/api/boards/today", async (_req, reply) => send(reply, await todaysTopWinners(db)));
   // What happened since a moment (recap.ts): "while you were away", and a long session's own recap.
   app.get<{ Querystring: { since?: string } }>("/api/me/recap", async (req, reply) => {
     const userId = await requireViewer(req);
