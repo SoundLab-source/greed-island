@@ -1,6 +1,6 @@
 import { createTestFight, useTestDb } from "@greed-island/db/test";
 import { describe, expect, it } from "vitest";
-import { settledMark, untilNextSettle } from "./standings-cache.ts";
+import { settledMark, untilNextSettle } from "./view-cache.ts";
 
 const db = useTestDb();
 
@@ -43,5 +43,22 @@ describe("standings kept until the next fight settles", () => {
     await settle(await createTestFight(db), new Date("2026-11-02T10:00:00Z"));
     await expect(untilNextSettle(db, "s", async () => { throw new Error("db down"); })).rejects.toThrow("db down");
     expect(await untilNextSettle(db, "s", async () => 7)).toBe(7);
+  });
+});
+
+describe("a fight's view, shared between viewers", () => {
+  it("is worked out again when the fight moves on or a bet comes in, and after its time is up", async () => {
+    const { keptWhile, fightMark } = await import("./view-cache.ts");
+    const fightId = await createTestFight(db);
+    let runs = 0;
+    let clock = 0;
+    const get = async () => keptWhile(db, `fight:${fightId}`, await fightMark(db, fightId), async () => ++runs, { maxAgeMs: 10_000, now: () => clock });
+    expect(await get()).toBe(1);
+    expect(await get()).toBe(1);
+    await db.fight.update({ where: { id: fightId }, data: { version: { increment: 1 } } });
+    expect(await get()).toBe(2);
+    clock = 10_000;
+    expect(await get()).toBe(3);
+    expect(await fightMark(db, "00000000-0000-0000-0000-000000000000")).toBe("none:");
   });
 });

@@ -6,7 +6,7 @@
 import type { Db, Prisma } from "@greed-island/db";
 import { playerName, seasonChampion, topBettor, type Config } from "@greed-island/shared";
 import { seasonRankings } from "../seasons.ts";
-import { untilNextSettle } from "../standings-cache.ts";
+import { untilNextSettle } from "../view-cache.ts";
 
 type SeasonWithWinners = Prisma.SeasonGetPayload<{ include: { champion: true; topBettor: true } }>;
 
@@ -34,7 +34,7 @@ async function names(db: Db, userIds: string[], characterIds: string[]) {
   };
 }
 
-/** The running season's rankings, kept until the next fight settles (standings-cache.ts): every page asks for them. */
+/** The running season's rankings, kept until the next fight settles (view-cache.ts): every page asks for them. */
 function liveRankings(db: Db, season: { id: string; startsAt: Date; endsAt: Date }) {
   return untilNextSettle(db, `season:${season.id}:${season.startsAt.getTime()}:${season.endsAt.getTime()}`, () => seasonRankings(db, season));
 }

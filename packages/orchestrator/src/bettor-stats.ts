@@ -5,7 +5,7 @@
  * calls this season. The rules are shared bettors.ts; bots are never on a board.
  */
 import { fromSalt, toSalt, type Db, type Prisma } from "@greed-island/db";
-import { untilNextSettle } from "./standings-cache.ts";
+import { untilNextSettle } from "./view-cache.ts";
 import { bettorStats, playerName, rankBoard, type Archetype, type BettorStats, type Config } from "@greed-island/shared";
 
 /** A player's numbers from all their settled bets. */
