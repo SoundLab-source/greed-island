@@ -58,7 +58,7 @@ describe("email sign-in links", () => {
     expect(signed.user).toMatchObject({ kind: "EMAIL", email: "new@example.com" });
     expect(signed.user.emailVerifiedAt).not.toBeNull();
     expect(await getBalance(db, signed.user.id)).toBe(400n);
-    expect((await findSessionUser(db, signed.sessionToken))?.id).toBe(signed.user.id);
+    expect((await findSessionUser(db, signed.sessionToken, later(120_000)))?.id).toBe(signed.user.id);
   });
 
   it("sign in to the existing account the next time, without a second grant", async () => {
