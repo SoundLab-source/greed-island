@@ -9,7 +9,7 @@
  * AI. No art was downloaded or drawn by hand: every frame is drawn in code.
  */
 import { burst, candle, dollar, speedLines, swoosh } from "../rig/fx.ts";
-import { rigFighter } from "../rig/fighter.ts";
+import { rigFighter, type RigFighterOptions } from "../rig/fighter.ts";
 import { person } from "../rig/kit.ts";
 import { STAND, UPRIGHT } from "../rig/moves.ts";
 import { FX_FIRST, type Design } from "../rig/parts.ts";
@@ -149,17 +149,13 @@ const WIDE = pose({ ...UPRIGHT, lean: -6, head: -8, armF: [128, 24], armB: [168,
 const cash = [dollar("handF", 6, -26, MC_FX.green, 3), dollar("handB", -14, -34, MC_FX.green, 3)];
 const WIN_WIDE = [UPRIGHT, blend(UPRIGHT, WIDE, 0.5), { ...WIDE, fx: cash }, { ...WIDE, head: -22, fx: cash }];
 
-export const MARGIN_CALL = rigFighter({
-  id: "gi-margin-call",
-  name: "Margin Call",
+/**
+ * His moves as a set any rig fighter on the Brawler's numbers can use (a fighter drawn on the parts guide, say):
+ * the poses, his effects, intro, taunt and win poses.
+ */
+export const BRAWLER_MOVE_SET = {
   base: ALL_ROUNDER,
-  design: MARGIN_CALL_DESIGN,
   fx: FX_COLORS,
-  outfits: [
-    { name: "Black Monday", materials: { suit: "#26262c", tie: "#d4a52a", shirt: "#d8d8dc" } },
-    { name: "Bear Market", materials: { suit: "#5a3e2b", tie: "#2d5a3a", shirt: "#efe6d2", hair: "#6b4a2e" } },
-    { name: "Casual Friday", materials: { suit: "#8a7a5c", tie: "#3a6fb0", shirt: "#bcd4ee", shoes: "#5a3a22" } },
-  ],
   moves: {
     200: { poses: JAB, strike: ["foreArmF", "handF"] },
     210: { name: "Cross", poses: CROSS, strike: ["foreArmB", "handB"] },
@@ -180,6 +176,18 @@ export const MARGIN_CALL = rigFighter({
   wins: [
     { poses: WIN_WATCH, ticks: [6, 6, 30, 20, 60], comment: "win: checks his watch" },
     { poses: WIN_WIDE, ticks: [6, 6, 20, 60], comment: "win: arms wide, money in the air" },
+  ],
+} satisfies Pick<RigFighterOptions, "base" | "fx" | "moves" | "intro" | "taunt" | "wins">;
+
+export const MARGIN_CALL = rigFighter({
+  ...BRAWLER_MOVE_SET,
+  id: "gi-margin-call",
+  name: "Margin Call",
+  design: MARGIN_CALL_DESIGN,
+  outfits: [
+    { name: "Black Monday", materials: { suit: "#26262c", tie: "#d4a52a", shirt: "#d8d8dc" } },
+    { name: "Bear Market", materials: { suit: "#5a3e2b", tie: "#2d5a3a", shirt: "#efe6d2", hair: "#6b4a2e" } },
+    { name: "Casual Friday", materials: { suit: "#8a7a5c", tie: "#3a6fb0", shirt: "#bcd4ee", shoes: "#5a3a22" } },
   ],
   credit: "Drawn in code by Greed Island (rig/): an original character, no outside art",
 });

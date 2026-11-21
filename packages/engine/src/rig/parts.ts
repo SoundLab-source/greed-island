@@ -21,11 +21,28 @@ export type Shape =
   /** A polygon, points as [u, v]. */
   | { kind: "poly"; points: readonly (readonly [number, number])[]; material: string; tone?: Tone; flat?: boolean; outline?: boolean };
 
-/** A part: its shapes, later ones drawn over earlier ones. Its outline is drawn round all of them. */
+/**
+ * A part drawn as a picture (by an artist, on the parts guide: rig/parts-sheet.ts) instead of shapes: palette
+ * indices from IMAGE_FIRST, 0 transparent. The bone runs from `pivot` along `u` (a unit step in the picture), and
+ * the fighter's front is along `v`.
+ */
+export interface PartImage {
+  width: number;
+  height: number;
+  pixels: Uint8Array;
+  pivot: { x: number; y: number };
+  u: { x: number; y: number };
+  v: { x: number; y: number };
+}
+
+/** A part: its shapes, later ones drawn over earlier ones, or a picture. Its outline is drawn round all of it. */
 export interface Part {
   shapes: readonly Shape[];
   /** Hands only: the fist (default) and the open hand, when they differ. */
   open?: readonly Shape[];
+  /** Drawn instead of the shapes. */
+  image?: PartImage;
+  openImage?: PartImage;
 }
 
 export interface Design {
@@ -35,13 +52,18 @@ export interface Design {
   parts: Readonly<Partial<Record<BoneId, Part>>>;
   /** The outline colour (default a near-black). */
   outline?: string;
+  /** Colours of drawn parts (Part.image), palette IMAGE_FIRST on; each gets a darker copy for the far side. */
+  imageColors?: readonly string[];
   proportions?: Partial<Proportions>;
 }
 
-/** Palette index of the outline; every material takes the three after the last. Up to 60 materials. */
+/** Palette index of the outline; every material takes the three after the last. Up to 30 materials (indices to 91). */
 export const OUTLINE_INDEX = 1;
 const FIRST_MATERIAL = 2;
 const TONES: readonly Tone[] = ["light", "mid", "dark"];
+/** Drawn parts' colours: up to IMAGE_COLORS of them from here, and their far-side shades IMAGE_COLORS after. */
+export const IMAGE_FIRST = 100;
+export const IMAGE_COLORS = 50;
 /** Effect colours (streaks, sparks) go from here up to 239, below the energy ball's slots (templates/projectile.ts). */
 export const FX_FIRST = 200;
 export const FX_LAST = 239;
@@ -89,11 +111,17 @@ export function materialColors(design: Design, colors: Readonly<Record<string, s
 
 /** The whole 256-colour palette for the design's own colours (index 0 transparent, black where unused). */
 export function designPalette(design: Design, fx: Readonly<Record<number, string>> = {}): Uint8Array {
-  if (materialNames(design).length > 60) throw new Error("a design has at most 60 materials");
+  if (materialNames(design).length > 30) throw new Error("a design has at most 30 materials");
   const pal = new Uint8Array(768);
   const set = (i: number, c: string) => pal.set(hexToRgb(c), i * 3);
   set(OUTLINE_INDEX, design.outline ?? "#1a1420");
   for (const [i, c] of Object.entries(materialColors(design, design.materials))) set(Number(i), c);
+  const images = design.imageColors ?? [];
+  if (images.length > IMAGE_COLORS) throw new Error(`a design's drawn parts have at most ${IMAGE_COLORS} colours`);
+  images.forEach((c, k) => {
+    set(IMAGE_FIRST + k, c);
+    set(IMAGE_FIRST + IMAGE_COLORS + k, shades(c).dark);
+  });
   for (const [i, c] of Object.entries(fx)) {
     if (Number(i) < FX_FIRST || Number(i) > FX_LAST) throw new Error(`effect colour ${i} should be ${FX_FIRST}-${FX_LAST}`);
     set(Number(i), c);
@@ -108,8 +136,9 @@ export function checkDesign(design: Design): string[] {
   for (const [name, c] of Object.entries(design.materials)) if (!/^#[0-9a-f]{6}$/i.test(c)) problems.push(`material ${name}: bad colour ${c}`);
   for (const [bone, part] of Object.entries(design.parts)) {
     for (const s of [...part.shapes, ...(part.open ?? [])]) if (!names.has(s.material)) problems.push(`${bone}: unknown material ${s.material}`);
-    if (part.shapes.length === 0) problems.push(`${bone}: no shapes`);
+    if (part.shapes.length === 0 && !part.image) problems.push(`${bone}: no shapes`);
   }
-  if (names.size > 60) problems.push("more than 60 materials");
+  if (names.size > 30) problems.push("more than 30 materials");
+  if ((design.imageColors?.length ?? 0) > IMAGE_COLORS) problems.push(`more than ${IMAGE_COLORS} colours in the drawn parts`);
   return problems;
 }

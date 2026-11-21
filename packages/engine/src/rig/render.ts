@@ -5,7 +5,7 @@
  * ground and its effects drawn on top.
  */
 import type { IndexedImage } from "../art/sheet.ts";
-import { materialIndex, OUTLINE_INDEX, type Design, type Shape, type Tone } from "./parts.ts";
+import { IMAGE_COLORS, IMAGE_FIRST, materialIndex, OUTLINE_INDEX, type Design, type PartImage, type Shape, type Tone } from "./parts.ts";
 import { DEFAULT_PROPORTIONS, dir, DRAW_ORDER, solve, type BoneId, type PlacedBone, type Pose, type Proportions, type Skeleton } from "./skeleton.ts";
 
 export interface Cell {
@@ -64,8 +64,42 @@ function extent(s: Shape): { u0: number; u1: number; v0: number; v1: number } {
   return { u0: Math.min(...us), u1: Math.max(...us), v0: Math.min(...vs), v1: Math.max(...vs) };
 }
 
+/** Draw a drawn part (a picture) on its bone: nearest pixel, a shade darker on the far side, outlined. */
+export function drawImagePart(out: IndexedImage, bone: PlacedBone, image: PartImage) {
+  const back = bone.id.endsWith("B");
+  const d = dir(bone.angle);
+  const sign = frontSign(bone.id);
+  const n = { x: d.y * sign, y: -d.x * sign };
+  // Picture coordinates of a cell point: its (u, v) on the bone, stepped along the picture's u and v from the pivot.
+  const sample = (x: number, y: number) => {
+    const px = x - bone.at.x, py = y - bone.at.y;
+    const u = px * d.x + py * d.y, v = px * n.x + py * n.y;
+    const ix = Math.floor(image.pivot.x + u * image.u.x + v * image.v.x), iy = Math.floor(image.pivot.y + u * image.u.y + v * image.v.y);
+    return ix < 0 || iy < 0 || ix >= image.width || iy >= image.height ? 0 : image.pixels[iy * image.width + ix]!;
+  };
+  // The picture's corners in the cell, for the box to scan: invert pivot + u*U + v*V.
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const det = image.u.x * image.v.y - image.u.y * image.v.x;
+  for (const [cx, cy] of [[0, 0], [image.width, 0], [0, image.height], [image.width, image.height]] as const) {
+    const ax = cx - image.pivot.x, ay = cy - image.pivot.y;
+    const u = (ax * image.v.y - ay * image.v.x) / det, v = (image.u.x * ay - image.u.y * ax) / det;
+    const x = bone.at.x + u * d.x + v * n.x, y = bone.at.y + u * d.y + v * n.y;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  const fromX = Math.max(0, Math.floor(x0) - 1), toX = Math.min(out.width - 1, Math.ceil(x1) + 1);
+  const fromY = Math.max(0, Math.floor(y0) - 1), toY = Math.min(out.height - 1, Math.ceil(y1) + 1);
+  for (let y = fromY; y <= toY; y++) {
+    for (let x = fromX; x <= toX; x++) {
+      const c = sample(x + 0.5, y + 0.5);
+      if (!c) continue;
+      const edge = !sample(x + 1.5, y + 0.5) || !sample(x - 0.5, y + 0.5) || !sample(x + 0.5, y + 1.5) || !sample(x + 0.5, y - 0.5);
+      out.pixels[y * out.width + x] = edge ? OUTLINE_INDEX : back && c >= IMAGE_FIRST && c < IMAGE_FIRST + IMAGE_COLORS ? c + IMAGE_COLORS : c;
+    }
+  }
+}
+
 /** Draw one part on its bone into `out` (palette indices). */
-function drawPart(out: IndexedImage, design: Design, bone: PlacedBone, shapes: readonly Shape[]) {
+export function drawPart(out: IndexedImage, design: Design, bone: PlacedBone, shapes: readonly Shape[]) {
   const back = bone.id.endsWith("B");
   const d = dir(bone.angle);
   const sign = frontSign(bone.id);
@@ -147,7 +181,9 @@ export function renderPose(design: Design, pose: Pose, cell: Cell): Rendered {
     if (!part) continue;
     const isHand = id === "handF" || id === "handB";
     const open = isHand && pose.open?.[id === "handF" ? "F" : "B"];
-    drawPart(canvas, design, bones[id], open && part.open ? part.open : part.shapes);
+    const image = open && part.openImage ? part.openImage : part.image;
+    if (image) drawImagePart(canvas, bones[id], image);
+    else drawPart(canvas, design, bones[id], open && part.open ? part.open : part.shapes);
   }
   let lowest = -1;
   for (let y = canvas.height - 1; y >= 0 && lowest < 0; y--) {

@@ -36,7 +36,11 @@
     "mugen:import": "pnpm --filter @greed-island/engine run mugen:import",
     "mugen:scan": "pnpm --filter @greed-island/engine run mugen:scan",
     "templates:sample-art": "pnpm --filter @greed-island/engine run templates:sample-art",
-    "stages:build": "pnpm --filter @greed-island/engine run stages:build"
+    "stages:build": "pnpm --filter @greed-island/engine run stages:build",
+    "rig:gallery": "pnpm --filter @greed-island/engine run rig:gallery",
+    "rig:guide": "pnpm --filter @greed-island/engine run rig:guide",
+    "rig:import": "pnpm --filter @greed-island/engine run rig:import",
+    "rig:sample-parts": "pnpm --filter @greed-island/engine run rig:sample-parts"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

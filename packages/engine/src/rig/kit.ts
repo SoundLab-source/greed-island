@@ -30,6 +30,8 @@ export interface PersonOptions {
   extra?: Partial<Record<BoneId, readonly Shape[]>>;
   /** A beard in the hair's material. */
   beard?: boolean;
+  /** The head drawn bigger (a chibi, a mascot) or smaller, 1 for as is. */
+  headScale?: number;
   proportions?: Partial<Proportions>;
 }
 
@@ -118,6 +120,31 @@ export function person(o: PersonOptions): Pick<Design, "parts" | "proportions"> 
         : [{ kind: "capsule", material: "skin", u0: -2, u1: 18, r0: 5.5, r1: 4 }],
     };
   }
-  if (o.shorts) for (const side of ["F", "B"] as const) parts[`thigh${side}`] = { shapes: [{ kind: "capsule", material: "skin", u0: 0, u1: 50, r0: r(10.5), r1: r(8) }, { kind: "capsule", material: o.legs, u0: 0, u1: 26, r0: r(12.5), r1: r(11) }] };
-  return { parts, proportions: { ...DEFAULT_PROPORTIONS, ...o.proportions } };
+  if (o.shorts) for (const side of ["F", "B"] as const) parts[`thigh${side}`] = { shapes: [{ kind: "capsule", material: "skin", u0: 0, u1: 50, r0: r(10.5), r1: r(8) }, { kind: "capsule", material: o.legs, u0: 0, u1: 26, r0: r(12.5), r1: r(11) }, ...(o.extra?.[`thigh${side}`] ?? [])] };
+  // The kit draws for the default proportions: longer or shorter bones stretch their parts along the bone.
+  const P = { ...DEFAULT_PROPORTIONS, ...o.proportions };
+  const along: Partial<Record<BoneId, number>> = {
+    torso: P.torso / DEFAULT_PROPORTIONS.torso,
+    upperArmF: P.upperArm / DEFAULT_PROPORTIONS.upperArm, upperArmB: P.upperArm / DEFAULT_PROPORTIONS.upperArm,
+    foreArmF: P.foreArm / DEFAULT_PROPORTIONS.foreArm, foreArmB: P.foreArm / DEFAULT_PROPORTIONS.foreArm,
+    thighF: P.thigh / DEFAULT_PROPORTIONS.thigh, thighB: P.thigh / DEFAULT_PROPORTIONS.thigh,
+    shinF: P.shin / DEFAULT_PROPORTIONS.shin, shinB: P.shin / DEFAULT_PROPORTIONS.shin,
+  };
+  for (const [bone, ku] of Object.entries(along) as [BoneId, number][]) if (ku !== 1 && parts[bone]) parts[bone] = scalePart(parts[bone]!, ku, 1);
+  if (o.headScale && o.headScale !== 1) parts.head = scalePart(parts.head!, o.headScale, o.headScale);
+  return { parts, proportions: P };
+}
+
+/** Shapes stretched `ku` times along their bone and `kv` times across it. */
+export function scaleShapes(shapes: readonly Shape[], ku: number, kv: number): Shape[] {
+  const k = Math.sqrt(ku * kv);
+  return shapes.map((s): Shape => {
+    if (s.kind === "capsule") return { ...s, u0: s.u0 * ku, u1: s.u1 * ku, r0: s.r0 * k, r1: s.r1 * k, ...(s.v !== undefined ? { v: s.v * kv } : {}) };
+    if (s.kind === "ellipse") return { ...s, u: s.u * ku, v: s.v * kv, ru: s.ru * ku, rv: s.rv * kv };
+    return { ...s, points: s.points.map(([u, v]) => [u * ku, v * kv] as const) };
+  });
+}
+
+export function scalePart(p: Part, ku: number, kv: number): Part {
+  return { shapes: scaleShapes(p.shapes, ku, kv), ...(p.open ? { open: scaleShapes(p.open, ku, kv) } : {}) };
 }
