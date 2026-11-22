@@ -446,6 +446,11 @@ describe("staff and custom names", () => {
     const log = (await app.inject({ method: "GET", url: "/api/staff/log", headers: modAuth })).json();
     expect(log.map((l: { kind: string }) => l.kind)).toEqual(["CHARACTER_NAME_RESET", "DISPLAY_NAME_RESET", "REVIEW_APPROVED", "ROLE_SET", "ROLE_SET"]);
     expect((await app.inject({ method: "GET", url: "/api/staff/log", headers: player.auth })).statusCode).toBe(403);
+    // The pulse: staff only.
+    const p = (await app.inject({ method: "GET", url: "/api/staff/pulse", headers: modAuth })).json();
+    expect(p).toMatchObject({ watchingNow: 0, windows: [{ label: "Last 24 hours" }, { label: "Last 7 days" }, { label: "The 7 days before" }] });
+    expect(p.days).toHaveLength(14);
+    expect((await app.inject({ method: "GET", url: "/api/staff/pulse", headers: player.auth })).statusCode).toBe(403);
   });
 });
 
