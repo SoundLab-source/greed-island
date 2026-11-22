@@ -19,7 +19,11 @@
     "mugen:import": "tsx src/scripts/mugen-import.ts",
     "mugen:scan": "tsx src/scripts/mugen-scan.ts",
     "templates:sample-art": "tsx src/scripts/templates-sample-art.ts",
-    "stages:build": "tsx src/scripts/stages-build.ts"
+    "stages:build": "tsx src/scripts/stages-build.ts",
+    "rig:gallery": "tsx src/scripts/rig-gallery.ts",
+    "rig:guide": "tsx src/scripts/rig-parts.ts guide",
+    "rig:import": "tsx src/scripts/rig-parts.ts import",
+    "rig:sample-parts": "tsx src/scripts/rig-parts.ts sample"
   },
   "dependencies": {
     "@greed-island/db": "workspace:*",
