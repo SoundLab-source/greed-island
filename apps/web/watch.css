@@ -170,3 +170,12 @@
 /* The sound toggle (site.js GI.sfx). */
 .sound { flex: none; white-space: nowrap; background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; font-weight: 700; padding: 1px 8px; margin-left: 8px; }
 .sound:hover { color: var(--ink); }
+
+/* Today's top winners (players only), above the bets. */
+.top-today { margin-bottom: 12px; }
+.top-today ol { margin: 6px 0 0; padding: 0; list-style: none; counter-reset: top; }
+.top-today li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; font-size: 13px; counter-increment: top; }
+.top-today li::before { content: counter(top) "."; color: var(--dim); min-width: 1.4em; }
+.top-today li .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-today li .amt { color: var(--green, #3ddc84); font-weight: 700; }
+.top-today li.me .who { color: var(--gold); font-weight: 700; }

@@ -303,6 +303,18 @@
   }
 
   // What's already happened, so the list isn't empty when the page opens (live news goes on top of it).
+  // Today's biggest winners (players only): a name on the board is a reason to come back.
+  async function refreshTopToday() {
+    const t = await api("GET", "/api/boards/today").catch(() => null);
+    const rows = t ? t.rows : [];
+    $("top-today").hidden = rows.length === 0;
+    // The top three: the column also holds the goals and the bets.
+    $("top-today-list").innerHTML = rows
+      .slice(0, 3)
+      .map((r) => `<li class="${GI.me && r.name === GI.me.name ? "me" : ""}"><span class="who">${esc(r.name)}</span><span class="amt">+${fmt(r.profit)}</span></li>`)
+      .join("");
+  }
+
   async function seedFeed() {
     const results = await api("GET", "/api/results");
     for (const r of results.slice(0, 8).reverse()) {
@@ -335,13 +347,22 @@
         const why = f.breakdown && f.breakdown.length ? ` <span class="muted">${esc(f.breakdown[0])}</span>` : "";
         feed(d.result === "SETTLED" ? `Fight #${d.number}: <b>${esc(f.sides[d.winnerSide].name)}</b> wins${headline}${why}` : `Fight #${d.number}: no contest, bets refunded`);
         if (d.result !== "SETTLED") return;
+        refreshTopToday();
         // The crowd: a cheer, or a gasp and a roar for an upset; and a ka-ching when your own bet came in.
         const upset = f.story?.headline?.kind === "upset";
         if (upset) GI.sfx.play("gasp");
         setTimeout(() => GI.sfx.play("cheer", upset), upset ? 450 : 0);
         if (f.myBet?.status === "WON") {
           setTimeout(() => GI.sfx.play("kaChing"), 700);
+          const rankBefore = GI.me?.season?.rank ?? null;
           GI.toast(`You called it! ${fmt(f.myBet.returned)} ${f.currency} back${upset ? ", on an upset" : ""}.`, "ok");
+          // A climb up the season leaderboard (Salt won this season) is worth saying out loud.
+          await GI.refreshMe().catch(() => {});
+          const rank = GI.me?.season?.rank ?? null;
+          if (rank !== null && rank <= 100 && (rankBefore === null || rank < rankBefore)) {
+            setTimeout(() => GI.toast(`You're up to #${rank} on the Season ${GI.me.season.number} leaderboard!`, "ok"), 1500);
+          }
+          refreshTopToday();
         }
       },
       title_earned: (d) => feed(`<b>${esc(d.name)}</b> earned the title <b>${esc(d.label)}</b>`),
@@ -427,7 +448,7 @@
   (async () => {
     wireControls();
     showGoals(await GI.ready);
-    await Promise.all([setupEmbeds(), refreshFight(), seedFeed().catch(() => {})]);
+    await Promise.all([setupEmbeds(), refreshFight(), seedFeed().catch(() => {}), refreshTopToday()]);
     connect();
     recaps().catch(() => {});
   })().catch((e) => ($("bet-msg").textContent = `Couldn't load: ${e.message}`));
